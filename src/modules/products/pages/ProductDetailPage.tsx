@@ -2,7 +2,8 @@ import { useParams, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 import { ArrowLeft, ShoppingCart, Star, Plus, Minus } from "lucide-react";
 import { useState } from "react";
-import { mockProducts } from "../../../mocks/products";
+import { useQuery } from "@tanstack/react-query";
+import { productApi } from "../../../api/productApi";
 import { Button } from "../../../components/ui/Button";
 import { useCartStore } from "../../../store/useCartStore";
 
@@ -11,8 +12,19 @@ export function ProductDetailPage() {
   const [quantity, setQuantity] = useState(1);
   const { addItem } = useCartStore();
 
-  // In real app, fetch by slug. Here we find in mock:
-  const product = mockProducts.find((p) => p.slug === slug);
+  const { data: product, isLoading } = useQuery({
+    queryKey: ["product", slug],
+    queryFn: () => productApi.getProductBySlug(slug!),
+    enabled: !!slug,
+  });
+
+  if (isLoading) {
+    return (
+      <div className="container mx-auto px-4 py-20 flex justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   if (!product) {
     return (
