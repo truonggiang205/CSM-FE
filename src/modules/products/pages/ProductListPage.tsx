@@ -1,8 +1,9 @@
 import { useState } from "react";
 import { motion } from "framer-motion";
 import { Search } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { ProductCard } from "../components/ProductCard";
-import { mockProducts, mockCategories } from "../../../mocks/products";
+import { productApi } from "../../../api/productApi";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
 
@@ -10,12 +11,30 @@ export function ProductListPage() {
   const [searchQuery, setSearchQuery] = useState("");
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
 
-  // Filter products locally (mock)
-  const filteredProducts = mockProducts.filter((product) => {
+  const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
+    queryKey: ["categories"],
+    queryFn: productApi.getCategories,
+  });
+
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: ["products"],
+    queryFn: productApi.getProducts,
+  });
+
+  // Filter products locally
+  const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesCategory = selectedCategory ? product.category.id === selectedCategory : true;
     return matchesSearch && matchesCategory;
   });
+
+  if (isLoadingCategories || isLoadingProducts) {
+    return (
+      <div className="container mx-auto px-4 py-20 flex justify-center">
+        <div className="w-8 h-8 border-4 border-primary border-t-transparent rounded-full animate-spin"></div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -51,7 +70,7 @@ export function ProductListPage() {
                     Tất cả sản phẩm
                   </button>
                 </li>
-                {mockCategories.map((cat) => (
+                {categories.map((cat) => (
                   <li key={cat.id}>
                     <button
                       onClick={() => setSelectedCategory(cat.id)}
@@ -73,7 +92,7 @@ export function ProductListPage() {
           <div className="mb-6 flex items-center justify-between">
             <h1 className="text-2xl font-bold">
               {selectedCategory 
-                ? mockCategories.find(c => c.id === selectedCategory)?.name 
+                ? categories.find(c => c.id === selectedCategory)?.name 
                 : "Tất cả sản phẩm"}
             </h1>
             <span className="text-muted text-sm">
