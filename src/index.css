@@ -1,11 +1,22 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
 
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
 
 @layer base {
-  body {
-    @apply font-sans bg-surface text-neutral-900;
+  :root {
+    --bg-background: #F9FAFB;
+    --text-foreground: #111827;
+    --text-muted: #6B7280;
+    --border-color: #E5E7EB;
   }
+
+  body {
+    @apply bg-[var(--bg-background)] text-[var(--text-foreground)] font-sans antialiased;
+  }
+}
+
+@layer components {
+  /* Common utility overrides */
 }
