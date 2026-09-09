@@ -7,21 +7,20 @@ export default {
   theme: {
     extend: {
       colors: {
-        brand: {
-          primary: '#0F9D58',
-          'primary-dark': '#0B7A44',
-          accent: '#FF7A00',
+        primary: {
+          DEFAULT: '#0F9D58',
+          dark: '#0B7A44',
         },
-        neutral: {
-          100: '#F3F4F6',
-          300: '#D1D5DB',
-          600: '#4B5563',
-          900: '#111827',
-        },
+        accent: '#FF7A00',
+        background: 'var(--bg-background)',
         surface: '#FFFFFF',
-        danger: '#DC2626',
-        warning: '#F59E0B',
+        foreground: 'var(--text-foreground)',
+        muted: 'var(--text-muted)',
         success: '#16A34A',
+        warning: '#F59E0B',
+        danger: '#DC2626',
+        info: '#3B82F6',
+        border: 'var(--border-color)',
       },
       fontFamily: {
         sans: ['Inter', 'system-ui', 'sans-serif'],
@@ -42,16 +41,6 @@ export default {
       boxShadow: {
         'card': '0 1px 3px rgba(0,0,0,0.08)',
         'card-hover': '0 8px 20px rgba(0,0,0,0.12)',
-      },
-      spacing: {
-        '4': '4px',
-        '8': '8px',
-        '12': '12px',
-        '16': '16px',
-        '24': '24px',
-        '32': '32px',
-        '48': '48px',
-        '64': '64px',
       }
     },
   },

@@ -1,32 +1,38 @@
-import React from 'react';
-import { cn } from '../../lib/utils';
+import * as React from "react"
+import { cva, type VariantProps } from "class-variance-authority"
 
-export interface BadgeProps extends React.HTMLAttributes<HTMLDivElement> {
-  variant?: 'primary' | 'accent' | 'success' | 'warning' | 'danger' | 'neutral';
+import { cn } from "../../lib/utils"
+
+const badgeVariants = cva(
+  "inline-flex items-center rounded-full border px-2.5 py-0.5 text-xs font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2",
+  {
+    variants: {
+      variant: {
+        default:
+          "border-transparent bg-primary text-white hover:bg-primary-dark",
+        secondary:
+          "border-transparent bg-neutral-100 text-foreground hover:bg-neutral-300",
+        destructive:
+          "border-transparent bg-danger text-white hover:bg-danger/80",
+        outline: "text-foreground",
+        success: "border-transparent bg-success text-white hover:bg-success/80",
+        warning: "border-transparent bg-warning text-white hover:bg-warning/80",
+      },
+    },
+    defaultVariants: {
+      variant: "default",
+    },
+  }
+)
+
+export interface BadgeProps
+  extends React.HTMLAttributes<HTMLDivElement>,
+    VariantProps<typeof badgeVariants> {}
+
+function Badge({ className, variant, ...props }: BadgeProps) {
+  return (
+    <div className={cn(badgeVariants({ variant }), className)} {...props} />
+  )
 }
 
-export const Badge = React.forwardRef<HTMLDivElement, BadgeProps>(
-  ({ className, variant = 'primary', ...props }, ref) => {
-    const variants = {
-      primary: 'bg-brand-primary text-white',
-      accent: 'bg-brand-accent text-white',
-      success: 'bg-success text-white',
-      warning: 'bg-warning text-white',
-      danger: 'bg-danger text-white',
-      neutral: 'bg-neutral-100 text-neutral-600 border border-neutral-300',
-    };
-
-    return (
-      <div
-        ref={ref}
-        className={cn(
-          'inline-flex items-center rounded-sm px-2.5 py-0.5 text-xs font-medium',
-          variants[variant],
-          className
-        )}
-        {...props}
-      />
-    );
-  }
-);
-Badge.displayName = 'Badge';
+export { Badge, badgeVariants }
