@@ -37,14 +37,14 @@ export function ProductListPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 sm:px-6 py-8">
       <div className="flex flex-col md:flex-row gap-8">
         
         {/* Sidebar Filters */}
         <aside className="w-full md:w-64 flex-shrink-0">
-          <div className="sticky top-20 space-y-6">
+          <div className="sticky top-24 space-y-6 bg-surface p-5 rounded-2xl border border-border shadow-card">
             <div>
-              <h2 className="text-lg font-semibold mb-3">Tìm kiếm</h2>
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted mb-3">Tìm kiếm</h2>
               <div className="relative">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted" />
                 <Input
@@ -58,13 +58,15 @@ export function ProductListPage() {
             </div>
 
             <div>
-              <h2 className="text-lg font-semibold mb-3">Danh mục</h2>
-              <ul className="space-y-2">
+              <h2 className="text-sm font-bold uppercase tracking-wider text-muted mb-3">Danh mục</h2>
+              <ul className="space-y-1.5">
                 <li>
                   <button
                     onClick={() => setSelectedCategory(null)}
-                    className={`text-sm w-full text-left px-2 py-1.5 rounded-md transition-colors ${
-                      selectedCategory === null ? "bg-primary/10 text-primary font-medium" : "text-muted hover:bg-neutral-100 hover:text-foreground"
+                    className={`text-sm w-full text-left px-3 py-2 rounded-xl transition-all ${
+                      selectedCategory === null
+                        ? "bg-primary-tint text-primary-dark font-semibold border border-primary/25 shadow-sm"
+                        : "text-muted hover:bg-surface-soft hover:text-foreground border border-transparent"
                     }`}
                   >
                     Tất cả sản phẩm
@@ -74,8 +76,10 @@ export function ProductListPage() {
                   <li key={cat.id}>
                     <button
                       onClick={() => setSelectedCategory(cat.id)}
-                      className={`text-sm w-full text-left px-2 py-1.5 rounded-md transition-colors ${
-                        selectedCategory === cat.id ? "bg-primary/10 text-primary font-medium" : "text-muted hover:bg-neutral-100 hover:text-foreground"
+                      className={`text-sm w-full text-left px-3 py-2 rounded-xl transition-all ${
+                        selectedCategory === cat.id
+                          ? "bg-primary-tint text-primary-dark font-semibold border border-primary/25 shadow-sm"
+                          : "text-muted hover:bg-surface-soft hover:text-foreground border border-transparent"
                       }`}
                     >
                       {cat.name}
@@ -90,12 +94,12 @@ export function ProductListPage() {
         {/* Main Product Area */}
         <main className="flex-1">
           <div className="mb-6 flex items-center justify-between">
-            <h1 className="text-2xl font-bold">
+            <h1 className="text-2xl font-bold text-foreground">
               {selectedCategory 
                 ? categories.find(c => c.id === selectedCategory)?.name 
                 : "Tất cả sản phẩm"}
             </h1>
-            <span className="text-muted text-sm">
+            <span className="text-muted text-xs font-medium px-3 py-1 bg-surface rounded-full border border-border">
               Hiển thị {filteredProducts.length} kết quả
             </span>
           </div>
@@ -104,7 +108,7 @@ export function ProductListPage() {
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
-              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6"
+              className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5"
             >
               {filteredProducts.map((product) => (
                 <ProductCard 
@@ -114,17 +118,21 @@ export function ProductListPage() {
               ))}
             </motion.div>
           ) : (
-            <div className="text-center py-20 bg-surface rounded-xl border border-border">
-              <p className="text-muted">Không tìm thấy sản phẩm nào phù hợp.</p>
+            <div className="text-center py-20 bg-surface rounded-2xl border border-border shadow-card">
+              <div className="w-14 h-14 mx-auto mb-3 rounded-2xl bg-primary-tint flex items-center justify-center text-2xl">
+                🔍
+              </div>
+              <p className="text-muted text-sm">Không tìm thấy sản phẩm nào phù hợp.</p>
               <Button 
-                variant="link" 
-                className="mt-2"
+                variant="soft" 
+                size="sm"
+                className="mt-4"
                 onClick={() => {
                   setSearchQuery("");
                   setSelectedCategory(null);
                 }}
               >
-                Xóa bộ lọc
+                Đặt lại bộ lọc
               </Button>
             </div>
           )}
