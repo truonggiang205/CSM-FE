@@ -48,91 +48,104 @@ export function ProductDetailPage() {
   const handleIncrease = () => setQuantity((q) => Math.min(product.stock, q + 1));
 
   return (
-    <div className="container mx-auto px-4 py-8">
+    <div className="container mx-auto px-4 sm:px-6 py-8 max-w-6xl">
       <Link 
         to="/products" 
-        className="inline-flex items-center text-sm font-medium text-muted hover:text-primary mb-8 transition-colors"
+        className="inline-flex items-center text-sm font-medium text-muted hover:text-primary-dark mb-6 transition-colors"
       >
         <ArrowLeft className="w-4 h-4 mr-2" />
-        Quay lại sản phẩm
+        Quay lại danh mục
       </Link>
 
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-12">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-10 lg:gap-14 bg-surface p-6 sm:p-10 rounded-3xl border border-border shadow-card">
         {/* Gallery Area */}
         <motion.div 
-          initial={{ opacity: 0, x: -20 }}
+          initial={{ opacity: 0, x: -16 }}
           animate={{ opacity: 1, x: 0 }}
-          className="aspect-square bg-neutral-100 rounded-2xl border border-border flex items-center justify-center overflow-hidden"
+          className="aspect-square bg-surface-soft rounded-2xl border border-border/80 flex items-center justify-center overflow-hidden p-6 relative"
         >
           <img 
             src={product.images[0]} 
             alt={product.name} 
-            className="w-full h-full object-cover"
+            className="w-full h-full object-contain mix-blend-multiply"
           />
+          {product.discountPrice && (
+            <span className="absolute top-4 left-4 bg-danger-pastel text-danger-dark border border-danger/25 text-xs font-semibold px-3 py-1 rounded-full shadow-sm">
+              Đang giảm giá
+            </span>
+          )}
         </motion.div>
 
         {/* Info Area */}
         <motion.div 
-          initial={{ opacity: 0, x: 20 }}
+          initial={{ opacity: 0, x: 16 }}
           animate={{ opacity: 1, x: 0 }}
-          className="flex flex-col"
+          className="flex flex-col justify-between"
         >
-          <div className="text-sm font-medium text-primary mb-2">
-            {product.category.name}
-          </div>
-          <h1 className="text-h1 sm:text-display font-bold text-foreground mb-4">
-            {product.name}
-          </h1>
-
-          <div className="flex items-center space-x-4 mb-6">
-            <div className="flex items-center text-warning">
-              <Star className="w-5 h-5 fill-current" />
-              <span className="ml-1 font-medium text-foreground">{product.rating}</span>
+          <div>
+            <div className="inline-flex items-center text-xs font-semibold text-primary-dark bg-primary-tint border border-primary/25 px-3 py-1 rounded-full mb-3">
+              {product.category.name}
             </div>
-            <span className="text-muted">({product.reviewsCount} đánh giá)</span>
-            <span className="text-muted">•</span>
-            <span className={product.stock > 0 ? "text-success" : "text-danger"}>
-              {product.stock > 0 ? `Còn ${product.stock} sản phẩm` : "Hết hàng"}
-            </span>
-          </div>
+            <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground mb-3 leading-snug">
+              {product.name}
+            </h1>
 
-          <div className="mb-8">
-            {product.discountPrice ? (
-              <div className="flex items-end gap-3">
-                <span className="text-3xl font-bold text-primary">
-                  {formatCurrency(product.discountPrice)}
-                </span>
-                <span className="text-lg text-muted line-through mb-1">
+            <div className="flex flex-wrap items-center gap-3 mb-6">
+              <div className="flex items-center px-2.5 py-0.5 rounded-full bg-warning-pastel border border-warning/25 text-warning-dark text-xs font-semibold">
+                <Star className="w-3.5 h-3.5 fill-current mr-1" />
+                <span>{product.rating}</span>
+              </div>
+              <span className="text-muted text-xs">({product.reviewsCount} đánh giá từ khách mua)</span>
+              <span className="text-muted text-xs">&bull;</span>
+              <span className={`text-xs px-2.5 py-0.5 rounded-full font-medium border ${
+                product.stock > 0 
+                  ? "bg-success-pastel text-success-dark border-success/25" 
+                  : "bg-danger-pastel text-danger-dark border-danger/25"
+              }`}>
+                {product.stock > 0 ? `Còn hàng (${product.stock})` : "Tạm hết hàng"}
+              </span>
+            </div>
+
+            <div className="p-4 rounded-2xl bg-surface-soft border border-border/70 mb-6">
+              {product.discountPrice ? (
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-extrabold text-primary-dark">
+                    {formatCurrency(product.discountPrice)}
+                  </span>
+                  <span className="text-base text-muted line-through">
+                    {formatCurrency(product.price)}
+                  </span>
+                </div>
+              ) : (
+                <span className="text-3xl font-extrabold text-primary-dark">
                   {formatCurrency(product.price)}
                 </span>
-              </div>
-            ) : (
-              <span className="text-3xl font-bold text-primary">
-                {formatCurrency(product.price)}
-              </span>
-            )}
+              )}
+            </div>
+
+            <div className="prose prose-sm text-muted leading-relaxed mb-6">
+              <p>{product.description}</p>
+            </div>
           </div>
 
-          <div className="prose prose-sm text-muted mb-8">
-            <p>{product.description}</p>
-          </div>
-
-          <div className="mt-auto border-t border-border pt-8">
-            <div className="flex flex-col sm:flex-row gap-4">
+          <div className="border-t border-border pt-6">
+            <div className="flex flex-col sm:flex-row gap-4 items-stretch sm:items-center">
               {/* Quantity selector */}
-              <div className="flex items-center border border-border rounded-md w-fit">
+              <div className="flex items-center border border-border rounded-xl bg-surface-soft p-1 w-fit">
                 <button 
                   onClick={handleDecrease}
                   disabled={quantity <= 1}
-                  className="p-3 text-muted hover:text-foreground disabled:opacity-50 transition-colors"
+                  className="p-2.5 rounded-lg text-muted hover:text-foreground hover:bg-surface disabled:opacity-40 transition-all"
+                  aria-label="Giảm số lượng"
                 >
                   <Minus className="w-4 h-4" />
                 </button>
-                <span className="w-12 text-center font-medium">{quantity}</span>
+                <span className="w-12 text-center font-bold text-foreground text-sm">{quantity}</span>
                 <button 
                   onClick={handleIncrease}
                   disabled={quantity >= product.stock}
-                  className="p-3 text-muted hover:text-foreground disabled:opacity-50 transition-colors"
+                  className="p-2.5 rounded-lg text-muted hover:text-foreground hover:bg-surface disabled:opacity-40 transition-all"
+                  aria-label="Tăng số lượng"
                 >
                   <Plus className="w-4 h-4" />
                 </button>
@@ -140,7 +153,7 @@ export function ProductDetailPage() {
 
               <Button 
                 size="lg" 
-                className="flex-1 text-base h-12" 
+                className="flex-1 text-base h-12 shadow-sm" 
                 disabled={product.stock === 0}
                 onClick={() => addItem(product, quantity)}
               >
