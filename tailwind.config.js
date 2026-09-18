@@ -8,18 +8,55 @@ export default {
     extend: {
       colors: {
         primary: {
-          DEFAULT: '#0F9D58',
-          dark: '#0B7A44',
+          DEFAULT: '#4E9F76', // Fresh Sage / Mint Pastel
+          dark: '#387B5B',
+          light: '#6FB994',
+          tint: '#EAF5EF',
         },
-        accent: '#FF7A00',
+        accent: {
+          DEFAULT: '#F59E6C', // Pastel Peach / Warm Apricot
+          dark: '#D97B48',
+          light: '#F9BFA0',
+          tint: '#FFF2EB',
+        },
+        pastel: {
+          mint: '#EAF5EF',
+          peach: '#FFF2EB',
+          lavender: '#EFEFFB',
+          sky: '#E8F4FA',
+          butter: '#FEF8E7',
+          rose: '#FEEFEF',
+        },
         background: 'var(--bg-background)',
-        surface: '#FFFFFF',
+        surface: {
+          DEFAULT: '#FFFFFF',
+          soft: '#F5F8F6',
+        },
         foreground: 'var(--text-foreground)',
-        muted: 'var(--text-muted)',
-        success: '#16A34A',
-        warning: '#F59E0B',
-        danger: '#DC2626',
-        info: '#3B82F6',
+        muted: {
+          DEFAULT: 'var(--text-muted)',
+          dark: '#4A5B53',
+        },
+        success: {
+          DEFAULT: '#48BB78',
+          dark: '#276749',
+          pastel: '#EDFAF1',
+        },
+        warning: {
+          DEFAULT: '#E59B3C',
+          dark: '#975A16',
+          pastel: '#FEF9E7',
+        },
+        danger: {
+          DEFAULT: '#F56565',
+          dark: '#9B2C2C',
+          pastel: '#FEF2F2',
+        },
+        info: {
+          DEFAULT: '#4299E1',
+          dark: '#2B6CB0',
+          pastel: '#EBF8FF',
+        },
         border: 'var(--border-color)',
       },
       fontFamily: {
@@ -35,12 +72,15 @@ export default {
       },
       borderRadius: {
         'sm': '6px',
-        'md': '12px',
-        'lg': '20px',
+        'md': '10px',
+        'lg': '14px',
+        'xl': '18px',
+        '2xl': '24px',
       },
       boxShadow: {
-        'card': '0 1px 3px rgba(0,0,0,0.08)',
-        'card-hover': '0 8px 20px rgba(0,0,0,0.12)',
+        'card': '0 2px 12px -2px rgba(78, 159, 118, 0.08), 0 1px 3px rgba(0, 0, 0, 0.03)',
+        'card-hover': '0 12px 28px -4px rgba(78, 159, 118, 0.15), 0 4px 8px -2px rgba(0, 0, 0, 0.04)',
+        'soft': '0 4px 20px -2px rgba(0, 0, 0, 0.05)',
       }
     },
   },

@@ -6,17 +6,36 @@
 
 @layer base {
   :root {
-    --bg-background: #F9FAFB;
-    --text-foreground: #111827;
-    --text-muted: #6B7280;
-    --border-color: #E5E7EB;
+    --bg-background: #F8FAF9;
+    --text-foreground: #22312A;
+    --text-muted: #64756D;
+    --border-color: #E2EBE6;
   }
 
   body {
-    @apply bg-[var(--bg-background)] text-[var(--text-foreground)] font-sans antialiased;
+    @apply bg-[var(--bg-background)] text-[var(--text-foreground)] font-sans antialiased selection:bg-primary/20 selection:text-primary-dark;
+  }
+
+  /* Custom subtle scrollbar */
+  ::-webkit-scrollbar {
+    width: 6px;
+    height: 6px;
+  }
+  ::-webkit-scrollbar-track {
+    background: transparent;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #D2DFD8;
+    border-radius: 9999px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #B6C9C0;
   }
 }
 
 @layer components {
-  /* Common utility overrides */
+  /* Common pastel badge chip */
+  .badge-pastel {
+    @apply inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium border;
+  }
 }
