@@ -1,11 +1,13 @@
 import { Outlet, Link } from "react-router-dom";
 import { ShoppingCart } from "lucide-react";
 import { useCartStore } from "../store/useCartStore";
+import { useAuthStore } from "../store/useAuthStore";
 import { CartDrawer } from "../modules/cart/components/CartDrawer";
 import { Button } from "../components/ui/Button";
 
 export default function PublicLayout() {
   const { toggleCart, getTotalItems } = useCartStore();
+  const { user, isAuthenticated, logout } = useAuthStore();
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground">
@@ -27,9 +29,11 @@ export default function PublicLayout() {
               <Link to="/products" className="text-muted hover:text-primary transition-colors py-1">
                 Tất cả sản phẩm
               </Link>
-              <Link to="/admin" className="text-muted hover:text-primary transition-colors py-1 text-xs px-2.5 py-1 rounded-full bg-pastel-mint text-primary-dark font-semibold">
-                Khu vực Quản trị
-              </Link>
+              {isAuthenticated && user?.role !== "CUSTOMER" && (
+                <Link to="/admin" className="text-muted hover:text-primary transition-colors py-1 text-xs px-2.5 rounded-full bg-pastel-mint text-primary-dark font-semibold">
+                  Khu vực Quản trị
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -48,12 +52,26 @@ export default function PublicLayout() {
                 </span>
               )}
             </Button>
-            <Link
-              to="/login"
-              className="text-sm font-medium px-4 py-2 rounded-xl text-primary-dark hover:bg-primary-tint/80 border border-transparent hover:border-primary/20 transition-all duration-200"
-            >
-              Đăng nhập
-            </Link>
+            {isAuthenticated ? (
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-medium text-muted hidden sm:inline-block">
+                  Hi, {user?.name || 'Bạn'}
+                </span>
+                <button
+                  onClick={logout}
+                  className="text-sm font-medium px-4 py-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all duration-200"
+                >
+                  Đăng xuất
+                </button>
+              </div>
+            ) : (
+              <Link
+                to="/login"
+                className="text-sm font-medium px-4 py-2 rounded-xl text-primary-dark hover:bg-primary-tint/80 border border-transparent hover:border-primary/20 transition-all duration-200"
+              >
+                Đăng nhập
+              </Link>
+            )}
           </div>
         </div>
       </header>

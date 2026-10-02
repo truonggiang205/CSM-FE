@@ -30,9 +30,56 @@ export function CheckoutPage() {
     );
   }
 
-  const handleCompleteOrder = () => {
-    setStep(3);
-    clearCart();
+  const handleCompleteOrder = async () => {
+    try {
+      const token = localStorage.getItem('token') || 'jwt_mock_token_for_user@example.com';
+      
+      // Lấy phương thức thanh toán đang được chọn
+      const paymentRadios = document.getElementsByName('payment') as NodeListOf<HTMLInputElement>;
+      let paymentMethod = 'COD';
+      if (paymentRadios[1]?.checked) paymentMethod = 'MOMO';
+      if (paymentRadios[2]?.checked) paymentMethod = 'ATM';
+
+      const payload = {
+        branchId: 1, // Tạm fix cứng chi nhánh 1
+        items: items.map((i: any) => ({
+          productId: i.product.id,
+          productName: i.product.name,
+          quantity: i.quantity,
+          price: i.product.discountPrice || i.product.price
+        })),
+        shippingAddress: (document.getElementById('address') as HTMLInputElement)?.value || 'Địa chỉ mặc định',
+        paymentMethod: paymentMethod
+      };
+
+      const res = await fetch('http://localhost:3000/api/v1/orders', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`
+        },
+        body: JSON.stringify(payload)
+      });
+
+      const data = await res.json();
+      
+      if (!res.ok) {
+        alert('Lỗi đặt hàng: ' + (data.message || 'Lỗi hệ thống'));
+        return;
+      }
+
+      // Nếu API trả về link thanh toán (MoMo/ATM), redirect
+      if (data.paymentUrl) {
+        window.location.href = data.paymentUrl;
+        return;
+      }
+
+      // Thanh toán COD thành công
+      setStep(3);
+      clearCart();
+    } catch (err) {
+      alert('Không thể kết nối đến server');
+    }
   };
 
   return (
