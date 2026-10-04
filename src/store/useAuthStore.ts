@@ -1,12 +1,13 @@
 import { create } from "zustand";
 
-export type Role = "CUSTOMER" | "STAFF" | "STORE_MANAGER" | "ADMIN";
+export type Role = "CUSTOMER" | "STAFF" | "BRANCH_MANAGER" | "ADMIN";
 
 export interface User {
   id: string;
   email: string;
   name: string;
   role: Role;
+  branch_id?: string;
 }
 
 interface AuthState {
