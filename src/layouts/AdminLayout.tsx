@@ -1,14 +1,14 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
-import { LayoutDashboard, Package, ShoppingBag, Users, Settings, LogOut } from "lucide-react";
+import { LayoutDashboard, Package, ShoppingBag, Users, Settings, LogOut, RefreshCw } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 
 export default function AdminLayout() {
-  const { user, logout } = useAuthStore();
+  const { user, logout, toggleTestRole } = useAuthStore();
   const location = useLocation();
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Sản phẩm", href: "/admin/products", icon: Package },
+    { name: "Quản lý tồn kho", href: "/admin/inventory", icon: Package },
     { name: "Đơn hàng", href: "/admin/orders", icon: ShoppingBag },
     { name: "Khách hàng", href: "/admin/customers", icon: Users },
     { name: "Cài đặt", href: "/admin/settings", icon: Settings },
@@ -38,7 +38,7 @@ export default function AdminLayout() {
 
         <nav className="flex-1 p-4 flex flex-col gap-1.5">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
+            const isActive = location.pathname === item.href || (item.href === "/admin/inventory" && location.pathname === "/admin/products");
             const Icon = item.icon;
             return (
               <Link
@@ -46,7 +46,7 @@ export default function AdminLayout() {
                 to={item.href}
                 className={`flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-medium transition-all ${
                   isActive
-                    ? "bg-primary-tint text-primary-dark font-semibold border border-primary/25 shadow-sm"
+                    ? "bg-primary-tint text-primary-dark font-bold border border-primary/25 shadow-sm"
                     : "text-muted hover:bg-surface-soft hover:text-foreground border border-transparent"
                 }`}
               >
@@ -57,16 +57,29 @@ export default function AdminLayout() {
           })}
         </nav>
 
-        <div className="p-4 border-t border-border">
-          <div className="flex items-center gap-3 mb-4 p-2 rounded-xl bg-surface-soft border border-border/60">
-            <div className="w-9 h-9 rounded-xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary font-bold">
-              {user?.name?.charAt(0) || "A"}
+        {/* User Card & Test Role Toggle */}
+        <div className="p-4 border-t border-border space-y-3">
+          <div className="p-3 rounded-2xl bg-surface-soft border border-border/60 space-y-2">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary font-bold">
+                {user?.name?.charAt(0) || "U"}
+              </div>
+              <div className="flex flex-col min-w-0">
+                <span className="text-xs font-bold truncate">{user?.name || "Quản trị viên"}</span>
+                <span className="text-[10px] font-semibold text-primary-dark">{user?.role}</span>
+              </div>
             </div>
-            <div className="flex flex-col min-w-0">
-              <span className="text-sm font-semibold truncate">{user?.name || "Quản trị viên"}</span>
-              <span className="text-[11px] text-muted">{user?.role || "SYSTEM ADMIN"}</span>
-            </div>
+
+            <button
+              onClick={toggleTestRole}
+              className="w-full text-left text-[11px] text-primary-dark hover:text-primary font-semibold flex items-center gap-1.5 pt-1.5 border-t border-border/50"
+              title="Nhấn để đổi vai trò kiểm thử giữa ADMIN và BRANCH_MANAGER"
+            >
+              <RefreshCw className="w-3 h-3 text-primary" />
+              Đổi role test: {user?.role === "BRANCH_MANAGER" ? "Sang ADMIN" : "Sang BRANCH_MGR"}
+            </button>
           </div>
+
           <button
             onClick={() => {
               logout();
