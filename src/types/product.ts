@@ -28,6 +28,6 @@ export interface Product {
   images: string[];
   category: Category;
   stock: number;
-  rating: number;
-  reviewsCount: number;
+  rating?: number;
+  reviewsCount?: number;
 }

@@ -29,7 +29,7 @@ export function ProductCard({ product, availableStock, branchName }: ProductCard
   const isOutOfStock = effectiveStock <= 0;
   const isLowStock = effectiveStock > 0 && effectiveStock <= 5;
 
-  const targetPath = `/products/${product.id || product.slug}`;
+  const targetPath = `/products/${product.id}`;
   const displayImage = (product.images && product.images[0]) || FALLBACK_IMAGE;
 
   return (

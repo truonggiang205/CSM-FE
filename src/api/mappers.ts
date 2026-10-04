@@ -39,8 +39,8 @@ export function mapBackendProductToFrontend(raw: any): Product {
         slug: "hang-tong-hop",
       },
       stock: 0,
-      rating: 4.8,
-      reviewsCount: 12,
+      rating: undefined,
+      reviewsCount: undefined,
     };
   }
 
@@ -98,8 +98,8 @@ export function mapBackendProductToFrontend(raw: any): Product {
     images,
     category,
     stock: typeof raw.stock === "number" ? raw.stock : 0,
-    rating: typeof raw.rating === "number" ? raw.rating : 4.8,
-    reviewsCount: typeof raw.reviewsCount === "number" ? raw.reviewsCount : 42,
+    rating: typeof raw.rating === "number" ? raw.rating : undefined,
+    reviewsCount: typeof raw.reviewsCount === "number" ? raw.reviewsCount : undefined,
   };
 }
 
