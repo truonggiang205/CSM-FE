@@ -46,8 +46,17 @@ const router = createBrowserRouter([
         element: <OrderListPage />,
       },
       {
-        path: "products",
-        element: <InventoryPage />,
+        element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
+        children: [
+          {
+            path: "inventory",
+            element: <InventoryPage />,
+          },
+          {
+            path: "products",
+            element: <InventoryPage />,
+          },
+        ],
       },
     ],
   },
