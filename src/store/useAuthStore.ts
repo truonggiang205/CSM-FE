@@ -85,6 +85,10 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   toggleTestRole: () => {
+    if (!import.meta.env.DEV) {
+      console.warn("toggleTestRole chỉ được phép sử dụng trong môi trường DEV");
+      return;
+    }
     const currentRole = get().user?.role;
     if (currentRole === "BRANCH_MANAGER") {
       const adminUser: User = {

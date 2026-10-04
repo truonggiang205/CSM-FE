@@ -8,6 +8,11 @@ export const productApi = {
     return mapBackendProductsToFrontend(response.data || []);
   },
 
+  getProductById: async (id: string): Promise<Product> => {
+    const response = await apiClient.get<any>(`/products/${id}`);
+    return mapBackendProductToFrontend(response.data);
+  },
+
   getProductBySlug: async (slugOrId: string): Promise<Product> => {
     const response = await apiClient.get<any>(`/products/${slugOrId}`);
     return mapBackendProductToFrontend(response.data);
