@@ -43,12 +43,13 @@ export function HeroOrbitBanner() {
           // Map DB products to FeaturedCombo structure
           const mappedCombos = products.slice(0, 6).map((p: any, index: number) => {
             const style = STYLE_PRESETS[index % STYLE_PRESETS.length];
+            const basePrice = Number(p.price ?? p.base_price ?? 0);
             return {
               id: p.id.toString(),
               name: p.name,
               emoji: style.emoji,
-              price: `${Number(p.base_price).toLocaleString("vi-VN")}₫`,
-              originalPrice: `${(Number(p.base_price) + 10000).toLocaleString("vi-VN")}₫`, // Fake original price
+              price: `${basePrice.toLocaleString("vi-VN")}₫`,
+              originalPrice: `${(basePrice + 10000).toLocaleString("vi-VN")}₫`, // Fake original price
               tag: index === 0 ? "Bán chạy #1" : "Ưu đãi",
               desc: p.description || "Món ngon hấp dẫn",
               bgColor: style.bgColor,
