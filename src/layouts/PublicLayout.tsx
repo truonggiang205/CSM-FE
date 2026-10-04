@@ -4,6 +4,7 @@ import { useCartStore } from "../store/useCartStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { CartDrawer } from "../modules/cart/components/CartDrawer";
 import { Button } from "../components/ui/Button";
+import { BranchSelector } from "../components/branch/BranchSelector";
 
 export default function PublicLayout() {
   const { toggleCart, getTotalItems } = useCartStore();
@@ -13,7 +14,7 @@ export default function PublicLayout() {
     <div className="min-h-screen flex flex-col bg-background text-foreground">
       <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-surface/85 backdrop-blur-md shadow-[0_2px_12px_rgba(78,159,118,0.04)]">
         <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6">
-          <div className="flex items-center gap-6">
+          <div className="flex items-center gap-4 lg:gap-6">
             <Link to="/" className="flex items-center gap-2.5 group">
               <div className="w-9 h-9 rounded-xl bg-primary-tint border border-primary/20 flex items-center justify-center text-primary text-base font-bold shadow-sm transition-transform duration-200 group-hover:scale-105">
                 🌱
@@ -37,7 +38,8 @@ export default function PublicLayout() {
             </nav>
           </div>
 
-          <div className="flex items-center gap-3 sm:gap-4">
+          <div className="flex items-center gap-2.5 sm:gap-4">
+            <BranchSelector />
             <Button
               variant="ghost"
               size="icon"
