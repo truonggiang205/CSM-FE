@@ -1,5 +1,7 @@
 import { useState } from "react";
 import { useCartStore } from "../../../store/useCartStore";
+import { useBranchStore } from "../../../store/useBranchStore";
+import apiClient from "../../../api/apiClient";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Label } from "../../../components/ui/Label";
@@ -8,6 +10,7 @@ import { ArrowLeft, CheckCircle2 } from "lucide-react";
 
 export function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCartStore();
+  const { selectedBranch } = useBranchStore();
   const [step, setStep] = useState(1); // 1: Info, 2: Payment, 3: Success
   const navigate = useNavigate();
 
@@ -32,8 +35,6 @@ export function CheckoutPage() {
 
   const handleCompleteOrder = async () => {
     try {
-      const token = localStorage.getItem('token') || 'jwt_mock_token_for_user@example.com';
-      
       // Lấy phương thức thanh toán đang được chọn
       const paymentRadios = document.getElementsByName('payment') as NodeListOf<HTMLInputElement>;
       let paymentMethod = 'COD';
@@ -41,32 +42,19 @@ export function CheckoutPage() {
       if (paymentRadios[2]?.checked) paymentMethod = 'ATM';
 
       const payload = {
-        branchId: 1, // Tạm fix cứng chi nhánh 1
+        branchId: selectedBranch?.id || 'br-01',
         items: items.map((i: any) => ({
           productId: i.product.id,
           productName: i.product.name,
           quantity: i.quantity,
-          price: i.product.discountPrice || i.product.price
+          price: i.product.discountPrice || i.product.price,
         })),
         shippingAddress: (document.getElementById('address') as HTMLInputElement)?.value || 'Địa chỉ mặc định',
-        paymentMethod: paymentMethod
+        paymentMethod: paymentMethod,
       };
 
-      const res = await fetch('http://localhost:3000/api/v1/orders', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${token}`
-        },
-        body: JSON.stringify(payload)
-      });
-
-      const data = await res.json();
-      
-      if (!res.ok) {
-        alert('Lỗi đặt hàng: ' + (data.message || 'Lỗi hệ thống'));
-        return;
-      }
+      const res = await apiClient.post('/orders', payload);
+      const data = res.data;
 
       // Nếu API trả về link thanh toán (MoMo/ATM), redirect
       if (data.paymentUrl) {
@@ -77,8 +65,9 @@ export function CheckoutPage() {
       // Thanh toán COD thành công
       setStep(3);
       clearCart();
-    } catch (err) {
-      alert('Không thể kết nối đến server');
+    } catch (err: any) {
+      const errorMsg = err.response?.data?.message || err.message || 'Không thể kết nối đến server';
+      alert('Lỗi đặt hàng: ' + errorMsg);
     }
   };
 
