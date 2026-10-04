@@ -11,4 +11,10 @@ export const branchApi = {
     const response = await apiClient.get<Branch>(`/branches/${id}`);
     return response.data;
   },
+
+  getNearestBranch: async (lat: number, lng: number): Promise<Branch> => {
+    const response = await apiClient.get<Branch>(`/branches/nearest?lat=${lat}&lng=${lng}`);
+    return response.data;
+  },
 };
+

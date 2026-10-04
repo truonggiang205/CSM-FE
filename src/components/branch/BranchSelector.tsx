@@ -33,7 +33,7 @@ export function BranchSelector() {
     return b.name.toLowerCase().includes(q) || b.address.toLowerCase().includes(q);
   });
 
-  // Xử lý nút "Chọn chi nhánh gần nhất" bằng Geolocation
+  // Xử lý nút "Chọn chi nhánh gần nhất" bằng Geolocation & Backend Haversine
   const handleSelectNearest = () => {
     if (!navigator.geolocation) {
       setLocationNote("Trình duyệt không hỗ trợ Geolocation. Đã chọn chi nhánh mặc định.");
@@ -45,22 +45,40 @@ export function BranchSelector() {
     setLocationNote(null);
 
     navigator.geolocation.getCurrentPosition(
-      (position) => {
-        setIsLocating(false);
-        // TODO: Tính khoảng cách theo toạ độ (Haversine formula) khi Backend bổ sung latitude/longitude vào Branch Entity.
-        setLocationNote(`Đã định vị (${position.coords.latitude.toFixed(2)}, ${position.coords.longitude.toFixed(2)}). Tạm chọn chi nhánh đầu tiên do DB chưa có toạ độ cửa hàng.`);
-        if (branches.length > 0) {
-          setBranch(branches[0]);
+      async (position) => {
+        try {
+          const lat = position.coords.latitude;
+          const lng = position.coords.longitude;
+          const nearestBranch = await branchApi.getNearestBranch(lat, lng);
+
+          if (nearestBranch) {
+            setBranch(nearestBranch);
+            const distText = nearestBranch.distance_km !== undefined && nearestBranch.distance_km !== null
+              ? ` (khoảng cách: ~${nearestBranch.distance_km} km)`
+              : "";
+            setLocationNote(`Đã chọn chi nhánh gần nhất: ${nearestBranch.name}${distText}`);
+            setTimeout(() => {
+              closeModal();
+            }, 1500);
+          } else if (branches.length > 0) {
+            setBranch(branches[0]);
+          }
+        } catch (err: any) {
+          console.error("Lỗi khi tìm chi nhánh gần nhất:", err);
+          setLocationNote("Không thể lấy toạ độ từ máy chủ. Đã chọn chi nhánh mặc định.");
+          if (branches.length > 0) setBranch(branches[0]);
+        } finally {
+          setIsLocating(false);
         }
       },
       (error) => {
         setIsLocating(false);
-        setLocationNote(`Không thể lấy vị trí (${error.message}). Chọn chi nhánh mặc định.`);
+        setLocationNote(`Không thể lấy vị trí GPS (${error.message}). Chọn chi nhánh mặc định.`);
         if (branches.length > 0 && !selectedBranch) {
           setBranch(branches[0]);
         }
       },
-      { timeout: 6000 }
+      { timeout: 8000 }
     );
   };
 
