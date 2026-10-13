@@ -26,23 +26,24 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 const FALLBACK_IMAGE = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=800&q=80";
 
 export function ProductDetailPage() {
-  const { slug } = useParams<{ slug: string }>();
+  const { id, slug } = useParams<{ id?: string; slug?: string }>();
+  const productIdentifier = id || slug;
   const [quantity, setQuantity] = useState(1);
   const [addSuccessNotice, setAddSuccessNotice] = useState(false);
 
   const { selectedBranch, setBranch } = useBranchStore();
   const { addItem } = useCartStore();
 
-  // 1. Fetch chi tiết sản phẩm
+  // 1. Fetch chi tiết sản phẩm theo ID hoặc slug
   const {
     data: product,
     isLoading: isLoadingProduct,
     isError: isErrorProduct,
     refetch: refetchProduct,
   } = useQuery({
-    queryKey: ["product", slug],
-    queryFn: () => productApi.getProductBySlug(slug!),
-    enabled: !!slug,
+    queryKey: ["product", productIdentifier],
+    queryFn: () => productApi.getProductById(productIdentifier!),
+    enabled: !!productIdentifier,
   });
 
   // 2. Fetch tồn kho sản phẩm ở tất cả các chi nhánh
@@ -218,12 +219,18 @@ export function ProductDetailPage() {
 
             {/* Rating & Stock Summary */}
             <div className="flex flex-wrap items-center gap-3 mb-6">
-              <div className="flex items-center px-2.5 py-0.5 rounded-full bg-warning-pastel border border-warning/25 text-warning-dark text-xs font-bold">
-                <Star className="w-3.5 h-3.5 fill-current mr-1" />
-                <span>{product.rating}</span>
-              </div>
-              <span className="text-muted text-xs">({product.reviewsCount} lượt mua)</span>
-              <span className="text-muted text-xs">&bull;</span>
+              {product.rating !== undefined && (
+                <>
+                  <div className="flex items-center px-2.5 py-0.5 rounded-full bg-warning-pastel border border-warning/25 text-warning-dark text-xs font-bold">
+                    <Star className="w-3.5 h-3.5 fill-current mr-1" />
+                    <span>{product.rating}</span>
+                  </div>
+                  {product.reviewsCount !== undefined && (
+                    <span className="text-muted text-xs">({product.reviewsCount} đánh giá)</span>
+                  )}
+                  <span className="text-muted text-xs">&bull;</span>
+                </>
+              )}
 
               {/* Tồn kho tại chi nhánh đang chọn */}
               {isOutOfStock ? (

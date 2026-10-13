@@ -70,14 +70,16 @@ export default function AdminLayout() {
               </div>
             </div>
 
-            <button
-              onClick={toggleTestRole}
-              className="w-full text-left text-[11px] text-primary-dark hover:text-primary font-semibold flex items-center gap-1.5 pt-1.5 border-t border-border/50"
-              title="Nhấn để đổi vai trò kiểm thử giữa ADMIN và BRANCH_MANAGER"
-            >
-              <RefreshCw className="w-3 h-3 text-primary" />
-              Đổi role test: {user?.role === "BRANCH_MANAGER" ? "Sang ADMIN" : "Sang BRANCH_MGR"}
-            </button>
+            {import.meta.env.DEV && (
+              <button
+                onClick={toggleTestRole}
+                className="w-full text-left text-[11px] text-primary-dark hover:text-primary font-semibold flex items-center gap-1.5 pt-1.5 border-t border-border/50"
+                title="Nhấn để đổi vai trò kiểm thử giữa ADMIN và BRANCH_MANAGER (Chỉ hiện trong môi trường DEV)"
+              >
+                <RefreshCw className="w-3 h-3 text-primary" />
+                Đổi role test (DEV): {user?.role === "BRANCH_MANAGER" ? "Sang ADMIN" : "Sang BRANCH_MGR"}
+              </button>
+            )}
           </div>
 
           <button
