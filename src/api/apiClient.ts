@@ -26,7 +26,7 @@ apiClient.interceptors.request.use(
 
 apiClient.interceptors.response.use(
   (response) => response,
-  (error) => {
+  async (error) => {
     // If the error is a network error (BE not reachable)
     if (error.code === "ERR_NETWORK" || error.message === "Network Error" || error.code === "ECONNABORTED") {
       const url = error.config?.url || "";
@@ -144,10 +144,33 @@ apiClient.interceptors.response.use(
       }
     }
 
-    if (error.response?.status === 401) {
+    const originalRequest = error.config;
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+      originalRequest._retry = true;
+      const refreshToken = useAuthStore.getState().refreshToken;
+
+      if (refreshToken) {
+        try {
+          const baseURL = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+          const res = await axios.post(`${baseURL}/auth/refresh`, { refreshToken });
+          const { accessToken, refreshToken: newRefreshToken } = res.data;
+
+          if (accessToken) {
+            useAuthStore.getState().setTokens(accessToken, newRefreshToken || refreshToken);
+            originalRequest.headers.Authorization = `Bearer ${accessToken}`;
+            return apiClient(originalRequest);
+          }
+        } catch (refreshErr) {
+          useAuthStore.getState().logout();
+          window.location.href = "/login";
+          return Promise.reject(refreshErr);
+        }
+      }
+
       useAuthStore.getState().logout();
       window.location.href = "/login";
     }
+
     return Promise.reject(error);
   }
 );
