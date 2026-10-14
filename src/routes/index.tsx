@@ -8,7 +8,11 @@ import { ProductDetailPage } from "../modules/products/pages/ProductDetailPage";
 import { CheckoutPage } from "../modules/checkout/pages/CheckoutPage";
 import { DashboardPage } from "../modules/dashboard/pages/DashboardPage";
 import { OrderListPage } from "../modules/orders/pages/OrderListPage";
+import { MyOrdersPage } from "../modules/orders/pages/MyOrdersPage";
+import { OrderDetailPage } from "../modules/orders/pages/OrderDetailPage";
 import { InventoryPage } from "../modules/inventory/pages/InventoryPage";
+import { LoginPage } from "../modules/auth/pages/LoginPage";
+import { UnauthorizedPage } from "../modules/auth/pages/UnauthorizedPage";
 
 const router = createBrowserRouter([
   {
@@ -31,30 +35,57 @@ const router = createBrowserRouter([
         path: "checkout",
         element: <CheckoutPage />,
       },
+      {
+        path: "login",
+        element: <LoginPage />,
+      },
+      {
+        path: "unauthorized",
+        element: <UnauthorizedPage />,
+      },
+      // Các route khách hàng cần đăng nhập
+      {
+        element: <ProtectedRoute />,
+        children: [
+          {
+            path: "orders",
+            element: <MyOrdersPage />,
+          },
+          {
+            path: "orders/:id",
+            element: <OrderDetailPage />,
+          },
+        ],
+      },
     ],
   },
   {
     path: "/admin",
-    element: <AdminLayout />,
+    element: <ProtectedRoute allowedRoles={["STAFF", "BRANCH_MANAGER", "ADMIN"]} />,
     children: [
       {
-        index: true,
-        element: <DashboardPage />,
-      },
-      {
-        path: "orders",
-        element: <OrderListPage />,
-      },
-      {
-        element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
+        element: <AdminLayout />,
         children: [
           {
-            path: "inventory",
-            element: <InventoryPage />,
+            index: true,
+            element: <DashboardPage />,
           },
           {
-            path: "products",
-            element: <InventoryPage />,
+            path: "orders",
+            element: <OrderListPage />,
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
+            children: [
+              {
+                path: "inventory",
+                element: <InventoryPage />,
+              },
+              {
+                path: "products",
+                element: <InventoryPage />,
+              },
+            ],
           },
         ],
       },
