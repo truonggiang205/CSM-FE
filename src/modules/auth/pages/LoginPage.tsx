@@ -13,7 +13,7 @@ export function LoginPage() {
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
 
-  const { setAuth, loginAsRole } = useAuthStore();
+  const { setAuth } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
 
@@ -30,20 +30,6 @@ export function LoginPage() {
       navigate(from, { replace: true });
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || "Đăng nhập thất bại. Vui lòng kiểm tra lại thông tin.";
-      setErrorMsg(msg);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleQuickLogin = async (role: Role) => {
-    setErrorMsg("");
-    setLoading(true);
-    try {
-      await loginAsRole(role);
-      navigate(role === "CUSTOMER" ? from : "/admin", { replace: true });
-    } catch (err: any) {
-      const msg = err.response?.data?.message || err.message || "Đăng nhập nhanh thất bại.";
       setErrorMsg(msg);
     } finally {
       setLoading(false);
@@ -110,41 +96,96 @@ export function LoginPage() {
           </Button>
         </form>
 
-        <div className="pt-4 border-t border-border/80 space-y-3">
-          <div className="flex items-center gap-1.5 text-xs text-muted font-medium">
-            <Sparkles className="w-3.5 h-3.5 text-primary" />
-            <span>Đăng nhập nhanh kiểm thử (Demo Seed Accounts):</span>
-          </div>
-          <div className="grid grid-cols-1 gap-2">
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleQuickLogin("CUSTOMER")}
-              className="text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-primary-tint/60 hover:bg-primary-tint text-primary-dark border border-primary/20 transition-all flex items-center justify-between"
-            >
-              <span>👤 Khách hàng (customer@csm.vn)</span>
-              <span className="text-[10px] text-muted">Role: CUSTOMER</span>
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleQuickLogin("BRANCH_MANAGER")}
-              className="text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-info-pastel/70 hover:bg-info-pastel text-info-dark border border-info/20 transition-all flex items-center justify-between"
-            >
-              <span>🏪 Quản lý br-01 (manager.q1@csm.vn)</span>
-              <span className="text-[10px] text-muted">Role: MANAGER</span>
-            </button>
-            <button
-              type="button"
-              disabled={loading}
-              onClick={() => handleQuickLogin("ADMIN")}
-              className="text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-accent-tint/70 hover:bg-accent-tint text-accent-dark border border-accent/20 transition-all flex items-center justify-between"
-            >
-              <span>👑 Quản trị viên (admin@csm.vn)</span>
-              <span className="text-[10px] text-muted">Role: ADMIN</span>
-            </button>
-          </div>
+        {import.meta.env.DEV && <DevQuickLoginSection from={from} />}
+      </div>
+    </div>
+  );
+}
+
+function DevQuickLoginSection({ from }: { from: string }) {
+  const [loading, setLoading] = useState(false);
+  const [errorMsg, setErrorMsg] = useState("");
+  const navigate = useNavigate();
+
+  const handleQuickLogin = async (role: Role) => {
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      await useAuthStore.getState().loginAsRole?.(role);
+      navigate(role === "CUSTOMER" ? from : "/admin", { replace: true });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || "Đăng nhập nhanh thất bại.";
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleToggleTestRole = async () => {
+    setErrorMsg("");
+    setLoading(true);
+    try {
+      await useAuthStore.getState().toggleTestRole?.();
+      navigate("/admin", { replace: true });
+    } catch (err: any) {
+      const msg = err.response?.data?.message || err.message || "Chuyển role thất bại.";
+      setErrorMsg(msg);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  return (
+    <div className="pt-4 border-t border-border/80 space-y-3">
+      {errorMsg && (
+        <div className="p-2.5 rounded-xl bg-danger-pastel text-danger-dark text-xs flex items-center gap-2">
+          <AlertCircle className="w-3.5 h-3.5 shrink-0" />
+          <span>{errorMsg}</span>
         </div>
+      )}
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-1.5 text-xs text-muted font-medium">
+          <Sparkles className="w-3.5 h-3.5 text-primary" />
+          <span>Đăng nhập nhanh kiểm thử (DEV):</span>
+        </div>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={handleToggleTestRole}
+          className="text-[11px] font-semibold text-primary hover:text-primary-dark transition-colors"
+          title="Chuyển đổi vai trò test giữa ADMIN và BRANCH_MANAGER"
+        >
+          Đổi role (toggleTestRole)
+        </button>
+      </div>
+      <div className="grid grid-cols-1 gap-2">
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => handleQuickLogin("CUSTOMER")}
+          className="text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-primary-tint/60 hover:bg-primary-tint text-primary-dark border border-primary/20 transition-all flex items-center justify-between"
+        >
+          <span>👤 Khách hàng (customer@csm.vn)</span>
+          <span className="text-[10px] text-muted">Role: CUSTOMER</span>
+        </button>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => handleQuickLogin("BRANCH_MANAGER")}
+          className="text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-info-pastel/70 hover:bg-info-pastel text-info-dark border border-info/20 transition-all flex items-center justify-between"
+        >
+          <span>🏪 Quản lý br-01 (manager.q1@csm.vn)</span>
+          <span className="text-[10px] text-muted">Role: MANAGER</span>
+        </button>
+        <button
+          type="button"
+          disabled={loading}
+          onClick={() => handleQuickLogin("ADMIN")}
+          className="text-left px-3.5 py-2.5 rounded-xl text-xs font-semibold bg-accent-tint/70 hover:bg-accent-tint text-accent-dark border border-accent/20 transition-all flex items-center justify-between"
+        >
+          <span>👑 Quản trị viên (admin@csm.vn)</span>
+          <span className="text-[10px] text-muted">Role: ADMIN</span>
+        </button>
       </div>
     </div>
   );
