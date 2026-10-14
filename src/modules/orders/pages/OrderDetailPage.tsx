@@ -26,6 +26,12 @@ export function OrderDetailPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Polling kết quả thanh toán mô phỏng (2s/lần, tối đa 10 lần)
+  const [isPolling, setIsPolling] = useState(false);
+  const [pollCount, setPollCount] = useState(0);
+  const [pollingExhausted, setPollingExhausted] = useState(false);
+  const pollingTimeoutRef = React.useRef<ReturnType<typeof setTimeout> | null>(null);
+
   // Modal huỷ đơn
   const [isCancelModalOpen, setIsCancelModalOpen] = useState(false);
   const [isCancelling, setIsCancelling] = useState(false);
@@ -34,25 +40,91 @@ export function OrderDetailPage() {
   // Nút thanh toán lại
   const [isPaying, setIsPaying] = useState(false);
 
-  const fetchOrderDetail = useCallback(async () => {
+  const stopPolling = useCallback(() => {
+    if (pollingTimeoutRef.current) {
+      clearTimeout(pollingTimeoutRef.current);
+      pollingTimeoutRef.current = null;
+    }
+    setIsPolling(false);
+  }, []);
+
+  const startPolling = useCallback((initialOrder: Order) => {
+    // Chỉ kích hoạt tự động refetch đối với đơn thanh toán online đang ở trạng thái PENDING
+    if (initialOrder.payment_method === "COD" || initialOrder.status !== "PENDING") {
+      stopPolling();
+      return;
+    }
+
+    stopPolling();
+    setIsPolling(true);
+    setPollingExhausted(false);
+    setPollCount(1);
+
+    let count = 1;
+
+    const poll = async () => {
+      if (!id) return;
+      try {
+        const latest = await orderApi.getOrderById(id);
+        setOrder(latest);
+
+        if (latest.status !== "PENDING") {
+          // Trạng thái đã chuyển sang PAID / CONFIRMED / CANCELLED -> Dừng polling ngay lập tức
+          stopPolling();
+          return;
+        }
+
+        if (count >= 10) {
+          // Đã hết 10 lần refetch mà vẫn PENDING -> Dừng polling và hiển thị thông báo
+          stopPolling();
+          setPollingExhausted(true);
+          return;
+        }
+
+        count += 1;
+        setPollCount(count);
+        pollingTimeoutRef.current = setTimeout(poll, 2000);
+      } catch (err) {
+        console.error("Lỗi khi kiểm tra trạng thái đơn:", err);
+        if (count >= 10) {
+          stopPolling();
+          setPollingExhausted(true);
+        } else {
+          count += 1;
+          setPollCount(count);
+          pollingTimeoutRef.current = setTimeout(poll, 2000);
+        }
+      }
+    };
+
+    pollingTimeoutRef.current = setTimeout(poll, 2000);
+  }, [id, stopPolling]);
+
+  const fetchOrderDetail = useCallback(async (withPolling = true) => {
     if (!id) return;
     setLoading(true);
     setError(null);
     try {
       const data = await orderApi.getOrderById(id);
       setOrder(data);
+      if (withPolling) {
+        startPolling(data);
+      }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || "Không thể tải thông tin đơn hàng.";
       setError(typeof msg === "string" ? msg : JSON.stringify(msg));
     } finally {
       setLoading(false);
     }
-  }, [id]);
+  }, [id, startPolling]);
 
   // Tự động tải lại khi trang được mount (kể cả khi vừa redirect từ cổng thanh toán mô phỏng quay về)
   useEffect(() => {
-    fetchOrderDetail();
-  }, [fetchOrderDetail]);
+    fetchOrderDetail(true);
+    return () => {
+      stopPolling();
+    };
+  }, [fetchOrderDetail, stopPolling]);
 
   const formatCurrency = (val: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -76,6 +148,7 @@ export function OrderDetailPage() {
   // Xử lý Huỷ đơn hàng khi đang PENDING
   const handleConfirmCancel = async () => {
     if (!order) return;
+    stopPolling();
     setIsCancelling(true);
     setCancelError("");
     try {
@@ -93,6 +166,7 @@ export function OrderDetailPage() {
   // Xử lý Thanh toán lại đối với đơn online còn PENDING
   const handleRetryPayment = async () => {
     if (!order) return;
+    stopPolling();
     setIsPaying(true);
     try {
       const res = await orderApi.createPayment({
@@ -186,13 +260,37 @@ export function OrderDetailPage() {
         <Button
           variant="outline"
           size="sm"
-          onClick={fetchOrderDetail}
+          onClick={() => fetchOrderDetail(true)}
           className="text-xs font-semibold gap-1.5"
         >
           <RefreshCw className="w-3.5 h-3.5" />
           Làm mới trạng thái
         </Button>
       </div>
+
+      {/* Banner tự động kiểm tra kết quả thanh toán mô phỏng */}
+      {isPolling && (
+        <div className="p-3.5 rounded-2xl bg-primary-tint/70 border border-primary/25 text-primary-dark text-xs flex items-center justify-between shadow-xs animate-in fade-in">
+          <div className="flex items-center gap-2.5 font-medium">
+            <RefreshCw className="w-4 h-4 animate-spin text-primary shrink-0" />
+            <span>Đang tự động đồng bộ kết quả thanh toán với cổng thanh toán (lần {pollCount}/10)...</span>
+          </div>
+          <span className="text-[11px] text-muted font-mono hidden sm:inline">Chu kỳ 2s</span>
+        </div>
+      )}
+
+      {/* Thông báo khi hết lượt polling mà đơn vẫn PENDING */}
+      {pollingExhausted && order.status === "PENDING" && (
+        <div className="p-4 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-300 dark:border-amber-700/40 text-amber-900 dark:text-amber-200 text-xs flex items-start gap-3 shadow-xs animate-in fade-in">
+          <AlertCircle className="w-5 h-5 shrink-0 text-amber-600 dark:text-amber-400 mt-0.5" />
+          <div className="space-y-1">
+            <p className="font-bold text-sm">Chưa nhận được cập nhật thanh toán từ cổng mô phỏng</p>
+            <p className="leading-relaxed">
+              Hệ thống đã tự động kiểm tra 10 lần nhưng đơn hàng vẫn ở trạng thái <b>Chờ xác nhận (PENDING)</b>. Nếu bạn vừa bấm xác nhận thanh toán thành công, vui lòng bấm nút <b>"Làm mới trạng thái"</b> bên trên sau ít phút hoặc sử dụng nút <b>"Thanh toán lại"</b> nếu giao dịch bị gián đoạn.
+            </p>
+          </div>
+        </div>
+      )}
 
       {/* Main Order Card */}
       <div className="bg-surface rounded-3xl border border-border p-6 sm:p-8 shadow-card space-y-8">
