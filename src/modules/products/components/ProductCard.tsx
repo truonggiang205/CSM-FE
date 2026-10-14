@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { useCartStore } from "../../../store/useCartStore";
+import { useTilt } from "../../../hooks/useTilt";
 
 interface ProductCardProps {
   product: Product;
@@ -26,6 +27,7 @@ export function ProductCard({
   const { addItem } = useCartStore();
   const [isAdded, setIsAdded] = useState(false);
   const shouldReduceMotion = useReducedMotion();
+  const tilt = useTilt({ maxTilt: 3, perspective: 800 });
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -59,7 +61,7 @@ export function ProductCard({
     if (isOutOfStock) return;
     addItem(product, 1);
     setIsAdded(true);
-    setTimeout(() => setIsAdded(false), 1200);
+    setTimeout(() => setIsAdded(false), 1000);
   };
 
   const handleQuickViewClick = (e: React.MouseEvent) => {
@@ -75,7 +77,7 @@ export function ProductCard({
     return (
       <motion.div
         whileHover={shouldReduceMotion ? {} : { y: -2 }}
-        transition={{ duration: 0.2 }}
+        transition={{ duration: 0.18 }}
         className="group relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6 rounded-3xl border border-border bg-surface shadow-card hover:shadow-card-hover overflow-hidden transition-all duration-200 p-4"
       >
         {/* Image Area */}
@@ -87,7 +89,7 @@ export function ProductCard({
             src={displayImage}
             alt={product.name}
             productName={product.name}
-            className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+            className="object-cover w-full h-full transition-transform duration-300 ease-out group-hover:scale-[1.04]"
             loading="lazy"
           />
           {hasDiscount && (
@@ -204,9 +206,13 @@ export function ProductCard({
   // ==================== GRID VIEW MODE (DEFAULT) ====================
   return (
     <motion.div
+      ref={tilt.ref}
+      onMouseMove={tilt.handleMouseMove}
+      onMouseLeave={tilt.handleMouseLeave}
+      style={tilt.style}
       whileHover={shouldReduceMotion ? {} : { y: -4 }}
-      transition={{ duration: 0.2 }}
-      className="group relative flex flex-col h-full rounded-3xl border border-border bg-surface shadow-card hover:shadow-card-hover overflow-hidden transition-all duration-200"
+      transition={{ duration: 0.18 }}
+      className="group relative flex flex-col h-full rounded-3xl border border-border bg-surface shadow-card hover:shadow-card-hover overflow-hidden transition-shadow duration-200 transform-gpu"
     >
       {/* Image Area */}
       <Link to={targetPath} className="relative aspect-square overflow-hidden bg-surface-soft block">
@@ -214,7 +220,7 @@ export function ProductCard({
           src={displayImage}
           alt={product.name}
           productName={product.name}
-          className="object-cover w-full h-full transition-transform duration-300 group-hover:scale-105"
+          className="object-cover w-full h-full transition-transform duration-300 ease-out group-hover:scale-[1.04]"
           loading="lazy"
         />
 
