@@ -17,6 +17,9 @@ const ProductDetailPage = lazy(() =>
 const CheckoutPage = lazy(() =>
   import("../modules/checkout/pages/CheckoutPage").then((m) => ({ default: m.CheckoutPage }))
 );
+const CartPage = lazy(() =>
+  import("../modules/cart/pages/CartPage").then((m) => ({ default: m.CartPage }))
+);
 const DashboardPage = lazy(() =>
   import("../modules/dashboard/pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
 );
@@ -81,6 +84,10 @@ const router = createBrowserRouter([
       {
         path: "products/:id",
         element: withSuspense(ProductDetailPage),
+      },
+      {
+        path: "cart",
+        element: withSuspense(CartPage),
       },
       {
         path: "checkout",

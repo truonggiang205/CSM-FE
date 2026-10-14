@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { X, Star, ShoppingCart, Check, Plus, Minus, ArrowRight, ShieldCheck, Truck, Store } from "lucide-react";
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
+import { useCartToastStore } from "../../../store/useCartToastStore";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
 import { ProductImage } from "../../../components/ui/ProductImage";
@@ -50,6 +51,7 @@ export function QuickViewModal({
   const handleAddToCart = () => {
     if (isOutOfStock) return;
     addItem(product, quantity);
+    useCartToastStore.getState().showToast(product.name);
     setIsAdded(true);
     setTimeout(() => {
       setIsAdded(false);
