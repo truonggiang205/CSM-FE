@@ -30,6 +30,11 @@ apiClient.interceptors.response.use(
     // If the error is a network error (BE not reachable)
     if (error.code === "ERR_NETWORK" || error.message === "Network Error" || error.code === "ECONNABORTED") {
       const url = error.config?.url || "";
+      // QUY TẮC BẮT BUỘC: KHÔNG mock cho đơn hàng (/orders) và thanh toán (/payments)
+      if (url.includes("/orders") || url.includes("/payments")) {
+        return Promise.reject(error);
+      }
+
       console.warn("Backend unreachable. Falling back to mock data for:", url);
 
       // 1. Fallback cho /branches
