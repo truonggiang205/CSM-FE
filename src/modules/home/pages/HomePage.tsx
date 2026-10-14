@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "../../../components/ui/Button";
 import { ArrowRight, Sparkles, Store, Utensils } from "lucide-react";
+import { HeroGreeting } from "../components/HeroGreeting";
 import { HeroOrbitBanner } from "../components/HeroOrbitBanner";
 import { HeroPromoSlider } from "../components/HeroPromoSlider";
 import { FlashSaleSection } from "../components/FlashSaleSection";
@@ -58,8 +59,15 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Hero Promo Banner Slider */}
-      <section className="pt-6 pb-2 sm:pt-8 sm:pb-4 bg-gradient-to-b from-primary-tint/40 to-background">
+      {/* Real-time Hero Greeting with Parallax */}
+      <section className="pt-5 pb-2 sm:pt-6 sm:pb-3 bg-gradient-to-b from-primary-tint/30 to-background">
+        <div className="container mx-auto px-4 md:px-6">
+          <HeroGreeting />
+        </div>
+      </section>
+
+      {/* Hero Promo Banner Slider (khoảng cách 24px) */}
+      <section className="pt-2 pb-3 sm:pt-3 sm:pb-4 bg-background">
         <div className="container mx-auto px-4 md:px-6">
           <HeroPromoSlider />
         </div>
