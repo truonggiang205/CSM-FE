@@ -30,4 +30,5 @@ export interface Product {
   stock: number;
   rating?: number;
   reviewsCount?: number;
+  createdAt?: string;
 }

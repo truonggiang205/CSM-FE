@@ -8,6 +8,10 @@ import { HeroGreeting } from "../components/HeroGreeting";
 import { HeroOrbitBanner } from "../components/HeroOrbitBanner";
 import { HeroPromoSlider } from "../components/HeroPromoSlider";
 import { FlashSaleSection } from "../components/FlashSaleSection";
+import { CsmPicksSection } from "../components/CsmPicksSection";
+import { NewArrivalsSection } from "../components/NewArrivalsSection";
+import { ComboSection } from "../components/ComboSection";
+import { SpinWheel } from "../components/SpinWheel";
 import { WhyChooseUsSection } from "../components/WhyChooseUsSection";
 import { TestimonialsSection } from "../components/TestimonialsSection";
 import { productApi } from "../../../api/productApi";
@@ -148,6 +152,30 @@ export function HomePage() {
         stockMap={stockMap}
         branchName={selectedBranch?.name}
       />
+
+      {/* CSM Picks Section (4 món do cửa hàng chọn, badge CSM Pick, tiêu đề editorial) */}
+      <CsmPicksSection
+        products={products}
+        stockMap={stockMap}
+        branchName={selectedBranch?.name}
+      />
+
+      {/* New Arrivals Section (Mới lên kệ, badge Mới, scroll reveal whileInView) */}
+      <NewArrivalsSection
+        products={products}
+        stockMap={stockMap}
+        branchName={selectedBranch?.name}
+      />
+
+      {/* Combo Section (3 món quanh một hộp, giá gốc vs giá combo, mua combo kiểm tra tồn kho) */}
+      <ComboSection
+        products={products}
+        stockMap={stockMap}
+        branchName={selectedBranch?.name}
+      />
+
+      {/* Spin Wheel (Bánh xe SVG 6 ô, 4-5s animate, modal phần thưởng minh hoạ, 1 lượt/ngày) */}
+      <SpinWheel />
 
       {/* Featured Categories (Từ GET /categories với hiệu ứng Pastel Motion) */}
       <section className="py-14 sm:py-18 bg-surface-soft/60 border-b border-border/60">

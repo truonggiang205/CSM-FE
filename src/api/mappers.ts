@@ -95,6 +95,7 @@ export function mapBackendProductToFrontend(raw: any): Product {
     stock: typeof raw.stock === "number" ? raw.stock : 0,
     rating: typeof raw.rating === "number" ? raw.rating : undefined,
     reviewsCount: typeof raw.reviewsCount === "number" ? raw.reviewsCount : undefined,
+    createdAt: raw.created_at || raw.createdAt || undefined,
   };
 }
 
