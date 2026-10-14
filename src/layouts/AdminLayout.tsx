@@ -1,10 +1,12 @@
 import { Outlet, Link, useLocation } from "react-router-dom";
+import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { LayoutDashboard, Package, ShoppingBag, Users, Settings, LogOut, RefreshCw } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 
 export default function AdminLayout() {
   const { user, logout } = useAuthStore();
   const location = useLocation();
+  const shouldReduceMotion = useReducedMotion();
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
@@ -102,7 +104,18 @@ export default function AdminLayout() {
           <Link to="/" className="text-xs text-muted underline">Về cửa hàng</Link>
         </header>
         <div className="flex-1 overflow-auto bg-background p-6 md:p-8">
-          <Outlet />
+          <AnimatePresence mode="wait" initial={false}>
+            <motion.div
+              key={location.pathname}
+              initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={shouldReduceMotion ? undefined : { opacity: 0, transition: { duration: 0.15 } }}
+              transition={{ duration: 0.3, ease: "easeOut" }}
+              className="w-full flex-1"
+            >
+              <Outlet />
+            </motion.div>
+          </AnimatePresence>
         </div>
       </main>
     </div>

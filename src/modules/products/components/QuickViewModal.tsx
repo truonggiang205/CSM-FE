@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
 import { X, Star, ShoppingCart, Check, Plus, Minus, ArrowRight, ShieldCheck, Truck, Store } from "lucide-react";
@@ -27,6 +27,18 @@ export function QuickViewModal({
   const { addItem } = useCartStore();
   const [quantity, setQuantity] = useState(1);
   const [isAdded, setIsAdded] = useState(false);
+
+  // Đóng modal khi nhấn phím Escape
+  useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        onClose();
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, onClose]);
 
   if (!isOpen || !product) return null;
 
@@ -97,7 +109,7 @@ export function QuickViewModal({
           {/* Close button */}
           <button
             onClick={onClose}
-            className="absolute top-4 right-4 z-20 w-9 h-9 rounded-full bg-surface/90 border border-border flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-soft transition-all shadow-xs"
+            className="absolute top-4 right-4 z-20 w-11 h-11 min-h-[44px] min-w-[44px] sm:w-9 sm:h-9 rounded-full bg-surface/90 border border-border flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-soft transition-all shadow-xs cursor-pointer"
             aria-label="Đóng cửa sổ"
           >
             <X className="w-5 h-5" />
@@ -216,19 +228,19 @@ export function QuickViewModal({
                     type="button"
                     onClick={handleDecrement}
                     disabled={isOutOfStock || quantity <= 1}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:bg-surface disabled:opacity-40 transition-all"
+                    className="w-10 h-10 min-h-[40px] min-w-[40px] rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:bg-surface disabled:opacity-40 transition-all cursor-pointer"
                     aria-label="Giảm số lượng"
                   >
                     <Minus className="w-3.5 h-3.5" />
                   </button>
-                  <span className="w-10 text-center font-bold text-sm text-foreground">
+                  <span className="w-10 text-center font-bold text-sm text-foreground font-mono">
                     {quantity}
                   </span>
                   <button
                     type="button"
                     onClick={handleIncrement}
                     disabled={isOutOfStock || quantity >= effectiveStock}
-                    className="w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:bg-surface disabled:opacity-40 transition-all"
+                    className="w-10 h-10 min-h-[40px] min-w-[40px] rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:bg-surface disabled:opacity-40 transition-all cursor-pointer"
                     aria-label="Tăng số lượng"
                   >
                     <Plus className="w-3.5 h-3.5" />
