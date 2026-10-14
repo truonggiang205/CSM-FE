@@ -17,8 +17,6 @@ export function slugify(text: string): string {
     .replace(/-+/g, "-");
 }
 
-const DEFAULT_PLACEHOLDER_IMAGE = "https://images.unsplash.com/photo-1542838132-92c53300491e?auto=format&fit=crop&w=600&q=80";
-
 /**
  * Chuyển đổi dữ liệu sản phẩm từ Backend hoặc Mock sang format chuẩn của Frontend.
  * An toàn tuyệt đối với dữ liệu rỗng / null để tránh TypeError trong UI.
@@ -32,7 +30,7 @@ export function mapBackendProductToFrontend(raw: any): Product {
       slug: "san-pham-tien-loi",
       price: 0,
       description: "",
-      images: [DEFAULT_PLACEHOLDER_IMAGE],
+      images: [],
       category: {
         id: "cat-general",
         name: "Hàng tổng hợp",
@@ -62,11 +60,8 @@ export function mapBackendProductToFrontend(raw: any): Product {
   let images: string[] = [];
   if (Array.isArray(raw.images) && raw.images.length > 0) {
     images = raw.images.filter(Boolean);
-  } else if (raw.image_url && typeof raw.image_url === "string") {
-    images = [raw.image_url];
-  }
-  if (images.length === 0) {
-    images = [DEFAULT_PLACEHOLDER_IMAGE];
+  } else if (raw.image_url && typeof raw.image_url === "string" && raw.image_url.trim() !== "") {
+    images = [raw.image_url.trim()];
   }
 
   // Xử lý Category

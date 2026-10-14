@@ -1,10 +1,14 @@
 import { useMemo } from "react";
-import { motion } from "framer-motion";
+import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Button } from "../../../components/ui/Button";
-import { ArrowRight, Sparkles, Clock, ShieldCheck, Truck, MapPin, Store } from "lucide-react";
+import { ArrowRight, Sparkles, Store, Utensils } from "lucide-react";
 import { HeroOrbitBanner } from "../components/HeroOrbitBanner";
+import { HeroPromoSlider } from "../components/HeroPromoSlider";
+import { FlashSaleSection } from "../components/FlashSaleSection";
+import { WhyChooseUsSection } from "../components/WhyChooseUsSection";
+import { TestimonialsSection } from "../components/TestimonialsSection";
 import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
 import { useBranchStore } from "../../../store/useBranchStore";
@@ -21,7 +25,8 @@ const CATEGORY_STYLES = [
 ];
 
 export function HomePage() {
-  const { selectedBranch, openModal } = useBranchStore();
+  const { selectedBranch } = useBranchStore();
+  const shouldReduceMotion = useReducedMotion();
 
   // 1. Lấy danh mục từ API
   const { data: categories = [], isLoading: isLoadingCats } = useQuery({
@@ -53,135 +58,135 @@ export function HomePage() {
 
   return (
     <div className="flex flex-col min-h-screen">
-      {/* Branch Notice Banner */}
-      <div className="bg-primary-tint/70 border-b border-primary/20 px-4 py-2.5 text-xs text-primary-dark">
-        <div className="container mx-auto flex flex-wrap items-center justify-between gap-2">
-          <div className="flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-primary animate-pulse" />
-            <span>
-              Đang xem giá & tồn kho tại:{" "}
-              <strong className="font-bold underline text-foreground">
-                {selectedBranch ? selectedBranch.name : "Chưa chọn chi nhánh"}
-              </strong>
-            </span>
-          </div>
-          <button
-            onClick={openModal}
-            className="font-bold underline hover:text-primary transition-colors flex items-center gap-1"
-          >
-            <MapPin className="w-3.5 h-3.5" />
-            Đổi chi nhánh khác
-          </button>
-        </div>
-      </div>
-
-      {/* Hero Section */}
-      <section className="relative overflow-hidden bg-gradient-to-b from-primary-tint/50 via-pastel-peach/25 to-background py-16 lg:py-24">
+      {/* Hero Promo Banner Slider */}
+      <section className="pt-6 pb-2 sm:pt-8 sm:pb-4 bg-gradient-to-b from-primary-tint/40 to-background">
         <div className="container mx-auto px-4 md:px-6">
-          <div className="grid gap-12 lg:grid-cols-2 lg:gap-12 items-center">
+          <HeroPromoSlider />
+        </div>
+      </section>
+
+      {/* Quick Meal & Combo Interactive Station */}
+      <section className="py-8 sm:py-10 bg-gradient-to-b from-background via-primary-tint/25 to-surface-soft/50 border-b border-border/80">
+        <div className="container mx-auto px-4 md:px-6">
+          <div className="grid gap-10 lg:grid-cols-12 items-center">
             <motion.div
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ duration: 0.6 }}
-              className="flex flex-col justify-center space-y-6 text-left"
+              initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -20 }}
+              whileInView={{ opacity: 1, x: 0 }}
+              viewport={{ once: true }}
+              transition={{ duration: 0.5 }}
+              className="lg:col-span-6 space-y-5 text-left"
             >
-              <div className="inline-flex items-center gap-2 px-3.5 py-1.5 rounded-full bg-surface border border-primary/25 shadow-sm w-fit">
-                <Sparkles className="w-4 h-4 text-accent" />
-                <span className="text-xs font-semibold text-primary-dark">
-                  Cửa hàng tiện lợi thế hệ mới 24/7
+              <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-primary/25 shadow-xs w-fit">
+                <Utensils className="w-3.5 h-3.5 text-accent" />
+                <span className="text-xs font-bold text-primary-dark uppercase tracking-wider">
+                  Gợi ý combo tiện lợi
                 </span>
               </div>
 
-              <div className="space-y-4">
-                <h1 className="text-display font-extrabold tracking-tight text-foreground sm:text-5xl lg:text-6xl/tight">
-                  Mua nhanh. <br />
+              <div className="space-y-3">
+                <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-foreground tracking-tight leading-tight">
+                  Bữa Ăn Nhanh Tiện Lợi <br />
                   <span className="text-primary underline decoration-pastel-peach decoration-wavy decoration-2">
-                    Nhận tiện.
-                  </span> <br />
-                  Sống tiện hơn mỗi ngày.
-                </h1>
-                <p className="max-w-[560px] text-muted text-base sm:text-lg leading-relaxed">
-                  Chuỗi cửa hàng tiện lợi <span className="font-semibold text-foreground">CSM</span> mang phong cách tươi mới, tinh tế, luôn sẵn sàng phục vụ đồ ăn nhanh, thức uống tươi ngon và nhu yếu phẩm chất lượng cao.
+                    Nạp Năng Lượng Tức Thì
+                  </span>
+                </h2>
+                <p className="text-muted text-xs sm:text-sm leading-relaxed max-w-lg">
+                  Không cần chờ đợi lâu! Chỉ với vài thao tác đơn giản, chọn ngay combo bữa sáng, trưa hoặc ăn nhẹ kèm thức uống mát lạnh sẵn sàng phục vụ 24/7.
                 </p>
               </div>
 
               <div className="flex flex-col sm:flex-row gap-3 pt-2">
-                <Button size="lg" asChild className="w-full sm:w-auto shadow-sm">
+                <Button size="lg" asChild className="w-full sm:w-auto rounded-2xl shadow-sm text-xs sm:text-sm font-semibold">
                   <Link to="/products" className="flex items-center gap-2">
-                    Khám phá sản phẩm
+                    <span>Khám phá toàn bộ thực đơn</span>
                     <ArrowRight className="w-4 h-4" />
                   </Link>
                 </Button>
-                <Button size="lg" variant="outline" asChild className="w-full sm:w-auto">
-                  <Link to="/products">
-                    Xem toàn bộ thực đơn
+                <Button size="lg" variant="outline" asChild className="w-full sm:w-auto rounded-2xl text-xs sm:text-sm font-semibold">
+                  <Link to="/products?q=combo">
+                    Xem combo ưu đãi
                   </Link>
                 </Button>
               </div>
 
-              {/* Service Highlights */}
-              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border/80 text-xs font-medium text-muted">
-                <div className="flex items-center gap-2">
-                  <Clock className="w-4 h-4 text-primary" />
-                  <span>Mở cửa 24/7</span>
+              {/* Mini highlights */}
+              <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border/80 text-[11px] font-medium text-muted">
+                <div>
+                  <span className="block font-bold text-foreground text-xs sm:text-sm">24/7</span>
+                  <span>Phục vụ liên tục</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <Truck className="w-4 h-4 text-accent" />
+                <div>
+                  <span className="block font-bold text-foreground text-xs sm:text-sm">30 Phút</span>
                   <span>Giao siêu tốc</span>
                 </div>
-                <div className="flex items-center gap-2">
-                  <ShieldCheck className="w-4 h-4 text-primary" />
-                  <span>100% An toàn</span>
+                <div>
+                  <span className="block font-bold text-foreground text-xs sm:text-sm">100%</span>
+                  <span>Tươi ngon mỗi ngày</span>
                 </div>
               </div>
             </motion.div>
 
             {/* Dynamic Orbiting Combo Banner */}
-            <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              transition={{ duration: 0.7, delay: 0.2 }}
-              className="w-full flex justify-center"
-            >
+            <div className="lg:col-span-6 flex justify-center items-center">
               <HeroOrbitBanner />
-            </motion.div>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Featured Categories (Từ GET /categories) */}
-      <section className="py-14 sm:py-18 bg-surface-soft/60 border-y border-border/60">
+      {/* Flash Sale Section (Giờ vàng giảm giá với countdown & sold progress) */}
+      <FlashSaleSection
+        products={products}
+        stockMap={stockMap}
+        branchName={selectedBranch?.name}
+      />
+
+      {/* Featured Categories (Từ GET /categories với hiệu ứng Pastel Motion) */}
+      <section className="py-14 sm:py-18 bg-surface-soft/60 border-b border-border/60">
         <div className="container mx-auto px-4 md:px-6">
           <div className="mb-10 text-center space-y-2">
-            <h2 className="text-h1 font-bold text-foreground">Danh Mục Nổi Bật</h2>
-            <p className="text-muted text-sm max-w-md mx-auto">
+            <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-dark uppercase tracking-wider bg-surface px-3 py-1 rounded-full border border-primary/20 shadow-xs">
+              <Sparkles className="w-3.5 h-3.5 text-accent" />
+              <span>Khám phá theo danh mục</span>
+            </div>
+            <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Danh Mục Nổi Bật</h2>
+            <p className="text-muted text-xs sm:text-sm max-w-md mx-auto">
               Lựa chọn các nhóm mặt hàng thiết yếu hàng ngày với tiêu chuẩn chất lượng cao nhất.
             </p>
           </div>
 
           {isLoadingCats ? (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
-              {[1, 2, 3, 4].map((n) => (
-                <div key={n} className="p-6 rounded-2xl bg-surface border border-border flex flex-col items-center gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5">
+              {[1, 2, 3, 4, 5, 6].map((n) => (
+                <div key={n} className="p-6 rounded-3xl bg-surface border border-border flex flex-col items-center gap-3">
                   <Skeleton className="w-12 h-12 rounded-2xl" />
-                  <Skeleton className="w-24 h-4 rounded-md" />
+                  <Skeleton className="w-20 h-4 rounded-md" />
                 </div>
               ))}
             </div>
           ) : (
-            <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 sm:gap-6">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5">
               {categories.map((cat, i) => {
                 const style = CATEGORY_STYLES[i % CATEGORY_STYLES.length];
                 return (
-                  <Link
+                  <motion.div
                     key={cat.id}
-                    to={`/products?category=${cat.id}`}
-                    className={`p-6 rounded-2xl ${style.color} border ${style.border} flex flex-col items-center text-center transition-all duration-200 hover:-translate-y-1 hover:shadow-card`}
+                    whileHover={shouldReduceMotion ? {} : { y: -4 }}
+                    transition={{ duration: 0.2 }}
                   >
-                    <div className="text-3xl mb-3">{style.emoji}</div>
-                    <h3 className="font-semibold text-foreground text-sm">{cat.name}</h3>
-                    <span className="text-xs text-muted mt-1">{cat.description || "Khám phá ngay"}</span>
-                  </Link>
+                    <Link
+                      to={`/products?category=${cat.id}`}
+                      className={`h-full p-5 sm:p-6 rounded-3xl ${style.color} border ${style.border} flex flex-col items-center text-center shadow-card hover:shadow-card-hover transition-all duration-200 block`}
+                    >
+                      <div className="text-3xl sm:text-4xl mb-2.5 transition-transform duration-200 group-hover:scale-110">
+                        {style.emoji}
+                      </div>
+                      <h3 className="font-bold text-foreground text-xs sm:text-sm line-clamp-1">{cat.name}</h3>
+                      <span className="text-[11px] text-muted mt-1 line-clamp-1">
+                        {cat.description || "Khám phá"}
+                      </span>
+                    </Link>
+                  </motion.div>
                 );
               })}
             </div>
@@ -190,17 +195,19 @@ export function HomePage() {
       </section>
 
       {/* Featured Products (Từ GET /products kèm tồn kho theo chi nhánh) */}
-      <section className="py-16 sm:py-20 bg-background">
+      <section className="py-14 sm:py-20 bg-background">
         <div className="container mx-auto px-4 md:px-6">
           <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
             <div>
-              <div className="inline-flex items-center gap-1.5 text-xs font-semibold text-primary-dark uppercase tracking-wider mb-2">
+              <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-dark uppercase tracking-wider bg-primary-tint/60 px-3 py-1 rounded-full border border-primary/20 shadow-xs mb-2.5">
                 <Store className="w-3.5 h-3.5" />
-                Sản phẩm nổi bật tại {selectedBranch ? selectedBranch.name : "cửa hàng"}
+                Sản phẩm sẵn có tại {selectedBranch ? selectedBranch.name : "cửa hàng"}
               </div>
-              <h2 className="text-h1 font-bold text-foreground">Sản Phẩm Tươi Mới Trong Ngày</h2>
+              <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                Sản Phẩm Tươi Mới Trong Ngày
+              </h2>
             </div>
-            <Button variant="outline" asChild className="rounded-2xl">
+            <Button variant="outline" asChild className="rounded-2xl text-xs sm:text-sm font-semibold">
               <Link to="/products" className="flex items-center gap-1.5">
                 Xem tất cả ({products.length})
                 <ArrowRight className="w-4 h-4" />
@@ -236,6 +243,13 @@ export function HomePage() {
           )}
         </div>
       </section>
+
+      {/* Why Choose Us Section (4 giá trị cốt lõi) */}
+      <WhyChooseUsSection />
+
+      {/* Customer Testimonials Section (Đánh giá khách hàng) */}
+      <TestimonialsSection />
     </div>
   );
 }
+
