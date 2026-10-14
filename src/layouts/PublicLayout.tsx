@@ -24,6 +24,7 @@ import {
 import { useCartStore } from "../store/useCartStore";
 import { useAuthStore } from "../store/useAuthStore";
 import { CartDrawer } from "../modules/cart/components/CartDrawer";
+import { CartToast } from "../components/ui/CartToast";
 import { Button } from "../components/ui/Button";
 import { BranchSelector } from "../components/branch/BranchSelector";
 
@@ -469,6 +470,7 @@ export default function PublicLayout() {
 
       {/* Global Overlays */}
       <CartDrawer />
+      <CartToast />
     </div>
   );
 }

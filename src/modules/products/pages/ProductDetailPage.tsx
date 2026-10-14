@@ -27,6 +27,7 @@ import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { useCartStore } from "../../../store/useCartStore";
+import { useCartToastStore } from "../../../store/useCartToastStore";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
 import { Skeleton } from "../../../components/ui/Skeleton";
@@ -137,6 +138,7 @@ export function ProductDetailPage() {
   const handleAddToCart = () => {
     if (!product || availableQty <= 0) return;
     addItem(product, quantity);
+    useCartToastStore.getState().showToast(product.name);
     setAddSuccessNotice(true);
     setTimeout(() => setAddSuccessNotice(false), 2500);
   };

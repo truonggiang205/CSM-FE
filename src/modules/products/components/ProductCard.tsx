@@ -7,6 +7,7 @@ import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { useCartStore } from "../../../store/useCartStore";
+import { useCartToastStore } from "../../../store/useCartToastStore";
 import { useTilt } from "../../../hooks/useTilt";
 
 interface ProductCardProps {
@@ -60,6 +61,7 @@ export function ProductCard({
     e.stopPropagation();
     if (isOutOfStock) return;
     addItem(product, 1);
+    useCartToastStore.getState().showToast(product.name);
     setIsAdded(true);
     setTimeout(() => setIsAdded(false), 1000);
   };
