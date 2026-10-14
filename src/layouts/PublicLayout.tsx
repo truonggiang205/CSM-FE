@@ -30,6 +30,11 @@ export default function PublicLayout() {
               <Link to="/products" className="text-muted hover:text-primary transition-colors py-1">
                 Tất cả sản phẩm
               </Link>
+              {isAuthenticated && (
+                <Link to="/orders" className="text-muted hover:text-primary transition-colors py-1">
+                  Đơn hàng của tôi
+                </Link>
+              )}
               {isAuthenticated && user?.role !== "CUSTOMER" && (
                 <Link to="/admin" className="text-muted hover:text-primary transition-colors py-1 text-xs px-2.5 rounded-full bg-pastel-mint text-primary-dark font-semibold">
                   Khu vực Quản trị
