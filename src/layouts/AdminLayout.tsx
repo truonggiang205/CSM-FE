@@ -3,7 +3,7 @@ import { LayoutDashboard, Package, ShoppingBag, Users, Settings, LogOut, Refresh
 import { useAuthStore } from "../store/useAuthStore";
 
 export default function AdminLayout() {
-  const { user, logout, toggleTestRole } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const location = useLocation();
 
   const navigation = [
@@ -72,7 +72,7 @@ export default function AdminLayout() {
 
             {import.meta.env.DEV && (
               <button
-                onClick={toggleTestRole}
+                onClick={() => useAuthStore.getState().toggleTestRole?.()}
                 className="w-full text-left text-[11px] text-primary-dark hover:text-primary font-semibold flex items-center gap-1.5 pt-1.5 border-t border-border/50"
                 title="Nhấn để đổi vai trò kiểm thử giữa ADMIN và BRANCH_MANAGER (Chỉ hiện trong môi trường DEV)"
               >
