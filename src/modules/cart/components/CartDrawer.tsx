@@ -1,3 +1,4 @@
+import React, { useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import {
   X,
@@ -8,14 +9,17 @@ import {
   Truck,
   Sparkles,
   ArrowRight,
-  PartyPopper,
 } from "lucide-react";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useCartStore } from "../../../store/useCartStore";
+import { useCartToastStore } from "../../../store/useCartToastStore";
 import { productApi } from "../../../api/productApi";
+import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
+import { AnimatedNumber } from "../../../components/ui/AnimatedNumber";
+import { getCartRecommendations } from "../utils/cartRecommendations";
 
 const FREESHIP_THRESHOLD = 150000; // 150.000₫ để được freeship
 
@@ -31,10 +35,11 @@ export function CartDrawer() {
     clearCart,
   } = useCartStore();
 
+  const { showToast } = useCartToastStore();
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
 
-  // Lấy danh sách sản phẩm để gợi ý mua kèm giá tốt
+  // Lấy danh sách sản phẩm để gợi ý mua kèm theo rule-based
   const { data: allProducts = [] } = useQuery({
     queryKey: ["products"],
     queryFn: productApi.getProducts,
@@ -52,9 +57,16 @@ export function CartDrawer() {
   const freeshipProgress = Math.min(100, Math.round((totalPrice / FREESHIP_THRESHOLD) * 100));
   const isFreeshipEligible = totalPrice >= FREESHIP_THRESHOLD;
 
-  // Lọc 2 sản phẩm gợi ý mua kèm (không trùng với sản phẩm đã có trong giỏ)
-  const cartProductIds = new Set(items.map((i) => i.product.id));
-  const upsellProducts = allProducts.filter((p) => !cartProductIds.has(p.id)).slice(0, 2);
+  // Gợi ý mua kèm theo rule-based (tối đa 3 sản phẩm chưa có trong giỏ)
+  const upsellProducts = useMemo(
+    () => getCartRecommendations(items, allProducts, 3),
+    [items, allProducts]
+  );
+
+  const handleAddUpsell = (product: Product) => {
+    addItem(product, 1);
+    showToast(product.name);
+  };
 
   const handleCheckoutClick = () => {
     setIsOpen(false);
@@ -106,23 +118,26 @@ export function CartDrawer() {
             </div>
 
             {/* Freeship Progress Bar */}
-            <div className="px-5 py-3.5 bg-gradient-to-r from-primary-tint/50 via-pastel-peach/30 to-surface-soft border-b border-border/80">
+            <div
+              className={`px-5 py-3.5 border-b border-border/80 transition-colors duration-300 ${
+                isFreeshipEligible
+                  ? "bg-emerald-50/80 border-emerald-200/80"
+                  : "bg-gradient-to-r from-primary-tint/50 via-pastel-peach/30 to-surface-soft"
+              }`}
+            >
               <div className="flex items-center justify-between text-xs font-semibold mb-1.5">
                 <div className="flex items-center gap-1.5 text-foreground">
                   {isFreeshipEligible ? (
-                    <>
-                      <PartyPopper className="w-4 h-4 text-emerald-600 animate-bounce" />
-                      <span className="text-emerald-700 font-bold">
-                        Đã đủ điều kiện FREESHIP!
-                      </span>
-                    </>
+                    <span className="text-emerald-700 font-bold">
+                      🎉 Chúc mừng! Bạn được miễn phí giao hàng
+                    </span>
                   ) : (
                     <>
                       <Truck className="w-4 h-4 text-primary" />
                       <span>
                         Mua thêm{" "}
                         <strong className="text-primary-dark font-extrabold">
-                          {formatCurrency(remainingForFreeship)}
+                          <AnimatedNumber value={remainingForFreeship} formatFn={formatCurrency} />
                         </strong>{" "}
                         để được Freeship
                       </span>
@@ -130,7 +145,7 @@ export function CartDrawer() {
                   )}
                 </div>
                 <span className="font-mono text-[11px] text-muted font-bold">
-                  {freeshipProgress}%
+                  <AnimatedNumber value={freeshipProgress} formatFn={(v) => `${Math.round(v)}%`} />
                 </span>
               </div>
 
@@ -139,8 +154,8 @@ export function CartDrawer() {
                 <motion.div
                   initial={shouldReduceMotion ? { width: `${freeshipProgress}%` } : { width: 0 }}
                   animate={{ width: `${freeshipProgress}%` }}
-                  transition={{ duration: 0.5, ease: "easeOut" }}
-                  className={`h-full rounded-full transition-colors ${
+                  transition={{ duration: 0.4, ease: "easeOut" }}
+                  className={`h-full rounded-full transition-colors duration-300 ${
                     isFreeshipEligible
                       ? "bg-emerald-500 shadow-xs"
                       : "bg-gradient-to-r from-amber-400 to-primary"
@@ -252,51 +267,62 @@ export function CartDrawer() {
                     ))}
                   </AnimatePresence>
 
-                  {/* Upsell / Gợi ý mua kèm giá tốt */}
+                  {/* Upsell / Gợi ý mua kèm tiện lợi (Rule-based) */}
                   {upsellProducts.length > 0 && (
                     <div className="pt-3 border-t border-border/60">
-                      <div className="flex items-center gap-1.5 text-xs font-bold text-muted uppercase tracking-wider mb-2.5">
-                        <Sparkles className="w-3.5 h-3.5 text-accent" />
-                        <span>Gợi ý mua kèm tiện lợi</span>
+                      <div className="flex items-center justify-between text-xs font-bold text-muted uppercase tracking-wider mb-2.5">
+                        <div className="flex items-center gap-1.5">
+                          <Sparkles className="w-3.5 h-3.5 text-accent" />
+                          <span>Gợi ý mua kèm tiện lợi</span>
+                        </div>
+                        <span className="text-[10px] text-muted lowercase font-normal">
+                          tối đa {upsellProducts.length} món
+                        </span>
                       </div>
                       <div className="space-y-2">
-                        {upsellProducts.map((upsell) => (
-                          <div
-                            key={upsell.id}
-                            className="flex items-center justify-between p-2.5 rounded-2xl bg-surface border border-border/70 hover:border-primary/30 transition-all shadow-2xs"
-                          >
-                            <div className="flex items-center gap-2.5 min-w-0">
-                              <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-soft border border-border/50 flex-shrink-0">
-                                <ProductImage
-                                  src={upsell.images && upsell.images[0]}
-                                  alt={upsell.name}
-                                  productName={upsell.name}
-                                  className="w-full h-full object-cover"
-                                  iconClassName="w-4 h-4 text-primary"
-                                  loading="lazy"
-                                />
-                              </div>
-                              <div className="min-w-0">
-                                <h5 className="font-semibold text-xs text-foreground truncate">
-                                  {upsell.name}
-                                </h5>
-                                <span className="text-[11px] font-bold text-primary-dark">
-                                  {formatCurrency(upsell.discountPrice || upsell.price)}
-                                </span>
-                              </div>
-                            </div>
-                            <Button
-                              size="sm"
-                              variant="soft"
-                              onClick={() => addItem(upsell, 1)}
-                              className="rounded-xl h-7 px-2.5 text-xs font-bold gap-1 flex-shrink-0 shadow-2xs"
-                              aria-label={`Thêm nhanh ${upsell.name}`}
+                        <AnimatePresence>
+                          {upsellProducts.map((upsell) => (
+                            <motion.div
+                              key={upsell.id}
+                              layout
+                              initial={{ opacity: 0, scale: 0.95 }}
+                              animate={{ opacity: 1, scale: 1 }}
+                              exit={{ opacity: 0, scale: 0.9, transition: { duration: 0.18 } }}
+                              className="flex items-center justify-between p-2.5 rounded-2xl bg-surface border border-border/70 hover:border-primary/30 transition-all shadow-2xs"
                             >
-                              <Plus className="w-3 h-3" />
-                              <span>Thêm</span>
-                            </Button>
-                          </div>
-                        ))}
+                              <div className="flex items-center gap-2.5 min-w-0">
+                                <div className="w-10 h-10 rounded-xl overflow-hidden bg-surface-soft border border-border/50 flex-shrink-0">
+                                  <ProductImage
+                                    src={upsell.images && upsell.images[0]}
+                                    alt={upsell.name}
+                                    productName={upsell.name}
+                                    className="w-full h-full object-cover"
+                                    iconClassName="w-4 h-4 text-primary"
+                                    loading="lazy"
+                                  />
+                                </div>
+                                <div className="min-w-0">
+                                  <h5 className="font-semibold text-xs text-foreground truncate">
+                                    {upsell.name}
+                                  </h5>
+                                  <span className="text-[11px] font-bold text-primary-dark">
+                                    {formatCurrency(upsell.discountPrice || upsell.price)}
+                                  </span>
+                                </div>
+                              </div>
+                              <Button
+                                size="sm"
+                                variant="soft"
+                                onClick={() => handleAddUpsell(upsell)}
+                                className="rounded-xl h-7 px-2.5 text-xs font-bold gap-1 flex-shrink-0 shadow-2xs cursor-pointer"
+                                aria-label={`Thêm nhanh ${upsell.name}`}
+                              >
+                                <Plus className="w-3 h-3" />
+                                <span>Thêm</span>
+                              </Button>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
                       </div>
                     </div>
                   )}
@@ -311,7 +337,7 @@ export function CartDrawer() {
                   <div className="flex justify-between items-center text-xs text-muted">
                     <span>Tạm tính hàng hóa:</span>
                     <span className="font-semibold text-foreground">
-                      {formatCurrency(totalPrice)}
+                      <AnimatedNumber value={totalPrice} formatFn={formatCurrency} />
                     </span>
                   </div>
                   <div className="flex justify-between items-center text-xs text-muted">
@@ -326,26 +352,40 @@ export function CartDrawer() {
                   </div>
                   <div className="flex justify-between items-baseline pt-2 border-t border-border/60">
                     <span className="text-sm font-bold text-foreground">Tổng cộng:</span>
-                    <span className="text-xl font-black text-primary-dark">
-                      {formatCurrency(totalPrice)}
-                    </span>
+                    <AnimatedNumber
+                      value={totalPrice}
+                      formatFn={formatCurrency}
+                      className="text-xl font-black text-primary-dark"
+                    />
                   </div>
                 </div>
 
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-2">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant="outline"
+                      onClick={clearCart}
+                      className="rounded-2xl text-xs font-semibold h-11 text-muted hover:text-danger hover:border-danger/30 cursor-pointer"
+                    >
+                      Làm trống giỏ
+                    </Button>
+                    <Button
+                      onClick={handleCheckoutClick}
+                      className="rounded-2xl text-xs sm:text-sm font-extrabold h-11 gap-1.5 shadow-sm cursor-pointer"
+                    >
+                      <span>Thanh toán</span>
+                      <ArrowRight className="w-4 h-4" />
+                    </Button>
+                  </div>
                   <Button
-                    variant="outline"
-                    onClick={clearCart}
-                    className="rounded-2xl text-xs font-semibold h-11 text-muted hover:text-danger hover:border-danger/30"
+                    variant="ghost"
+                    onClick={() => {
+                      setIsOpen(false);
+                      navigate("/cart");
+                    }}
+                    className="w-full text-xs font-semibold text-primary hover:text-primary-dark hover:bg-primary-tint/50 h-8 rounded-xl cursor-pointer"
                   >
-                    Làm trống giỏ
-                  </Button>
-                  <Button
-                    onClick={handleCheckoutClick}
-                    className="rounded-2xl text-xs sm:text-sm font-extrabold h-11 gap-1.5 shadow-sm"
-                  >
-                    <span>Thanh toán</span>
-                    <ArrowRight className="w-4 h-4" />
+                    Xem chi tiết giỏ hàng
                   </Button>
                 </div>
               </div>
