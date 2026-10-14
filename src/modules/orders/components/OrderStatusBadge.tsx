@@ -41,7 +41,7 @@ export function OrderStatusBadge({ status, className = "" }: OrderStatusBadgePro
           className={`inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-semibold bg-success-pastel text-success-dark border border-success/30 shadow-xs ${className}`}
         >
           <span className="w-1.5 h-1.5 rounded-full bg-success" />
-          Đang giao / Hoàn tất (Shipped)
+          Đang giao (Shipped)
         </span>
       );
     case "CANCELLED":
@@ -65,3 +65,4 @@ export function OrderStatusBadge({ status, className = "" }: OrderStatusBadgePro
 }
 
 export default OrderStatusBadge;
+
