@@ -243,7 +243,7 @@ export function CartPage() {
                           <div className="flex items-center bg-surface-soft border border-border rounded-xl p-0.5 shadow-2xs">
                             <button
                               type="button"
-                              className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface disabled:opacity-30 transition-all cursor-pointer"
+                              className="p-2 sm:p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface disabled:opacity-30 transition-all cursor-pointer"
                               onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
                               disabled={item.quantity <= 1}
                               aria-label={`Giảm số lượng ${item.product.name}`}
@@ -255,7 +255,7 @@ export function CartPage() {
                             </span>
                             <button
                               type="button"
-                              className="p-1.5 rounded-lg text-muted hover:text-foreground hover:bg-surface transition-all cursor-pointer"
+                              className="p-2 sm:p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface transition-all cursor-pointer"
                               onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                               aria-label={`Tăng số lượng ${item.product.name}`}
                             >
@@ -274,7 +274,7 @@ export function CartPage() {
                           <button
                             type="button"
                             onClick={() => removeItem(item.product.id)}
-                            className="p-1.5 rounded-xl text-muted hover:text-danger hover:bg-danger-pastel/60 transition-all cursor-pointer"
+                            className="p-2 sm:p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl text-muted hover:text-danger hover:bg-danger-pastel/60 transition-all cursor-pointer"
                             aria-label={`Xoá ${item.product.name} khỏi giỏ`}
                           >
                             <Trash2 className="w-4 h-4" />

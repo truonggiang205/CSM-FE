@@ -115,6 +115,18 @@ export function SpinWheel() {
     }
   }, []);
 
+  // Đóng modal phần thưởng khi nhấn phím Escape
+  useEffect(() => {
+    if (!isModalOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsModalOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isModalOpen]);
+
   // Chọn trước kết quả bằng random có trọng số
   const pickWeightedPrize = (): { prize: SpinPrize; index: number } => {
     const totalWeight = SPIN_PRIZES.reduce((sum, p) => sum + p.weight, 0);
@@ -374,11 +386,11 @@ export function SpinWheel() {
                 aria-modal="true"
                 aria-labelledby="spin-reward-title"
               >
-                {/* Close Button */}
+                {/* Close Button (min 44px tap target on touch) */}
                 <button
                   type="button"
                   onClick={() => setIsModalOpen(false)}
-                  className="absolute top-4 right-4 w-8 h-8 rounded-full bg-surface-soft text-muted hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
+                  className="absolute top-4 right-4 w-11 h-11 min-h-[44px] min-w-[44px] sm:w-9 sm:h-9 rounded-full bg-surface-soft text-muted hover:text-foreground flex items-center justify-center transition-colors cursor-pointer"
                   aria-label="Đóng cửa sổ"
                 >
                   <X className="w-4 h-4" />
