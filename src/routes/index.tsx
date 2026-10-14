@@ -1,18 +1,69 @@
+import React, { lazy, Suspense } from "react";
 import { createBrowserRouter, RouterProvider } from "react-router-dom";
 import PublicLayout from "../layouts/PublicLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import { ProtectedRoute } from "../modules/auth/components/ProtectedRoute";
-import { HomePage } from "../modules/home/pages/HomePage";
-import { ProductListPage } from "../modules/products/pages/ProductListPage";
-import { ProductDetailPage } from "../modules/products/pages/ProductDetailPage";
-import { CheckoutPage } from "../modules/checkout/pages/CheckoutPage";
-import { DashboardPage } from "../modules/dashboard/pages/DashboardPage";
-import { OrderListPage } from "../modules/orders/pages/OrderListPage";
-import { MyOrdersPage } from "../modules/orders/pages/MyOrdersPage";
-import { OrderDetailPage } from "../modules/orders/pages/OrderDetailPage";
-import { InventoryPage } from "../modules/inventory/pages/InventoryPage";
-import { LoginPage } from "../modules/auth/pages/LoginPage";
-import { UnauthorizedPage } from "../modules/auth/pages/UnauthorizedPage";
+
+// Lazy-loaded route components for optimized bundle splitting
+const HomePage = lazy(() =>
+  import("../modules/home/pages/HomePage").then((m) => ({ default: m.HomePage }))
+);
+const ProductListPage = lazy(() =>
+  import("../modules/products/pages/ProductListPage").then((m) => ({ default: m.ProductListPage }))
+);
+const ProductDetailPage = lazy(() =>
+  import("../modules/products/pages/ProductDetailPage").then((m) => ({ default: m.ProductDetailPage }))
+);
+const CheckoutPage = lazy(() =>
+  import("../modules/checkout/pages/CheckoutPage").then((m) => ({ default: m.CheckoutPage }))
+);
+const DashboardPage = lazy(() =>
+  import("../modules/dashboard/pages/DashboardPage").then((m) => ({ default: m.DashboardPage }))
+);
+const OrderListPage = lazy(() =>
+  import("../modules/orders/pages/OrderListPage").then((m) => ({ default: m.OrderListPage }))
+);
+const MyOrdersPage = lazy(() =>
+  import("../modules/orders/pages/MyOrdersPage").then((m) => ({ default: m.MyOrdersPage }))
+);
+const OrderDetailPage = lazy(() =>
+  import("../modules/orders/pages/OrderDetailPage").then((m) => ({ default: m.OrderDetailPage }))
+);
+const InventoryPage = lazy(() =>
+  import("../modules/inventory/pages/InventoryPage").then((m) => ({ default: m.InventoryPage }))
+);
+const LoginPage = lazy(() =>
+  import("../modules/auth/pages/LoginPage").then((m) => ({ default: m.LoginPage }))
+);
+const UnauthorizedPage = lazy(() =>
+  import("../modules/auth/pages/UnauthorizedPage").then((m) => ({ default: m.UnauthorizedPage }))
+);
+
+/**
+ * Skeleton fallback cho toàn bộ routes khi đang tải chunk qua mạng
+ */
+function PageSkeletonFallback() {
+  return (
+    <div className="container mx-auto px-4 sm:px-6 py-8 max-w-7xl space-y-6 animate-pulse" role="status" aria-label="Đang tải trang">
+      <div className="flex items-center justify-between">
+        <div className="h-8 w-44 bg-surface-soft border border-border/60 rounded-2xl" />
+        <div className="h-8 w-28 bg-surface-soft border border-border/60 rounded-2xl" />
+      </div>
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+        <div className="h-44 bg-surface-soft border border-border/60 rounded-3xl" />
+        <div className="h-44 bg-surface-soft border border-border/60 rounded-3xl" />
+        <div className="h-44 bg-surface-soft border border-border/60 rounded-3xl" />
+      </div>
+      <div className="h-72 bg-surface-soft border border-border/60 rounded-3xl" />
+    </div>
+  );
+}
+
+const withSuspense = (Component: React.ComponentType) => (
+  <Suspense fallback={<PageSkeletonFallback />}>
+    <Component />
+  </Suspense>
+);
 
 const router = createBrowserRouter([
   {
@@ -21,27 +72,27 @@ const router = createBrowserRouter([
     children: [
       {
         index: true,
-        element: <HomePage />,
+        element: withSuspense(HomePage),
       },
       {
         path: "products",
-        element: <ProductListPage />,
+        element: withSuspense(ProductListPage),
       },
       {
         path: "products/:id",
-        element: <ProductDetailPage />,
+        element: withSuspense(ProductDetailPage),
       },
       {
         path: "checkout",
-        element: <CheckoutPage />,
+        element: withSuspense(CheckoutPage),
       },
       {
         path: "login",
-        element: <LoginPage />,
+        element: withSuspense(LoginPage),
       },
       {
         path: "unauthorized",
-        element: <UnauthorizedPage />,
+        element: withSuspense(UnauthorizedPage),
       },
       // Các route khách hàng cần đăng nhập
       {
@@ -49,11 +100,11 @@ const router = createBrowserRouter([
         children: [
           {
             path: "orders",
-            element: <MyOrdersPage />,
+            element: withSuspense(MyOrdersPage),
           },
           {
             path: "orders/:id",
-            element: <OrderDetailPage />,
+            element: withSuspense(OrderDetailPage),
           },
         ],
       },
@@ -68,22 +119,22 @@ const router = createBrowserRouter([
         children: [
           {
             index: true,
-            element: <DashboardPage />,
+            element: withSuspense(DashboardPage),
           },
           {
             path: "orders",
-            element: <OrderListPage />,
+            element: withSuspense(OrderListPage),
           },
           {
             element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
             children: [
               {
                 path: "inventory",
-                element: <InventoryPage />,
+                element: withSuspense(InventoryPage),
               },
               {
                 path: "products",
-                element: <InventoryPage />,
+                element: withSuspense(InventoryPage),
               },
             ],
           },
