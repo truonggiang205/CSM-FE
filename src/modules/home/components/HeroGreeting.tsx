@@ -160,7 +160,8 @@ export function HeroGreeting() {
   const moveY3 = useTransform(smoothY, [-1, 1], [-8, 8]);
 
   const handleMouseMove = (e: React.MouseEvent<HTMLDivElement>) => {
-    if (shouldReduceMotion || isTouchDevice) return;
+    const isMobileWidth = typeof window !== "undefined" && window.innerWidth <= 768;
+    if (shouldReduceMotion || isTouchDevice || isMobileWidth) return;
     const rect = e.currentTarget.getBoundingClientRect();
     const x = (e.clientX - rect.left - rect.width / 2) / (rect.width / 2);
     const y = (e.clientY - rect.top - rect.height / 2) / (rect.height / 2);

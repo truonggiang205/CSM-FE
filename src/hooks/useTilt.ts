@@ -32,7 +32,8 @@ export function useTilt({ maxTilt = 3, perspective = 800 }: UseTiltOptions = {})
     }
   }, []);
 
-  const isEnabled = !shouldReduceMotion && !isTouchDevice;
+  const isMobile = typeof window !== "undefined" && window.innerWidth <= 768;
+  const isEnabled = !shouldReduceMotion && !isTouchDevice && !isMobile;
 
   const rawRotateX = useMotionValue(0);
   const rawRotateY = useMotionValue(0);

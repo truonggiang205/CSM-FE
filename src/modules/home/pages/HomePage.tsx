@@ -12,6 +12,7 @@ import { CsmPicksSection } from "../components/CsmPicksSection";
 import { NewArrivalsSection } from "../components/NewArrivalsSection";
 import { ComboSection } from "../components/ComboSection";
 import { SpinWheel } from "../components/SpinWheel";
+import { AmbientBackground } from "../components/AmbientBackground";
 import { WhyChooseUsSection } from "../components/WhyChooseUsSection";
 import { TestimonialsSection } from "../components/TestimonialsSection";
 import { productApi } from "../../../api/productApi";
@@ -62,7 +63,10 @@ export function HomePage() {
   }, [branchInventory]);
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen relative overflow-hidden">
+      {/* Ambient background: các khối màu mờ trôi chậm, max 0.08 opacity */}
+      <AmbientBackground />
+
       {/* Real-time Hero Greeting with Parallax */}
       <section className="pt-5 pb-2 sm:pt-6 sm:pb-3 bg-gradient-to-b from-primary-tint/30 to-background">
         <div className="container mx-auto px-4 md:px-6">
