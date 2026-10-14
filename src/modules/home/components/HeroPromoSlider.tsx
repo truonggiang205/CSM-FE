@@ -56,10 +56,10 @@ export function HeroPromoSlider() {
             if (info.offset.x < -40) handleNext();
             else if (info.offset.x > 40) handlePrev();
           }}
-          className={`grid grid-cols-1 md:grid-cols-12 min-h-[380px] sm:min-h-[420px] md:min-h-[440px] lg:h-[460px] bg-gradient-to-br ${currentBanner.bgGradient} items-center`}
+          className={`grid grid-cols-1 md:grid-cols-12 min-h-[300px] sm:min-h-[320px] md:min-h-[340px] lg:h-[350px] bg-gradient-to-br ${currentBanner.bgGradient} items-center`}
         >
           {/* Text Content */}
-          <div className="md:col-span-7 p-6 sm:p-8 lg:p-10 flex flex-col justify-center space-y-4 text-left">
+          <div className="md:col-span-7 p-5 sm:p-6 lg:p-7 flex flex-col justify-center space-y-2.5 sm:space-y-3 text-left">
             <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full border shadow-xs w-fit text-xs font-bold uppercase tracking-wider backdrop-blur-sm bg-surface/90">
               <Sparkles className="w-3.5 h-3.5 text-accent" />
               <span className="text-primary-dark">{currentBanner.badge}</span>
@@ -88,8 +88,8 @@ export function HeroPromoSlider() {
           </div>
 
           {/* Banner Image */}
-          <div className="md:col-span-5 p-4 sm:p-6 lg:p-8 flex items-center justify-center">
-            <div className="relative w-full max-w-[280px] sm:max-w-[320px] aspect-square rounded-3xl overflow-hidden shadow-card border border-border/80 bg-surface">
+          <div className="md:col-span-5 p-3 sm:p-5 lg:p-6 flex items-center justify-center">
+            <div className="relative w-full max-w-[220px] sm:max-w-[250px] lg:max-w-[260px] aspect-square rounded-3xl overflow-hidden shadow-card border border-border/80 bg-surface">
               <img
                 src={currentBanner.image}
                 alt={currentBanner.title}
