@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Outlet, NavLink, Link, useNavigate, useLocation } from "react-router-dom";
-import { useReducedMotion, motion } from "framer-motion";
+import { useReducedMotion, motion, AnimatePresence } from "framer-motion";
 import {
   ShoppingCart,
   Search,
@@ -177,11 +177,11 @@ export default function PublicLayout() {
           <div className="flex items-center gap-2 sm:gap-3 shrink-0">
             <BranchSelector />
 
-            {/* Nút mở giỏ hàng kèm hiệu ứng nảy badge */}
+            {/* Nút mở giỏ hàng kèm hiệu ứng nảy badge (min 44px trên touch) */}
             <Button
               variant="ghost"
               size="icon"
-              className="relative hover:bg-primary-tint/60 text-foreground rounded-2xl h-10 w-10 focus-visible:ring-2 focus-visible:ring-primary"
+              className="relative hover:bg-primary-tint/60 text-foreground rounded-2xl h-11 w-11 min-h-[44px] min-w-[44px] sm:h-10 sm:w-10 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
               onClick={toggleCart}
               aria-label={`Mở giỏ hàng (${totalItems} món)`}
             >
@@ -207,7 +207,7 @@ export default function PublicLayout() {
                 </span>
                 <button
                   onClick={logout}
-                  className="text-xs font-semibold px-3 py-2 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all focus-visible:ring-2 focus-visible:ring-rose-500 flex items-center gap-1"
+                  className="text-xs font-semibold px-3 py-2 min-h-[44px] rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all focus-visible:ring-2 focus-visible:ring-rose-500 flex items-center gap-1 cursor-pointer"
                   title="Đăng xuất khỏi hệ thống"
                   aria-label="Đăng xuất khỏi hệ thống"
                 >
@@ -218,7 +218,7 @@ export default function PublicLayout() {
             ) : (
               <Link
                 to="/login"
-                className="text-xs font-bold px-3.5 py-2 rounded-xl text-primary-dark bg-primary-tint/70 hover:bg-primary-tint border border-primary/20 transition-all focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5 shadow-xs"
+                className="text-xs font-bold px-3.5 py-2.5 min-h-[44px] rounded-xl text-primary-dark bg-primary-tint/70 hover:bg-primary-tint border border-primary/20 transition-all focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5 shadow-xs"
               >
                 <LogIn className="w-3.5 h-3.5" />
                 <span>Đăng nhập</span>
@@ -236,25 +236,36 @@ export default function PublicLayout() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm nước ngọt, mì ly, bánh snack..."
-              className="w-full h-9 pl-9 pr-8 rounded-xl bg-surface-soft border border-border text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full h-10 pl-10 pr-10 rounded-xl bg-surface-soft border border-border text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-2.5 top-1/2 -translate-y-1/2 text-muted hover:text-foreground"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted hover:text-foreground p-2 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
                 aria-label="Xoá tìm kiếm"
               >
-                <X className="w-3.5 h-3.5" />
+                <X className="w-4 h-4" />
               </button>
             )}
           </form>
         </div>
       </header>
 
-      {/* Main Outlet */}
-      <main className="flex-1">
-        <Outlet />
+      {/* Main Outlet with Page Transition */}
+      <main className="flex-1 overflow-x-hidden">
+        <AnimatePresence mode="wait" initial={false}>
+          <motion.div
+            key={location.pathname}
+            initial={shouldReduceMotion ? false : { opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={shouldReduceMotion ? undefined : { opacity: 0, transition: { duration: 0.15 } }}
+            transition={{ duration: 0.3, ease: "easeOut" }}
+            className="w-full flex-1"
+          >
+            <Outlet />
+          </motion.div>
+        </AnimatePresence>
       </main>
 
       {/* Dải 3 cam kết dịch vụ */}

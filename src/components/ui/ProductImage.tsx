@@ -9,6 +9,8 @@ export interface ProductImageProps {
   containerClassName?: string;
   iconClassName?: string;
   loading?: "lazy" | "eager";
+  width?: number;
+  height?: number;
 }
 
 /**
@@ -24,6 +26,8 @@ export function ProductImage({
   containerClassName = "",
   iconClassName = "w-6 h-6 text-primary",
   loading = "lazy",
+  width = 400,
+  height = 400,
 }: ProductImageProps) {
   const [hasError, setHasError] = useState(false);
 
@@ -52,6 +56,9 @@ export function ProductImage({
       src={src}
       alt={alt || productName}
       loading={loading}
+      decoding="async"
+      width={width}
+      height={height}
       onError={() => setHasError(true)}
       className={className}
     />

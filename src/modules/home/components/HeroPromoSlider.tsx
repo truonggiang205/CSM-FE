@@ -93,6 +93,10 @@ export function HeroPromoSlider() {
               <img
                 src={currentBanner.image}
                 alt={currentBanner.title}
+                width={260}
+                height={260}
+                loading="eager"
+                decoding="async"
                 onError={(e) => {
                   e.currentTarget.src = FALLBACK_HERO_IMAGE;
                 }}
@@ -112,8 +116,8 @@ export function HeroPromoSlider() {
             <button
               key={index}
               onClick={() => handleDotClick(index)}
-              className={`h-2 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
-                index === currentIndex ? "w-6 bg-primary" : "w-2 bg-border hover:bg-muted"
+              className={`h-2.5 rounded-full transition-all duration-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary ${
+                index === currentIndex ? "w-6 bg-primary" : "w-2.5 bg-border hover:bg-muted"
               }`}
               aria-label={`Chuyển tới slide ${index + 1}`}
             />
@@ -123,18 +127,18 @@ export function HeroPromoSlider() {
           </span>
         </div>
 
-        {/* Prev / Next Buttons & Play/Pause State */}
-        <div className="flex items-center gap-1.5 pointer-events-auto">
+        {/* Prev / Next Buttons & Play/Pause State (min 44px tap target on touch) */}
+        <div className="flex items-center gap-2 pointer-events-auto">
           <button
             onClick={handlePrev}
-            className="w-8 h-8 rounded-full bg-surface/90 backdrop-blur-md border border-border flex items-center justify-center text-foreground hover:bg-primary-tint hover:text-primary-dark transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-primary"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] sm:w-9 sm:h-9 rounded-full bg-surface/90 backdrop-blur-md border border-border flex items-center justify-center text-foreground hover:bg-primary-tint hover:text-primary-dark transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
             aria-label="Slide trước"
           >
             <ChevronLeft className="w-4 h-4" />
           </button>
           <button
             onClick={handleNext}
-            className="w-8 h-8 rounded-full bg-surface/90 backdrop-blur-md border border-border flex items-center justify-center text-foreground hover:bg-primary-tint hover:text-primary-dark transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-primary"
+            className="w-11 h-11 min-h-[44px] min-w-[44px] sm:w-9 sm:h-9 rounded-full bg-surface/90 backdrop-blur-md border border-border flex items-center justify-center text-foreground hover:bg-primary-tint hover:text-primary-dark transition-all shadow-xs focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
             aria-label="Slide tiếp theo"
           >
             <ChevronRight className="w-4 h-4" />

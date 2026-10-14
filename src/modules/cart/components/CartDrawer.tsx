@@ -39,6 +39,18 @@ export function CartDrawer() {
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
 
+  // Đóng drawer khi nhấn phím Escape
+  React.useEffect(() => {
+    if (!isOpen) return;
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if (e.key === "Escape") {
+        setIsOpen(false);
+      }
+    };
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [isOpen, setIsOpen]);
+
   // Lấy danh sách sản phẩm để gợi ý mua kèm theo rule-based
   const { data: allProducts = [] } = useQuery({
     queryKey: ["products"],
@@ -109,7 +121,7 @@ export function CartDrawer() {
               <Button
                 variant="ghost"
                 size="icon"
-                className="rounded-2xl h-9 w-9 text-muted hover:text-foreground hover:bg-surface-soft"
+                className="rounded-2xl h-11 w-11 min-h-[44px] min-w-[44px] sm:h-9 sm:w-9 text-muted hover:text-foreground hover:bg-surface-soft cursor-pointer flex items-center justify-center"
                 onClick={() => setIsOpen(false)}
                 aria-label="Đóng giỏ hàng"
               >
@@ -231,31 +243,31 @@ export function CartDrawer() {
                             <div className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-xs">
                               <button
                                 type="button"
-                                className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-surface-soft disabled:opacity-30 transition-all"
+                                className="p-2 sm:p-1 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface-soft disabled:opacity-30 transition-all cursor-pointer"
                                 onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
                                 disabled={item.quantity <= 1}
                                 aria-label={`Giảm số lượng ${item.product.name}`}
                               >
-                                <Minus className="w-3 h-3" />
+                                <Minus className="w-3.5 h-3.5" />
                               </button>
-                              <span className="w-8 text-center text-xs font-bold text-foreground">
+                              <span className="w-8 text-center text-xs font-bold text-foreground font-mono">
                                 {item.quantity}
                               </span>
                               <button
                                 type="button"
-                                className="p-1 rounded-lg text-muted hover:text-foreground hover:bg-surface-soft disabled:opacity-30 transition-all"
+                                className="p-2 sm:p-1 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface-soft disabled:opacity-30 transition-all cursor-pointer"
                                 onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
                                 disabled={item.quantity >= item.product.stock}
                                 aria-label={`Tăng số lượng ${item.product.name}`}
                               >
-                                <Plus className="w-3 h-3" />
+                                <Plus className="w-3.5 h-3.5" />
                               </button>
                             </div>
 
                             <button
                               type="button"
                               onClick={() => removeItem(item.product.id)}
-                              className="text-muted hover:text-danger hover:bg-danger-pastel/60 p-1.5 rounded-xl transition-all"
+                              className="text-muted hover:text-danger hover:bg-danger-pastel/60 p-2 sm:p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-xl transition-all cursor-pointer"
                               aria-label={`Xoá ${item.product.name} khỏi giỏ`}
                               title="Xoá món này"
                             >

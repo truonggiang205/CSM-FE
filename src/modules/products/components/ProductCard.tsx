@@ -333,17 +333,17 @@ export function ProductCard({
             )}
           </div>
 
-          {/* Action buttons (always visible on mobile, icon button) */}
-          <div className="flex items-center gap-1.5 md:hidden">
+          {/* Action buttons (always visible on mobile, minimum 44px tap target) */}
+          <div className="flex items-center gap-2 md:hidden">
             {onQuickView && (
               <Button
                 size="icon"
                 variant="outline"
-                className="rounded-xl h-8 w-8 text-muted"
+                className="rounded-2xl h-11 w-11 min-h-[44px] min-w-[44px] text-muted cursor-pointer"
                 onClick={handleQuickViewClick}
                 aria-label={`Xem nhanh ${product.name}`}
               >
-                <Eye className="w-3.5 h-3.5" />
+                <Eye className="w-4 h-4" />
               </Button>
             )}
 
@@ -351,15 +351,15 @@ export function ProductCard({
               size="icon"
               disabled={isOutOfStock}
               onClick={handleAddToCart}
-              className={`rounded-xl h-8 w-8 shadow-xs transition-all duration-300 ${
+              className={`rounded-2xl h-11 w-11 min-h-[44px] min-w-[44px] shadow-xs transition-all duration-300 cursor-pointer ${
                 isAdded ? "bg-emerald-600 hover:bg-emerald-700 text-white" : ""
               }`}
               aria-label={`Thêm ${product.name} vào giỏ hàng`}
             >
               {isAdded ? (
-                <Check className="w-3.5 h-3.5 animate-bounce" />
+                <Check className="w-4 h-4 animate-bounce" />
               ) : (
-                <ShoppingCart className="w-3.5 h-3.5" />
+                <ShoppingCart className="w-4 h-4" />
               )}
             </Button>
           </div>
