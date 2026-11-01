@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,12 +21,15 @@ export function BranchSelector() {
     queryFn: branchApi.getBranches,
   });
 
-  // Lần đầu vào web nếu chưa có chi nhánh được chọn thì tự động mở modal
+  const location = useLocation();
+  const isAuthPage = location.pathname.startsWith("/login") || location.pathname.startsWith("/register");
+
+  // Lần đầu vào web nếu chưa có chi nhánh được chọn thì tự động mở modal (trừ khi đang ở trang auth)
   useEffect(() => {
-    if (!selectedBranch && branches.length > 0) {
+    if (!isAuthPage && !selectedBranch && branches.length > 0) {
       openModal();
     }
-  }, [selectedBranch, branches, openModal]);
+  }, [isAuthPage, selectedBranch, branches, openModal]);
 
   // Lọc chi nhánh theo từ khóa tìm kiếm
   const filteredBranches = branches.filter((b) => {
