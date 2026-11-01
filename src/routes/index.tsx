@@ -38,6 +38,12 @@ const InventoryPage = lazy(() =>
 const LoginPage = lazy(() =>
   import("../modules/auth/pages/LoginPage").then((m) => ({ default: m.LoginPage }))
 );
+const RegisterPage = lazy(() =>
+  import("../modules/auth/pages/RegisterPage").then((m) => ({ default: m.RegisterPage }))
+);
+const ProfilePage = lazy(() =>
+  import("../modules/auth/pages/ProfilePage").then((m) => ({ default: m.ProfilePage }))
+);
 const UnauthorizedPage = lazy(() =>
   import("../modules/auth/pages/UnauthorizedPage").then((m) => ({ default: m.UnauthorizedPage }))
 );
@@ -101,6 +107,10 @@ const router = createBrowserRouter([
         element: withSuspense(LoginPage),
       },
       {
+        path: "register",
+        element: withSuspense(RegisterPage),
+      },
+      {
         path: "unauthorized",
         element: withSuspense(UnauthorizedPage),
       },
@@ -115,6 +125,10 @@ const router = createBrowserRouter([
           {
             path: "orders/:id",
             element: withSuspense(OrderDetailPage),
+          },
+          {
+            path: "profile",
+            element: withSuspense(ProfilePage),
           },
         ],
       },
