@@ -20,6 +20,9 @@ import {
   LogIn,
   LogOut,
   Sparkles,
+  Menu,
+  User,
+  ShoppingBag,
 } from "lucide-react";
 import { useCartStore } from "../store/useCartStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -40,9 +43,17 @@ export default function PublicLayout() {
   // Search state
   const [searchQuery, setSearchQuery] = useState("");
 
+  // Mobile navigation drawer state
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // Newsletter state
   const [newsletterEmail, setNewsletterEmail] = useState("");
   const [newsletterSubscribed, setNewsletterSubscribed] = useState(false);
+
+  // Close mobile drawer on route change
+  useEffect(() => {
+    setIsMobileMenuOpen(false);
+  }, [location.pathname]);
 
   // Sync search input with URL `q` param when on /products
   useEffect(() => {
@@ -68,7 +79,6 @@ export default function PublicLayout() {
   const handleNewsletterSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (newsletterEmail.trim()) {
-      // TODO: Giao diện giả lập đăng ký bản tin (chưa có API backend)
       setNewsletterSubscribed(true);
       setNewsletterEmail("");
       setTimeout(() => setNewsletterSubscribed(false), 5000);
@@ -76,38 +86,49 @@ export default function PublicLayout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
       {/* Header Sticky */}
       <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-surface/90 backdrop-blur-md shadow-[0_2px_12px_rgba(78,159,118,0.04)]">
-        <div className="container mx-auto flex h-16 items-center justify-between px-4 sm:px-6 gap-3">
-          {/* Logo & Brand */}
-          <div className="flex items-center gap-3 sm:gap-6 shrink-0">
+        <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-6 gap-2 sm:gap-3">
+          {/* Logo & Mobile Menu Button */}
+          <div className="flex items-center gap-1.5 sm:gap-4 shrink-0">
+            {/* Mobile Menu Hamburger */}
+            <button
+              type="button"
+              onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+              className="lg:hidden p-2 rounded-xl text-foreground hover:bg-surface-soft min-h-[40px] min-w-[40px] flex items-center justify-center focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+              aria-label={isMobileMenuOpen ? "Đóng menu điều hướng" : "Mở menu điều hướng"}
+              aria-expanded={isMobileMenuOpen}
+            >
+              {isMobileMenuOpen ? <X className="w-5 h-5" /> : <Menu className="w-5 h-5" />}
+            </button>
+
             <Link
               to="/"
-              className="flex items-center gap-2.5 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
+              className="flex items-center gap-2 group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary rounded-2xl"
               aria-label="Về trang chủ CSM Store"
             >
-              <div className="w-10 h-10 rounded-2xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary shadow-xs transition-transform duration-200 group-hover:scale-105">
-                <Store className="w-5 h-5 text-primary" />
+              <div className="w-9 h-9 sm:w-10 sm:h-10 rounded-2xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary shadow-xs transition-transform duration-200 group-hover:scale-105">
+                <Store className="w-4 h-4 sm:w-5 sm:h-5 text-primary" />
               </div>
               <div className="flex flex-col">
-                <span className="font-extrabold text-lg text-foreground tracking-tight group-hover:text-primary transition-colors flex items-center gap-1">
+                <span className="font-extrabold text-base sm:text-lg text-foreground tracking-tight group-hover:text-primary transition-colors flex items-center gap-1">
                   CSM <span className="text-primary font-black">Store</span>
                 </span>
-                <span className="text-[10px] text-muted -mt-1 font-semibold tracking-wider hidden sm:inline">
+                <span className="text-[9px] sm:text-[10px] text-muted -mt-1 font-semibold tracking-wider hidden sm:inline">
                   PASTEL CONVENIENCE
                 </span>
               </div>
             </Link>
 
             {/* Desktop Navigation Links */}
-            <nav className="hidden lg:flex items-center gap-2 text-sm font-medium ml-4">
+            <nav className="hidden lg:flex items-center gap-1 text-sm font-medium ml-2">
               <NavLink
                 to="/products"
                 className={({ isActive }) =>
-                  `relative px-3.5 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl ${
+                  `relative px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl ${
                     isActive
-                      ? "text-primary font-bold after:absolute after:bottom-0 after:left-3.5 after:right-3.5 after:h-0.5 after:bg-primary after:rounded-full"
+                      ? "text-primary font-bold after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-primary after:rounded-full"
                       : "text-muted hover:text-primary"
                   }`
                 }
@@ -118,9 +139,9 @@ export default function PublicLayout() {
                 <NavLink
                   to="/orders"
                   className={({ isActive }) =>
-                    `relative px-3.5 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl ${
+                    `relative px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl ${
                       isActive
-                        ? "text-primary font-bold after:absolute after:bottom-0 after:left-3.5 after:right-3.5 after:h-0.5 after:bg-primary after:rounded-full"
+                        ? "text-primary font-bold after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-primary after:rounded-full"
                         : "text-muted hover:text-primary"
                     }`
                   }
@@ -148,7 +169,7 @@ export default function PublicLayout() {
           {/* Global Search Bar (Desktop) */}
           <form
             onSubmit={handleSearchSubmit}
-            className="hidden md:flex items-center flex-1 max-w-sm lg:max-w-md mx-2 relative"
+            className="hidden md:flex items-center flex-1 max-w-xs lg:max-w-md mx-2 relative"
             role="search"
           >
             <div className="relative w-full">
@@ -159,6 +180,7 @@ export default function PublicLayout() {
                 onChange={(e) => setSearchQuery(e.target.value)}
                 placeholder="Tìm nước ngọt, mì ly, bánh snack, cà phê..."
                 className="w-full h-10 pl-10 pr-9 rounded-2xl bg-surface-soft border border-border text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary transition-all"
+                aria-label="Tìm kiếm sản phẩm"
               />
               {searchQuery && (
                 <button
@@ -174,14 +196,14 @@ export default function PublicLayout() {
           </form>
 
           {/* Right Actions: BranchSelector + Cart + Auth */}
-          <div className="flex items-center gap-2 sm:gap-3 shrink-0">
+          <div className="flex items-center gap-1.5 sm:gap-2.5 shrink-0">
             <BranchSelector />
 
-            {/* Nút mở giỏ hàng kèm hiệu ứng nảy badge (min 44px trên touch) */}
+            {/* Nút mở giỏ hàng kèm hiệu ứng nảy badge */}
             <Button
               variant="ghost"
               size="icon"
-              className="relative hover:bg-primary-tint/60 text-foreground rounded-2xl h-11 w-11 min-h-[44px] min-w-[44px] sm:h-10 sm:w-10 flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary cursor-pointer"
+              className="relative hover:bg-primary-tint/60 text-foreground rounded-2xl h-10 w-10 min-h-[40px] min-w-[40px] flex items-center justify-center focus-visible:ring-2 focus-visible:ring-primary cursor-pointer shrink-0"
               onClick={toggleCart}
               aria-label={`Mở giỏ hàng (${totalItems} món)`}
             >
@@ -199,36 +221,42 @@ export default function PublicLayout() {
               )}
             </Button>
 
-            {/* Auth status */}
+            {/* Auth status (Desktop) */}
             {isAuthenticated ? (
-              <div className="flex items-center gap-2">
-                <span className="text-xs font-semibold text-muted hidden sm:inline-block truncate max-w-[110px]">
-                  Hi, {user?.name || "Bạn"}
-                </span>
+              <div className="hidden sm:flex items-center gap-2">
+                <Link
+                  to="/profile"
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-xl hover:bg-surface-soft text-foreground flex items-center gap-1.5 border border-border/60 transition-colors"
+                  title="Hồ sơ tài khoản"
+                  aria-label="Xem thông tin tài khoản"
+                >
+                  <User className="w-3.5 h-3.5 text-primary" />
+                  <span className="truncate max-w-[100px]">{user?.name || user?.email?.split("@")[0] || "Tôi"}</span>
+                </Link>
                 <button
                   onClick={logout}
-                  className="text-xs font-semibold px-3 py-2 min-h-[44px] rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all focus-visible:ring-2 focus-visible:ring-rose-500 flex items-center gap-1 cursor-pointer"
+                  className="text-xs font-semibold px-2.5 py-1.5 rounded-xl text-rose-600 hover:bg-rose-50 border border-transparent hover:border-rose-200 transition-all focus-visible:ring-2 focus-visible:ring-rose-500 flex items-center gap-1 cursor-pointer"
                   title="Đăng xuất khỏi hệ thống"
                   aria-label="Đăng xuất khỏi hệ thống"
                 >
                   <LogOut className="w-3.5 h-3.5" />
-                  <span className="hidden sm:inline">Thoát</span>
+                  <span className="hidden md:inline">Thoát</span>
                 </button>
               </div>
             ) : (
               <Link
                 to="/login"
-                className="text-xs font-bold px-3.5 py-2.5 min-h-[44px] rounded-xl text-primary-dark bg-primary-tint/70 hover:bg-primary-tint border border-primary/20 transition-all focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1.5 shadow-xs"
+                className="text-xs font-bold px-2.5 sm:px-3.5 py-2 rounded-xl text-primary-dark bg-primary-tint/70 hover:bg-primary-tint border border-primary/20 transition-all focus-visible:ring-2 focus-visible:ring-primary flex items-center gap-1 shadow-xs shrink-0"
               >
                 <LogIn className="w-3.5 h-3.5" />
-                <span>Đăng nhập</span>
+                <span className="hidden xs:inline">Đăng nhập</span>
               </Link>
             )}
           </div>
         </div>
 
         {/* Global Search Bar (Mobile Only) */}
-        <div className="md:hidden px-4 pb-2.5 pt-0.5 border-t border-border/40">
+        <div className="md:hidden px-3 pb-2.5 pt-0.5 border-t border-border/40">
           <form onSubmit={handleSearchSubmit} className="relative w-full" role="search">
             <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-muted pointer-events-none" />
             <input
@@ -236,21 +264,193 @@ export default function PublicLayout() {
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               placeholder="Tìm nước ngọt, mì ly, bánh snack..."
-              className="w-full h-10 pl-10 pr-10 rounded-xl bg-surface-soft border border-border text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              className="w-full h-9 pl-9 pr-9 rounded-xl bg-surface-soft border border-border text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+              aria-label="Tìm kiếm sản phẩm trên di động"
             />
             {searchQuery && (
               <button
                 type="button"
                 onClick={() => setSearchQuery("")}
-                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted hover:text-foreground p-2 min-h-[44px] min-w-[44px] flex items-center justify-center cursor-pointer"
+                className="absolute right-1 top-1/2 -translate-y-1/2 text-muted hover:text-foreground p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center cursor-pointer"
                 aria-label="Xoá tìm kiếm"
               >
-                <X className="w-4 h-4" />
+                <X className="w-3.5 h-3.5" />
               </button>
             )}
           </form>
         </div>
       </header>
+
+      {/* Mobile Navigation Drawer */}
+      <AnimatePresence>
+        {isMobileMenuOpen && (
+          <div className="fixed inset-0 z-[60] flex lg:hidden">
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setIsMobileMenuOpen(false)}
+              className="fixed inset-0 bg-black/50 backdrop-blur-sm"
+              aria-hidden="true"
+            />
+            <motion.div
+              initial={{ x: "-100%" }}
+              animate={{ x: 0 }}
+              exit={{ x: "-100%" }}
+              transition={{ duration: 0.25, ease: "easeOut" }}
+              className="relative w-[280px] max-w-[85vw] bg-surface h-full shadow-2xl flex flex-col z-10 border-r border-border"
+            >
+              <div className="p-4 border-b border-border flex items-center justify-between">
+                <Link
+                  to="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="flex items-center gap-2 font-bold text-foreground"
+                >
+                  <div className="w-8 h-8 rounded-xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary">
+                    <Store className="w-4 h-4" />
+                  </div>
+                  <span className="text-base font-extrabold">CSM <span className="text-primary font-black">Store</span></span>
+                </Link>
+                <button
+                  type="button"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className="p-2 rounded-xl text-muted hover:text-foreground hover:bg-surface-soft min-h-[40px] min-w-[40px] flex items-center justify-center"
+                  aria-label="Đóng menu"
+                >
+                  <X className="w-5 h-5" />
+                </button>
+              </div>
+
+              <nav className="flex-1 p-4 space-y-1.5 overflow-y-auto" aria-label="Menu điều hướng di động">
+                <NavLink
+                  to="/"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-primary-tint text-primary-dark font-bold border border-primary/25"
+                        : "text-muted hover:bg-surface-soft hover:text-foreground"
+                    }`
+                  }
+                >
+                  <Store className="w-4 h-4" />
+                  Trang chủ
+                </NavLink>
+
+                <NavLink
+                  to="/products"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-primary-tint text-primary-dark font-bold border border-primary/25"
+                        : "text-muted hover:bg-surface-soft hover:text-foreground"
+                    }`
+                  }
+                >
+                  <ShoppingBag className="w-4 h-4" />
+                  Tất cả sản phẩm
+                </NavLink>
+
+                {isAuthenticated && (
+                  <NavLink
+                    to="/orders"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                        isActive
+                          ? "bg-primary-tint text-primary-dark font-bold border border-primary/25"
+                          : "text-muted hover:bg-surface-soft hover:text-foreground"
+                      }`
+                    }
+                  >
+                    <Truck className="w-4 h-4" />
+                    Đơn hàng của tôi
+                  </NavLink>
+                )}
+
+                {isAuthenticated && (
+                  <NavLink
+                    to="/profile"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                        isActive
+                          ? "bg-primary-tint text-primary-dark font-bold border border-primary/25"
+                          : "text-muted hover:bg-surface-soft hover:text-foreground"
+                      }`
+                    }
+                  >
+                    <User className="w-4 h-4" />
+                    Hồ sơ cá nhân
+                  </NavLink>
+                )}
+
+                {isAuthenticated && user?.role !== "CUSTOMER" && (
+                  <NavLink
+                    to="/admin"
+                    onClick={() => setIsMobileMenuOpen(false)}
+                    className={({ isActive }) =>
+                      `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                        isActive
+                          ? "bg-primary text-white"
+                          : "bg-pastel-mint text-primary-dark border border-primary/25 hover:bg-primary-tint"
+                      }`
+                    }
+                  >
+                    <Sparkles className="w-4 h-4" />
+                    Khu vực Quản trị
+                  </NavLink>
+                )}
+              </nav>
+
+              <div className="p-4 border-t border-border space-y-3 bg-surface-soft/40">
+                {isAuthenticated ? (
+                  <div className="space-y-2">
+                    <div className="flex items-center gap-2.5 px-2">
+                      <div className="w-8 h-8 rounded-full bg-primary-tint text-primary-dark font-bold flex items-center justify-center text-xs border border-primary/20">
+                        {user?.email?.charAt(0).toUpperCase() || "U"}
+                      </div>
+                      <div className="min-w-0 flex-1">
+                        <p className="text-xs font-bold truncate text-foreground">{user?.email}</p>
+                        <p className="text-[10px] text-muted">{user?.role}</p>
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => {
+                        logout();
+                        setIsMobileMenuOpen(false);
+                      }}
+                      className="w-full flex items-center justify-center gap-2 px-3 py-2 rounded-xl text-xs font-semibold text-danger-dark bg-danger-pastel/70 hover:bg-danger-pastel border border-danger/25 transition-all"
+                    >
+                      <LogOut className="w-3.5 h-3.5" />
+                      Đăng xuất
+                    </button>
+                  </div>
+                ) : (
+                  <div className="grid grid-cols-2 gap-2">
+                    <Link
+                      to="/login"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-primary-tint text-primary-dark border border-primary/20"
+                    >
+                      <LogIn className="w-3.5 h-3.5" />
+                      Đăng nhập
+                    </Link>
+                    <Link
+                      to="/register"
+                      onClick={() => setIsMobileMenuOpen(false)}
+                      className="flex items-center justify-center gap-1.5 px-3 py-2 rounded-xl text-xs font-bold bg-primary text-white"
+                    >
+                      Đăng ký
+                    </Link>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {/* Main Outlet with Page Transition */}
       <main className="flex-1 overflow-x-hidden">
@@ -444,6 +644,7 @@ export default function PublicLayout() {
                     onChange={(e) => setNewsletterEmail(e.target.value)}
                     placeholder="Nhập email của bạn..."
                     className="flex-1 h-9 px-3 rounded-xl bg-surface-soft border border-border text-xs text-foreground placeholder:text-muted/70 focus:outline-none focus:ring-2 focus:ring-primary/20 focus:border-primary"
+                    aria-label="Email nhận bản tin"
                   />
                   <Button type="submit" size="sm" className="rounded-xl px-3 font-semibold text-xs shrink-0 shadow-xs">
                     <Send className="w-3.5 h-3.5 mr-1" />
@@ -485,4 +686,3 @@ export default function PublicLayout() {
     </div>
   );
 }
-
