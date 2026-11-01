@@ -41,6 +41,9 @@ const LoginPage = lazy(() =>
 const UnauthorizedPage = lazy(() =>
   import("../modules/auth/pages/UnauthorizedPage").then((m) => ({ default: m.UnauthorizedPage }))
 );
+const NotFoundPage = lazy(() =>
+  import("../modules/common/pages/NotFoundPage").then((m) => ({ default: m.NotFoundPage }))
+);
 
 /**
  * Skeleton fallback cho toàn bộ routes khi đang tải chunk qua mạng
@@ -115,6 +118,10 @@ const router = createBrowserRouter([
           },
         ],
       },
+      {
+        path: "*",
+        element: withSuspense(NotFoundPage),
+      },
     ],
   },
   {
@@ -148,6 +155,10 @@ const router = createBrowserRouter([
         ],
       },
     ],
+  },
+  {
+    path: "*",
+    element: withSuspense(NotFoundPage),
   },
 ]);
 
