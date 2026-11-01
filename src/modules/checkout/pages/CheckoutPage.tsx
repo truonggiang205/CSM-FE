@@ -199,16 +199,16 @@ export function CheckoutPage() {
           />
 
           {[
-            { num: 1, label: "Thông tin giao nhận" },
-            { num: 2, label: "Phương thức thanh toán" },
-            { num: 3, label: "Hoàn tất đơn hàng" },
+            { num: 1, label: "Thông tin giao nhận", shortLabel: "Giao nhận" },
+            { num: 2, label: "Phương thức thanh toán", shortLabel: "Thanh toán" },
+            { num: 3, label: "Hoàn tất đơn hàng", shortLabel: "Hoàn tất" },
           ].map((s) => {
             const isDone = step > s.num;
             const isCurrent = step === s.num;
             return (
-              <div key={s.num} className="flex flex-col items-center relative z-10 bg-surface px-2">
+              <div key={s.num} className="flex flex-col items-center relative z-10 bg-surface px-1 sm:px-2">
                 <div
-                  className={`w-10 h-10 rounded-2xl flex items-center justify-center font-bold text-xs sm:text-sm transition-all duration-300 shadow-xs ${
+                  className={`w-9 h-9 sm:w-10 sm:h-10 rounded-2xl flex items-center justify-center font-bold text-xs sm:text-sm transition-all duration-300 shadow-xs ${
                     isDone
                       ? "bg-primary text-white"
                       : isCurrent
@@ -216,14 +216,15 @@ export function CheckoutPage() {
                       : "bg-surface-soft border border-border text-muted"
                   }`}
                 >
-                  {isDone ? <Check className="w-5 h-5 text-white" /> : s.num}
+                  {isDone ? <Check className="w-4 h-4 sm:w-5 sm:h-5 text-white" /> : s.num}
                 </div>
                 <span
-                  className={`text-[11px] sm:text-xs mt-2 font-semibold text-center whitespace-nowrap ${
+                  className={`text-[10px] sm:text-xs mt-1.5 sm:mt-2 font-semibold text-center ${
                     isCurrent ? "text-primary-dark font-extrabold" : "text-muted"
                   }`}
                 >
-                  {s.label}
+                  <span className="hidden sm:inline">{s.label}</span>
+                  <span className="sm:hidden">{s.shortLabel}</span>
                 </span>
               </div>
             );

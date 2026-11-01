@@ -325,9 +325,90 @@ export function OrderListPage() {
         </div>
       )}
 
-      {/* Bảng đơn hàng */}
+      {/* Bảng / Danh sách thẻ đơn hàng */}
       <div className="bg-surface border border-border rounded-3xl shadow-card overflow-hidden">
-        <div className="overflow-x-auto">
+        {/* Mobile Order Cards (md:hidden) */}
+        <div className="md:hidden divide-y divide-border/60">
+          {loading && (
+            <div className="p-8 text-center text-xs text-muted flex items-center justify-center gap-2">
+              <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
+              <span>Đang tải danh sách đơn hàng...</span>
+            </div>
+          )}
+
+          {!loading && (!data || data.items.length === 0) && (
+            <div className="p-8 text-center text-xs text-muted">
+              Không tìm thấy đơn hàng nào phù hợp với bộ lọc.
+            </div>
+          )}
+
+          {!loading &&
+            data &&
+            data.items.map((order) => {
+              const allowedNextStatuses = VALID_TRANSITIONS[order.status] || [];
+              const isTerminal = allowedNextStatuses.length === 0;
+
+              return (
+                <div key={order.id} className="p-4 space-y-3 bg-surface hover:bg-surface-soft/40 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div>
+                      <Link
+                        to={`/orders/${order.id}`}
+                        className="font-mono font-bold text-sm text-foreground hover:text-primary transition-colors"
+                      >
+                        #${order.id.slice(0, 13)}...
+                      </Link>
+                      <p className="text-[11px] text-muted">{order.payment_method} &bull; {order.branch_id || "Chưa gán chi nhánh"}</p>
+                    </div>
+                    <OrderStatusBadge status={order.status} />
+                  </div>
+
+                  <div className="flex items-center justify-between text-xs py-2 px-3 rounded-2xl bg-surface-soft border border-border/60">
+                    <div>
+                      <span className="text-[10px] text-muted block">Thời gian</span>
+                      <span className="font-medium text-foreground">{formatDate(order.created_at)}</span>
+                    </div>
+                    <div className="text-right">
+                      <span className="text-[10px] text-muted block">Tổng tiền</span>
+                      <strong className="text-sm font-black text-primary-dark font-mono">
+                        {formatCurrency(Number(order.total_amount))}
+                      </strong>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between gap-2 pt-1">
+                    <span className="text-[11px] text-muted truncate max-w-[140px]">
+                      Khách: {order.user_id ? order.user_id.slice(0, 10) + "..." : "Khách lẻ"}
+                    </span>
+
+                    {isTerminal ? (
+                      <span className="text-[11px] text-muted italic font-medium px-2 py-1">Đã chốt</span>
+                    ) : (
+                      <div className="flex flex-wrap gap-1.5 justify-end">
+                        {allowedNextStatuses.map((st) => (
+                          <Button
+                            key={st}
+                            size="sm"
+                            variant={st === "CANCELLED" ? "destructive" : "outline"}
+                            onClick={() => {
+                              setSelectedOrder(order);
+                              setTargetStatus(st);
+                            }}
+                            className="rounded-xl text-[11px] font-bold h-7 px-2.5 shadow-2xs"
+                          >
+                            &rarr; {st}
+                          </Button>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </div>
+              );
+            })}
+        </div>
+
+        {/* Desktop Table View (hidden md:block) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-xs text-left">
             <thead className="text-[11px] font-bold text-muted uppercase bg-surface-soft border-b border-border">
               <tr>
