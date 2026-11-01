@@ -87,6 +87,13 @@ export default function PublicLayout() {
 
   return (
     <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
+      {/* Skip to Main Content Link for Keyboard Accessibility (WCAG 2.4.1) */}
+      <a
+        href="#main-content"
+        className="sr-only focus:not-sr-only focus:fixed focus:top-3 focus:left-3 focus:z-[100] focus:px-4 focus:py-2 focus:bg-primary focus:text-white focus:rounded-xl focus:shadow-lg focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-primary font-bold text-xs"
+      >
+        Chuyển đến nội dung chính
+      </a>
       {/* Header Sticky */}
       <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-surface/90 backdrop-blur-md shadow-[0_2px_12px_rgba(78,159,118,0.04)]">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-6 gap-2 sm:gap-3">
@@ -453,7 +460,7 @@ export default function PublicLayout() {
       </AnimatePresence>
 
       {/* Main Outlet with Page Transition */}
-      <main className="flex-1 overflow-x-hidden">
+      <main id="main-content" className="flex-1 overflow-x-hidden" tabIndex={-1}>
         <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={location.pathname}
