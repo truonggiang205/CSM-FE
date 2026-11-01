@@ -16,6 +16,9 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
+import { useBranchStore } from "../../../store/useBranchStore";
+import { inventoryApi } from "../../../api/inventoryApi";
+import { AlertTriangle } from "lucide-react";
 import { productApi } from "../../../api/productApi";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
@@ -35,6 +38,21 @@ export function CartPage() {
     queryKey: ["products"],
     queryFn: productApi.getProducts,
   });
+
+  const { selectedBranch } = useBranchStore();
+  const { data: branchInventory = [] } = useQuery({
+    queryKey: ["inventory", "branch", selectedBranch?.id],
+    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
+    enabled: !!selectedBranch?.id,
+  });
+
+  const stockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    branchInventory.forEach((item) => {
+      map.set(item.product_id, item.available ?? (item.quantity - item.reserved_quantity));
+    });
+    return map;
+  }, [branchInventory]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -231,9 +249,20 @@ export function CartPage() {
                             >
                               {item.product.name}
                             </Link>
-                            <span className="text-xs text-muted font-medium block">
-                              Đơn giá: {formatCurrency(price)}
-                            </span>
+                            <div className="flex items-center gap-2 text-xs text-muted font-medium">
+                              <span>Đơn giá: {formatCurrency(price)}</span>
+                              {stockMap.has(item.product.id) && (
+                                <span className="text-[11px] text-primary-dark font-semibold">
+                                  &bull; Kho chi nhánh: {stockMap.get(item.product.id)}
+                                </span>
+                              )}
+                            </div>
+                            {stockMap.has(item.product.id) && item.quantity > (stockMap.get(item.product.id) || 0) && (
+                              <div className="mt-1 p-2 rounded-xl bg-danger-pastel border border-danger/30 text-danger-dark text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
+                                <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-danger-dark" />
+                                <span>Số lượng ({item.quantity}) vượt tồn kho chi nhánh ({stockMap.get(item.product.id)} món)!</span>
+                              </div>
+                            )}
                           </div>
                         </div>
 
