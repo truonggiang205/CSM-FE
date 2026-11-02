@@ -329,8 +329,77 @@ export function InventoryPage() {
           </div>
         </div>
 
-        {/* Table Body */}
-        <div className="overflow-x-auto">
+        {/* Mobile Card View (md:hidden) */}
+        <div className="md:hidden divide-y divide-border/60">
+          {isLoading ? (
+            [1, 2, 3].map((i) => (
+              <div key={i} className="p-4 space-y-3 animate-pulse">
+                <Skeleton className="h-4 w-3/4 rounded-md" />
+                <div className="grid grid-cols-3 gap-2">
+                  <Skeleton className="h-10 rounded-xl" />
+                  <Skeleton className="h-10 rounded-xl" />
+                  <Skeleton className="h-10 rounded-xl" />
+                </div>
+              </div>
+            ))
+          ) : filteredInventory.length === 0 ? (
+            <div className="p-8 text-center text-xs text-muted">
+              Không tìm thấy sản phẩm nào trong kho chi nhánh này.
+            </div>
+          ) : (
+            filteredInventory.map((item) => {
+              const isOut = item.available <= 0;
+              const isLow = item.available > 0 && item.available <= 5;
+              return (
+                <div key={item.id} className="p-4 space-y-3 bg-surface hover:bg-surface-soft/40 transition-colors">
+                  <div className="flex items-start justify-between gap-2">
+                    <div className="min-w-0 flex-1">
+                      <h4 className="text-sm font-bold text-foreground truncate">{item.product_name}</h4>
+                      <p className="text-[11px] font-mono text-muted">SKU: {item.sku}</p>
+                    </div>
+                    {isOut ? (
+                      <Badge variant="destructive">Hết hàng</Badge>
+                    ) : isLow ? (
+                      <Badge variant="warning">Sắp hết</Badge>
+                    ) : (
+                      <Badge variant="success">Còn hàng</Badge>
+                    )}
+                  </div>
+
+                  <div className="grid grid-cols-3 gap-2 p-2.5 rounded-2xl bg-surface-soft text-center text-xs border border-border/60">
+                    <div>
+                      <span className="text-[10px] text-muted block">Tổng tồn</span>
+                      <strong className="font-bold text-foreground">{item.quantity}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-purple-700 block">Đang giữ</span>
+                      <strong className="font-bold text-purple-700">{item.reserved_quantity > 0 ? `+${item.reserved_quantity}` : "0"}</strong>
+                    </div>
+                    <div>
+                      <span className="text-[10px] text-primary-dark block font-semibold">Khả dụng</span>
+                      <strong className="font-black text-primary-dark">{item.available}</strong>
+                    </div>
+                  </div>
+
+                  <div className="flex justify-end pt-1">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="rounded-xl text-xs font-semibold gap-1.5 h-8 border-primary/30 text-primary-dark hover:bg-primary-tint"
+                      onClick={() => setIsRestockModalOpen(true)}
+                    >
+                      <Plus className="w-3.5 h-3.5" />
+                      Nhập thêm kho
+                    </Button>
+                  </div>
+                </div>
+              );
+            })
+          )}
+        </div>
+
+        {/* Desktop Table View (hidden md:block) */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full text-sm text-left">
             <thead className="text-[11px] font-semibold text-muted uppercase bg-surface-soft border-b border-border">
               <tr>

@@ -14,6 +14,9 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
+import { useBranchStore } from "../../../store/useBranchStore";
+import { inventoryApi } from "../../../api/inventoryApi";
+import { AlertTriangle } from "lucide-react";
 import { productApi } from "../../../api/productApi";
 import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
@@ -56,6 +59,21 @@ export function CartDrawer() {
     queryKey: ["products"],
     queryFn: productApi.getProducts,
   });
+
+  const { selectedBranch } = useBranchStore();
+  const { data: branchInventory = [] } = useQuery({
+    queryKey: ["inventory", "branch", selectedBranch?.id],
+    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
+    enabled: !!selectedBranch?.id,
+  });
+
+  const stockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    branchInventory.forEach((item) => {
+      map.set(item.product_id, item.available ?? (item.quantity - item.reserved_quantity));
+    });
+    return map;
+  }, [branchInventory]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
