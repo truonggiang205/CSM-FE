@@ -383,8 +383,12 @@ export function ProductListPage() {
                   ? categories.find((c) => c.id === selectedCategory)?.name || "Danh mục đã chọn"
                   : "Tất cả sản phẩm"}
               </h1>
-              <p className="text-xs text-muted mt-1">
-                Hiển thị {displayedProducts.length} trên tổng số {filteredProducts.length} sản phẩm
+              <p className="text-xs text-muted mt-1 flex items-center gap-1.5 flex-wrap">
+                <span>Hiển thị {displayedProducts.length} trên tổng số {filteredProducts.length} sản phẩm</span>
+                <span className="text-border">&bull;</span>
+                <span className="text-[11px] text-primary-dark bg-primary-tint/60 px-2 py-0.5 rounded-full font-medium" title="Backend Product Service cung cấp danh sách đầy đủ; bộ lọc, tìm kiếm debounce và sắp xếp được xử lý tức thì tại client">
+                  ⚡ Tìm kiếm & Lọc tức thì (Client-side)
+                </span>
               </p>
             </div>
 

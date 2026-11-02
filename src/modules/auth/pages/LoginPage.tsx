@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate, useLocation } from "react-router-dom";
+import { useNavigate, useLocation, Link } from "react-router-dom";
 import { useAuthStore, Role } from "../../../store/useAuthStore";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
@@ -95,6 +95,15 @@ export function LoginPage() {
             )}
           </Button>
         </form>
+
+        <div className="text-center pt-2 border-t border-border/60">
+          <p className="text-xs text-muted">
+            Chưa có tài khoản?{" "}
+            <Link to="/register" className="text-primary font-semibold hover:underline">
+              Đăng ký ngay
+            </Link>
+          </p>
+        </div>
 
         {import.meta.env.DEV && <DevQuickLoginSection from={from} />}
       </div>

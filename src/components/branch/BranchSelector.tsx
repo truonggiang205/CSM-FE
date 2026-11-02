@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react";
+import { useLocation } from "react-router-dom";
 import { createPortal } from "react-dom";
 import { useQuery } from "@tanstack/react-query";
 import { motion, AnimatePresence } from "framer-motion";
@@ -20,12 +21,15 @@ export function BranchSelector() {
     queryFn: branchApi.getBranches,
   });
 
-  // Lần đầu vào web nếu chưa có chi nhánh được chọn thì tự động mở modal
+  const location = useLocation();
+  const isAuthPage = location.pathname.startsWith("/login") || location.pathname.startsWith("/register");
+
+  // Lần đầu vào web nếu chưa có chi nhánh được chọn thì tự động mở modal (trừ khi đang ở trang auth)
   useEffect(() => {
-    if (!selectedBranch && branches.length > 0) {
+    if (!isAuthPage && !selectedBranch && branches.length > 0) {
       openModal();
     }
-  }, [selectedBranch, branches, openModal]);
+  }, [isAuthPage, selectedBranch, branches, openModal]);
 
   // Lọc chi nhánh theo từ khóa tìm kiếm
   const filteredBranches = branches.filter((b) => {
@@ -228,21 +232,22 @@ export function BranchSelector() {
       {/* Header Selector Trigger Button */}
       <button
         onClick={openModal}
-        className="group flex items-center gap-2 px-3 py-1.5 rounded-2xl bg-surface-soft hover:bg-primary-tint/60 border border-border hover:border-primary/30 transition-all text-left max-w-[200px] sm:max-w-[260px] shadow-sm"
+        className="group flex items-center gap-1.5 sm:gap-2 px-2 sm:px-3 py-1.5 rounded-2xl bg-surface-soft hover:bg-primary-tint/60 border border-border hover:border-primary/30 transition-all text-left max-w-[105px] xs:max-w-[130px] sm:max-w-[240px] shadow-sm min-h-[40px] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary"
         title="Nhấn để đổi chi nhánh mua hàng"
+        aria-label={`Chi nhánh đang chọn: ${selectedBranch?.name || "Chưa chọn chi nhánh"}`}
       >
-        <div className="w-7 h-7 rounded-xl bg-primary-tint text-primary flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
-          <MapPin className="w-3.5 h-3.5" />
+        <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-xl bg-primary-tint text-primary flex items-center justify-center flex-shrink-0 group-hover:scale-105 transition-transform">
+          <MapPin className="w-3 h-3 sm:w-3.5 sm:h-3.5" />
         </div>
         <div className="flex-1 min-w-0">
-          <div className="text-[10px] text-muted font-medium flex items-center gap-1">
+          <div className="text-[10px] text-muted font-medium hidden sm:flex items-center gap-1">
             <span>Chi nhánh mua hàng</span>
           </div>
           <p className="text-xs font-bold text-foreground truncate">
-            {selectedBranch ? selectedBranch.name : "Chọn chi nhánh..."}
+            {selectedBranch ? selectedBranch.name : "Chọn chi nhánh"}
           </p>
         </div>
-        <ChevronDown className="w-3.5 h-3.5 text-muted group-hover:text-primary transition-colors flex-shrink-0" />
+        <ChevronDown className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-muted group-hover:text-primary transition-colors flex-shrink-0" />
       </button>
 
       {/* Render modal directly in document.body to prevent containing block trap */}
