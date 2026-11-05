@@ -8,7 +8,6 @@ import {
   Users,
   Settings,
   LogOut,
-  RefreshCw,
   Menu,
   X,
   Store,
@@ -27,17 +26,18 @@ export default function AdminLayout() {
 
   const navigation = [
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
-    { name: "Quản lý tồn kho", href: "/admin/inventory", icon: Package },
+    { name: "Quản lý sản phẩm", href: "/admin/products", icon: Package },
+    { name: "Quản lý tồn kho", href: "/admin/inventory", icon: Store },
     { name: "Đơn hàng", href: "/admin/orders", icon: ShoppingBag },
-    { name: "Khách hàng", href: "/admin/customers", icon: Users },
+    { name: "Quản lý người dùng", href: "/admin/customers", icon: Users },
     { name: "Cài đặt", href: "/admin/settings", icon: Settings },
   ];
 
   return (
     <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
       {/* Sidebar Desktop */}
-      <aside className="w-64 bg-surface border-r border-border hidden md:flex flex-col shadow-[2px_0_12px_rgba(78,159,118,0.03)] shrink-0">
-        <div className="h-16 flex items-center justify-between px-6 border-b border-border">
+      <aside className="w-64 bg-surface border-r border-border hidden md:flex flex-col shadow-[2px_0_12px_rgba(78,159,118,0.03)] shrink-0 h-screen sticky top-0 z-30">
+        <div className="h-16 flex items-center justify-between px-6 border-b border-border shrink-0">
           <Link to="/admin" className="flex items-center gap-2 font-bold text-lg text-foreground">
             <span className="w-8 h-8 rounded-xl bg-primary-tint border border-primary/20 flex items-center justify-center text-primary text-sm shadow-xs">
               🌱
@@ -46,7 +46,7 @@ export default function AdminLayout() {
           </Link>
         </div>
 
-        <div className="px-4 pt-4 pb-2">
+        <div className="px-4 pt-4 pb-2 shrink-0">
           <Link
             to="/"
             className="flex items-center justify-center gap-2 py-1.5 px-3 text-xs font-medium text-primary-dark bg-primary-tint/60 hover:bg-primary-tint rounded-xl border border-primary/20 transition-all shadow-2xs"
@@ -55,11 +55,9 @@ export default function AdminLayout() {
           </Link>
         </div>
 
-        <nav className="flex-1 p-4 flex flex-col gap-1.5" aria-label="Menu quản trị máy tính">
+        <nav className="flex-1 p-4 flex flex-col gap-1.5 overflow-y-auto" aria-label="Menu quản trị máy tính">
           {navigation.map((item) => {
-            const isActive =
-              location.pathname === item.href ||
-              (item.href === "/admin/inventory" && location.pathname === "/admin/products");
+            const isActive = location.pathname === item.href;
             const Icon = item.icon;
             return (
               <Link
@@ -78,9 +76,9 @@ export default function AdminLayout() {
           })}
         </nav>
 
-        {/* User Card & Test Role Toggle */}
-        <div className="p-4 border-t border-border space-y-3">
-          <div className="p-3 rounded-2xl bg-surface-soft border border-border/60 space-y-2">
+        {/* User Card & Logout */}
+        <div className="p-4 border-t border-border space-y-3 shrink-0 bg-surface">
+          <div className="p-3 rounded-2xl bg-surface-soft border border-border/60">
             <div className="flex items-center gap-3">
               <div className="w-9 h-9 rounded-xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary font-bold text-xs">
                 {user?.email?.charAt(0).toUpperCase() || "U"}
@@ -90,17 +88,6 @@ export default function AdminLayout() {
                 <span className="text-[10px] font-semibold text-primary-dark">{user?.role}</span>
               </div>
             </div>
-
-            {import.meta.env.DEV && (
-              <button
-                onClick={() => useAuthStore.getState().toggleTestRole?.()}
-                className="w-full text-left text-[11px] text-primary-dark hover:text-primary font-semibold flex items-center gap-1.5 pt-1.5 border-t border-border/50 cursor-pointer"
-                title="Nhấn để đổi vai trò kiểm thử giữa ADMIN và BRANCH_MANAGER (Chỉ hiện trong môi trường DEV)"
-              >
-                <RefreshCw className="w-3 h-3 text-primary" />
-                Đổi role test (DEV): {user?.role === "BRANCH_MANAGER" ? "Sang ADMIN" : "Sang BRANCH_MGR"}
-              </button>
-            )}
           </div>
 
           <button
@@ -190,9 +177,7 @@ export default function AdminLayout() {
 
                 <nav className="flex-1 p-4 space-y-1 overflow-y-auto" aria-label="Menu quản trị di động">
                   {navigation.map((item) => {
-                    const isActive =
-                      location.pathname === item.href ||
-                      (item.href === "/admin/inventory" && location.pathname === "/admin/products");
+                    const isActive = location.pathname === item.href;
                     const Icon = item.icon;
                     return (
                       <Link
@@ -212,8 +197,8 @@ export default function AdminLayout() {
                   })}
                 </nav>
 
-                <div className="p-4 border-t border-border space-y-3 bg-surface-soft/40">
-                  <div className="p-3 rounded-2xl bg-surface border border-border/60 space-y-2">
+                <div className="p-4 border-t border-border space-y-3 bg-surface-soft/40 shrink-0">
+                  <div className="p-3 rounded-2xl bg-surface border border-border/60">
                     <div className="flex items-center gap-2.5">
                       <div className="w-8 h-8 rounded-full bg-primary-tint text-primary-dark font-bold flex items-center justify-center text-xs border border-primary/20">
                         {user?.email?.charAt(0).toUpperCase() || "U"}
@@ -223,16 +208,6 @@ export default function AdminLayout() {
                         <p className="text-[10px] text-muted">{user?.role} {user?.branch_id ? `(${user.branch_id})` : ""}</p>
                       </div>
                     </div>
-
-                    {import.meta.env.DEV && (
-                      <button
-                        onClick={() => useAuthStore.getState().toggleTestRole?.()}
-                        className="w-full text-left text-[11px] text-primary-dark hover:text-primary font-semibold flex items-center gap-1.5 pt-1.5 border-t border-border/50 cursor-pointer"
-                      >
-                        <RefreshCw className="w-3 h-3 text-primary" />
-                        Đổi role test (DEV): {user?.role === "BRANCH_MANAGER" ? "Sang ADMIN" : "Sang BRANCH_MGR"}
-                      </button>
-                    )}
                   </div>
 
                   <button
