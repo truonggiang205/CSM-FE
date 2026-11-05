@@ -38,6 +38,9 @@ const InventoryPage = lazy(() =>
 const AdminProductListPage = lazy(() =>
   import("../modules/products/pages/AdminProductListPage").then((m) => ({ default: m.AdminProductListPage }))
 );
+const BranchesPage = lazy(() =>
+  import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
+);
 const CustomersPage = lazy(() =>
   import("../modules/customers/pages/CustomersPage").then((m) => ({ default: m.CustomersPage }))
 );
@@ -161,6 +164,10 @@ const router = createBrowserRouter([
           {
             path: "orders",
             element: withSuspense(OrderListPage),
+          },
+          {
+            path: "branches",
+            element: withSuspense(BranchesPage),
           },
           {
             path: "customers",
