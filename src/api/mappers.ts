@@ -100,9 +100,20 @@ export function mapBackendProductToFrontend(raw: any): Product {
 }
 
 /**
- * Chuyển đổi danh sách sản phẩm an toàn
+ * Chuyển đổi danh sách sản phẩm an toàn (tương thích cả mảng thuần lẫn object phân trang { items, total })
  */
-export function mapBackendProductsToFrontend(rawList: any[]): Product[] {
-  if (!Array.isArray(rawList)) return [];
-  return rawList.map(mapBackendProductToFrontend);
+export function mapBackendProductsToFrontend(rawList: any): Product[] {
+  let list: any[] = [];
+  if (Array.isArray(rawList)) {
+    list = rawList;
+  } else if (rawList && typeof rawList === "object") {
+    if (Array.isArray(rawList.items)) {
+      list = rawList.items;
+    } else if (Array.isArray(rawList.data)) {
+      list = rawList.data;
+    } else if (Array.isArray(rawList.products)) {
+      list = rawList.products;
+    }
+  }
+  return list.map(mapBackendProductToFrontend);
 }
