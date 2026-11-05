@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import {
   Package,
   Layers,
@@ -13,6 +13,7 @@ import {
   Filter,
   BarChart3,
   PieChart as PieChartIcon,
+  ChevronDown,
 } from "lucide-react";
 import {
   BarChart,
@@ -61,6 +62,17 @@ export function InventoryPage() {
   const [isRestockModalOpen, setIsRestockModalOpen] = useState(false);
   const activeBranch = branches.find((b) => b.id === activeBranchId) || branches[0];
 
+  // Phân trang
+  const [page, setPage] = useState(1);
+  const pageSize = 10;
+
+  useEffect(() => {
+    setPage(1);
+  }, [searchTerm, statusFilter, activeBranchId, sortField, sortOrder]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredInventory.length / pageSize));
+  const paginatedInventory = filteredInventory.slice((page - 1) * pageSize, page * pageSize);
+
   const handleToggleSort = (field: "name" | "quantity" | "available") => {
     if (sortField === field) {
       setSortOrder(sortOrder === "asc" ? "desc" : "asc");
@@ -79,8 +91,6 @@ export function InventoryPage() {
             <span className="px-2.5 py-0.5 rounded-full text-xs font-bold bg-primary-tint text-primary-dark border border-primary/25">
               {isBranchManager ? "QUẢN LÝ CHI NHÁNH" : "QUẢN TRỊ VIÊN HỆ THỐNG"}
             </span>
-            <span className="text-xs text-muted">&bull;</span>
-            <span className="text-xs text-muted">Sprint 2 - Quản lý tồn kho thời gian thực</span>
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
             Quản Lý Tồn Kho Chi Nhánh
@@ -296,32 +306,68 @@ export function InventoryPage() {
             />
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {/* Filter buttons */}
-            {[
-              { id: "ALL", label: "Tất cả" },
-              { id: "IN_STOCK", label: "Còn hàng (>5)" },
-              { id: "LOW_STOCK", label: "Sắp hết (1-5)" },
-              { id: "OUT_OF_STOCK", label: "Hết hàng (0)" },
-            ].map((tab) => (
-              <button
-                key={tab.id}
-                onClick={() => setStatusFilter(tab.id as StockFilterStatus)}
-                className={`px-3 py-1.5 rounded-xl text-xs font-semibold transition-all ${
-                  statusFilter === tab.id
-                    ? "bg-primary-tint text-primary-dark border border-primary/25 shadow-xs"
-                    : "bg-surface-soft hover:bg-surface text-muted border border-border/70"
-                }`}
+          <div className="flex flex-wrap items-center gap-2.5">
+            {/* Dropbox Lọc theo trạng thái tồn kho */}
+            <div className="relative flex items-center min-w-[170px]">
+              <Filter className="absolute left-3 w-4 h-4 text-primary pointer-events-none" />
+              <select
+                id="inventory-status-filter"
+                aria-label="Lọc theo trạng thái tồn kho"
+                value={statusFilter}
+                onChange={(e) => setStatusFilter(e.target.value as StockFilterStatus)}
+                className="w-full pl-9 pr-8 py-2 rounded-2xl border border-border bg-surface text-xs font-bold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-xs cursor-pointer appearance-none"
               >
-                {tab.label}
+                <option value="ALL">Tất cả trạng thái</option>
+                <option value="IN_STOCK">Còn hàng (&gt;5)</option>
+                <option value="LOW_STOCK">Sắp hết (1-5)</option>
+                <option value="OUT_OF_STOCK">Hết hàng (0)</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 w-3.5 h-3.5 text-muted pointer-events-none" />
+            </div>
+
+            {/* Dropbox Sắp xếp thứ tự */}
+            <div className="relative flex items-center min-w-[170px]">
+              <ArrowUpDown className="absolute left-3 w-3.5 h-3.5 text-muted pointer-events-none" />
+              <select
+                id="inventory-sort-order"
+                aria-label="Sắp xếp danh sách tồn kho"
+                value={`${sortField}-${sortOrder}`}
+                onChange={(e) => {
+                  const [field, order] = e.target.value.split("-") as ["name" | "quantity" | "available", "asc" | "desc"];
+                  setSortField(field);
+                  setSortOrder(order);
+                }}
+                className="w-full pl-8.5 pr-8 py-2 rounded-2xl border border-border bg-surface text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 shadow-xs cursor-pointer appearance-none"
+              >
+                <option value="available-asc">Khả dụng: Thấp &rarr; Cao</option>
+                <option value="available-desc">Khả dụng: Cao &rarr; Thấp</option>
+                <option value="quantity-desc">Tổng tồn: Nhiều nhất</option>
+                <option value="quantity-asc">Tổng tồn: Ít nhất</option>
+                <option value="name-asc">Tên sản phẩm: A &rarr; Z</option>
+                <option value="name-desc">Tên sản phẩm: Z &rarr; A</option>
+              </select>
+              <ChevronDown className="absolute right-2.5 w-3.5 h-3.5 text-muted pointer-events-none" />
+            </div>
+
+            {/* Nút reset bộ lọc nếu đang áp dụng lọc */}
+            {(statusFilter !== "ALL" || searchTerm) && (
+              <button
+                type="button"
+                onClick={() => {
+                  setStatusFilter("ALL");
+                  setSearchTerm("");
+                }}
+                className="text-xs text-danger-dark hover:underline font-semibold px-2 py-1"
+              >
+                Xóa lọc
               </button>
-            ))}
+            )}
 
             <Button
               variant="outline"
               size="icon"
               onClick={() => refetch()}
-              className="rounded-xl h-9 w-9 text-muted hover:text-foreground"
+              className="rounded-xl h-9 w-9 text-muted hover:text-foreground shrink-0"
               title="Làm mới bảng tồn kho"
             >
               <RotateCcw className="w-4 h-4" />
@@ -347,7 +393,7 @@ export function InventoryPage() {
               Không tìm thấy sản phẩm nào trong kho chi nhánh này.
             </div>
           ) : (
-            filteredInventory.map((item) => {
+            paginatedInventory.map((item) => {
               const isOut = item.available <= 0;
               const isLow = item.available > 0 && item.available <= 5;
               return (
@@ -470,7 +516,7 @@ export function InventoryPage() {
                   </td>
                 </tr>
               ) : (
-                filteredInventory.map((item) => {
+                paginatedInventory.map((item) => {
                   const isOut = item.available <= 0;
                   const isLow = item.available > 0 && item.available <= 5;
 
@@ -540,12 +586,53 @@ export function InventoryPage() {
           </table>
         </div>
 
-        {/* Footer Info */}
-        <div className="p-4 border-t border-border flex items-center justify-between text-xs text-muted bg-surface-soft/40">
-          <span>
-            Đang hiển thị {filteredInventory.length} trên tổng số {stats.totalSkus} mặt hàng tại chi nhánh {activeBranch?.name}
-          </span>
-          <span className="font-medium">Hệ thống đồng bộ tự động với Inventory Service</span>
+        {/* Phân trang tồn kho */}
+        <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted bg-surface-soft/40">
+          <div>
+            Trang <b className="text-foreground">{page}</b> / <b className="text-foreground">{totalPages}</b> (Tổng <b className="text-foreground">{filteredInventory.length}</b> mặt hàng)
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page <= 1}
+                onClick={() => setPage((p) => Math.max(1, p - 1))}
+                className="rounded-xl h-8 text-xs font-semibold"
+              >
+                &larr; Trước
+              </Button>
+              <div className="flex items-center gap-1 px-1">
+                {Array.from({ length: totalPages }, (_, i) => i + 1)
+                  .filter((p) => p === 1 || p === totalPages || Math.abs(p - page) <= 1)
+                  .map((p, idx, arr) => (
+                    <span key={p} className="flex items-center">
+                      {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-muted">...</span>}
+                      <button
+                        type="button"
+                        onClick={() => setPage(p)}
+                        className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
+                          page === p
+                            ? "bg-primary text-white shadow-2xs"
+                            : "text-muted hover:text-foreground hover:bg-surface"
+                        }`}
+                      >
+                        {p}
+                      </button>
+                    </span>
+                  ))}
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                disabled={page >= totalPages}
+                onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+                className="rounded-xl h-8 text-xs font-semibold"
+              >
+                Sau &rarr;
+              </Button>
+            </div>
+          )}
         </div>
       </Card>
 
