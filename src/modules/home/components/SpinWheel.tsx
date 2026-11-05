@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useMemo } from "react";
 import { motion, AnimatePresence, useReducedMotion, useMotionValue, animate } from "framer-motion";
 import { Sparkles, Trophy, X, Gift, RotateCcw, AlertCircle } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
-import { SPIN_PRIZES, SpinPrize } from "../../../mocks/brandMock";
+import { SPIN_PRIZES, SpinPrize } from "../homeData";
 
 const TODAY_STORAGE_KEY = "csm_spin_wheel_date";
 const TODAY_PRIZE_KEY = "csm_spin_wheel_prize";

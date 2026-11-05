@@ -7,7 +7,7 @@ import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { Button } from "../../../components/ui/Button";
-import { mockCombos, ComboItem } from "../../../mocks/brandMock";
+import { mockCombos, ComboItem } from "../homeData";
 
 interface ComboSectionProps {
   products: Product[];

@@ -2,7 +2,7 @@ import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, ArrowRight, Sparkles, Pause, Play } from "lucide-react";
-import { mockHeroBanners, HeroBannerItem } from "../../../mocks/homeMock";
+import { mockHeroBanners, HeroBannerItem } from "../homeData";
 import { Button } from "../../../components/ui/Button";
 
 const FALLBACK_HERO_IMAGE = "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=700&q=80";

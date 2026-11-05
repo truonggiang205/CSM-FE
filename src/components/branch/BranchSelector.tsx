@@ -24,12 +24,15 @@ export function BranchSelector() {
   const location = useLocation();
   const isAuthPage = location.pathname.startsWith("/login") || location.pathname.startsWith("/register");
 
-  // Lần đầu vào web nếu chưa có chi nhánh được chọn thì tự động mở modal (trừ khi đang ở trang auth)
+  // Lần đầu vào web nếu chưa có chi nhánh được chọn thì gán chi nhánh đầu tiên và mở modal (trừ khi ở trang auth)
   useEffect(() => {
-    if (!isAuthPage && !selectedBranch && branches.length > 0) {
-      openModal();
+    if (!selectedBranch && branches.length > 0) {
+      setBranch(branches[0]);
+      if (!isAuthPage) {
+        openModal();
+      }
     }
-  }, [isAuthPage, selectedBranch, branches, openModal]);
+  }, [isAuthPage, selectedBranch, branches, openModal, setBranch]);
 
   // Lọc chi nhánh theo từ khóa tìm kiếm
   const filteredBranches = branches.filter((b) => {

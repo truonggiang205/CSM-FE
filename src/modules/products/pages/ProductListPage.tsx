@@ -115,21 +115,24 @@ export function ProductListPage() {
     refetch: refetchProducts,
   } = useQuery({
     queryKey: ["products"],
-    queryFn: productApi.getProducts,
+    queryFn: () => productApi.getProducts(),
   });
 
-  // 3. Fetch inventory for selected branch
+  // 3. Fetch inventory for selected branch (fallback br-01 để luôn có dữ liệu tồn kho)
+  const activeBranchId = selectedBranch?.id || "br-01";
   const { data: branchInventory = [] } = useQuery({
-    queryKey: ["inventory", "branch", selectedBranch?.id],
-    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
-    enabled: !!selectedBranch?.id,
+    queryKey: ["inventory", "branch", activeBranchId],
+    queryFn: () => inventoryApi.getInventoryByBranch(activeBranchId),
+    enabled: !!activeBranchId,
   });
 
-  // Tạo Map product_id -> availableStock để tra cứu O(1)
+  // Tạo Map product_id & sku -> availableStock để tra cứu O(1)
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
     branchInventory.forEach((item) => {
-      map.set(item.product_id, item.available ?? (item.quantity - item.reserved_quantity));
+      const avail = item.available ?? Math.max(0, (Number(item.quantity) || 0) - (Number(item.reserved_quantity) || 0));
+      if (item.product_id) map.set(String(item.product_id), avail);
+      if (item.sku) map.set(String(item.sku), avail);
     });
     return map;
   }, [branchInventory]);
@@ -159,7 +162,7 @@ export function ProductListPage() {
       }
 
       // 4. In stock
-      const available = stockMap.get(product.id) ?? product.stock;
+      const available = stockMap.get(String(product.id)) ?? (product.sku ? stockMap.get(String(product.sku)) : undefined) ?? product.stock;
       const matchesInStock = onlyInStock ? available > 0 : true;
 
       return matchesSearch && matchesCategory && matchesPrice && matchesInStock;
@@ -385,10 +388,6 @@ export function ProductListPage() {
               </h1>
               <p className="text-xs text-muted mt-1 flex items-center gap-1.5 flex-wrap">
                 <span>Hiển thị {displayedProducts.length} trên tổng số {filteredProducts.length} sản phẩm</span>
-                <span className="text-border">&bull;</span>
-                <span className="text-[11px] text-primary-dark bg-primary-tint/60 px-2 py-0.5 rounded-full font-medium" title="Backend Product Service cung cấp danh sách đầy đủ; bộ lọc, tìm kiếm debounce và sắp xếp được xử lý tức thì tại client">
-                  ⚡ Tìm kiếm & Lọc tức thì (Client-side)
-                </span>
               </p>
             </div>
 
@@ -551,7 +550,7 @@ export function ProductListPage() {
                 }
               >
                 {displayedProducts.map((product) => {
-                  const availableStock = stockMap.get(product.id);
+                  const availableStock = stockMap.get(String(product.id)) ?? (product.sku ? stockMap.get(String(product.sku)) : undefined);
                   return (
                     <ProductCard
                       key={product.id}

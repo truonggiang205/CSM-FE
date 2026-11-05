@@ -46,18 +46,21 @@ export function HomePage() {
     queryFn: productApi.getProducts,
   });
 
-  // 3. Lấy tồn kho của chi nhánh đang chọn một lần
+  // 3. Lấy tồn kho của chi nhánh đang chọn một lần (fallback br-01 để luôn có dữ liệu tồn kho)
+  const activeBranchId = selectedBranch?.id || "br-01";
   const { data: branchInventory = [] } = useQuery({
-    queryKey: ["inventory", "branch", selectedBranch?.id],
-    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
-    enabled: !!selectedBranch?.id,
+    queryKey: ["inventory", "branch", activeBranchId],
+    queryFn: () => inventoryApi.getInventoryByBranch(activeBranchId),
+    enabled: !!activeBranchId,
   });
 
-  // Map product_id -> available stock
+  // Map product_id & sku -> available stock
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
     branchInventory.forEach((item) => {
-      map.set(item.product_id, item.available ?? (item.quantity - item.reserved_quantity));
+      const avail = item.available ?? Math.max(0, (Number(item.quantity) || 0) - (Number(item.reserved_quantity) || 0));
+      if (item.product_id) map.set(String(item.product_id), avail);
+      if (item.sku) map.set(String(item.sku), avail);
     });
     return map;
   }, [branchInventory]);

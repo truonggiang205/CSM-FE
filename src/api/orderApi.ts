@@ -47,8 +47,9 @@ export interface CreateOrderResponse {
   success: boolean;
   message: string;
   orderId: string;
-  paymentUrl: string;
+  totalAmount: number;
   status: OrderStatus;
+  paymentUrl?: string;
 }
 
 export interface QueryMyOrdersParams {
@@ -60,7 +61,7 @@ export interface QueryMyOrdersParams {
 export interface QueryAllOrdersParams {
   page?: number;
   limit?: number;
-  status?: OrderStatus;
+  status?: OrderStatus | "ALL";
   branchId?: string;
   search?: string;
   fromDate?: string;
@@ -70,23 +71,21 @@ export interface QueryAllOrdersParams {
 export interface CreatePaymentPayload {
   orderId: string;
   method: PaymentMethod;
-  amount?: number;
+  bankCode?: string;
 }
 
 export interface CreatePaymentResponse {
   success: boolean;
-  message: string;
-  paymentUrl: string;
-  externalMockUrl?: string;
-  token?: string;
+  paymentUrl?: string;
+  message?: string;
 }
 
 export function mapBackendOrderItemToFrontend(raw: any): OrderItem {
   return {
-    id: raw.id || "",
-    product_id: raw.product_id || "",
-    product_name_snapshot: raw.product_name_snapshot || "Sản phẩm",
-    price_snapshot: Number(raw.price_snapshot) || 0,
+    id: raw.id,
+    product_id: raw.product_id || raw.productId,
+    product_name_snapshot: raw.product_name_snapshot || raw.productName || "Sản phẩm",
+    price_snapshot: Number(raw.price_snapshot || raw.price) || 0,
     quantity: Number(raw.quantity) || 1,
   };
 }
@@ -94,13 +93,13 @@ export function mapBackendOrderItemToFrontend(raw: any): OrderItem {
 export function mapBackendOrderToFrontend(raw: any): Order {
   return {
     id: raw.id,
-    user_id: raw.user_id,
-    branch_id: raw.branch_id,
-    total_amount: Number(raw.total_amount) || 0,
-    payment_method: (raw.payment_method as PaymentMethod) || "COD",
+    user_id: raw.user_id || raw.userId,
+    branch_id: raw.branch_id || raw.branchId,
+    total_amount: Number(raw.total_amount || raw.totalAmount) || 0,
+    payment_method: (raw.payment_method || raw.paymentMethod || "COD") as PaymentMethod,
     status: raw.status as OrderStatus,
-    created_at: raw.created_at,
-    updated_at: raw.updated_at,
+    created_at: raw.created_at || raw.createdAt || new Date().toISOString(),
+    updated_at: raw.updated_at || raw.updatedAt || new Date().toISOString(),
     items: Array.isArray(raw.items) ? raw.items.map(mapBackendOrderItemToFrontend) : [],
   };
 }
@@ -109,7 +108,7 @@ export function mapBackendOrdersPageToFrontend(raw: any): Paginated<Order> {
   const items = Array.isArray(raw.items) ? raw.items.map(mapBackendOrderToFrontend) : [];
   return {
     items,
-    total: Number(raw.total) || 0,
+    total: Number(raw.total) || items.length,
     page: Number(raw.page) || 1,
     limit: Number(raw.limit) || 10,
     totalPages: Number(raw.totalPages) || 1,
