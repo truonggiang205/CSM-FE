@@ -164,7 +164,11 @@ apiClient.interceptors.response.use(
     }
 
     const originalRequest = error.config;
-    if (error.response?.status === 401 && originalRequest && !originalRequest._retry) {
+    const isAuthEndpoint = originalRequest?.url?.includes("/auth/login") ||
+                           originalRequest?.url?.includes("/auth/register") ||
+                           originalRequest?.url?.includes("/auth/refresh");
+
+    if (error.response?.status === 401 && originalRequest && !originalRequest._retry && !isAuthEndpoint) {
       originalRequest._retry = true;
       const refreshToken = useAuthStore.getState().refreshToken;
 
@@ -181,13 +185,17 @@ apiClient.interceptors.response.use(
           }
         } catch (refreshErr) {
           useAuthStore.getState().logout();
-          window.location.href = "/login";
+          if (window.location.pathname !== "/login") {
+            window.location.href = "/login";
+          }
           return Promise.reject(refreshErr);
         }
       }
 
       useAuthStore.getState().logout();
-      window.location.href = "/login";
+      if (window.location.pathname !== "/login") {
+        window.location.href = "/login";
+      }
     }
 
     return Promise.reject(error);
