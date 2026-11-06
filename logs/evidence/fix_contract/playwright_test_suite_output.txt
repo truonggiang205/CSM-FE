@@ -1,0 +1,75 @@
+﻿
+Running 8 tests using 1 worker
+
+  ok 1 [chromium] › tests\e2e.spec.ts:16:3 › CSM E2E Test Suite - Stack Thực › 1. Khách đăng ký, chọn chi nhánh, thêm giỏ, checkout COD, xem /orders, huỷ đơn (14.2s)
+  ok 2 [chromium] › tests\e2e.spec.ts:115:3 › CSM E2E Test Suite - Stack Thực › 2. Checkout MOMO, trang mô phỏng, quay về /orders/:id thấy PAID (13.8s)
+  x  3 [chromium] › tests\e2e.spec.ts:194:3 › CSM E2E Test Suite - Stack Thực › 3. Khách hàng (CUSTOMER) truy cập /admin/orders bị chặn (14.9s)
+  x  4 [chromium] › tests\e2e.spec.ts:216:3 › CSM E2E Test Suite - Stack Thực › 4. Manager br-01 chỉ thấy đơn hàng của chi nhánh br-01 (15.3s)
+  ok 5 [chromium] › tests\mapper.spec.ts:6:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 1. Đầu vào là MẢNG SẢN PHẨM CŨ (Array) (21ms)
+  ok 6 [chromium] › tests\mapper.spec.ts:45:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 2. Đầu vào là ĐỐI TƯỢNG PHÂN TRANG MỚI ({ items, total, page, limit, totalPages }) (7ms)
+  ok 7 [chromium] › tests\mapper.spec.ts:88:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 3. Đầu vào là DỮ LIỆU RỖNG / HỎNG / SAI CẤU TRÚC (15ms)
+  ok 8 [chromium] › tests\mapper.spec.ts:115:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 4. Kiểm tra mockPaginatedProducts khớp với mockProducts (6ms)
+
+
+  1) [chromium] › tests\e2e.spec.ts:194:3 › CSM E2E Test Suite - Stack Thực › 3. Khách hàng (CUSTOMER) truy cập /admin/orders bị chặn 
+
+    Error: expect(page).toHaveURL(expected) failed
+
+    Expected pattern: /\/unauthorized/
+    Received string:  "http://localhost:3000/login"
+    Timeout: 10000ms
+
+    Call log:
+      - Expect "toHaveURL" with timeout 10000ms
+        23 × locator resolved to <html lang="vi">…</html>
+           - unexpected value "http://localhost:3000/login"
+
+
+      208 |
+      209 |     // Phải bị chuyển hướng tới /unauthorized
+    > 210 |     await expect(page).toHaveURL(/\/unauthorized/, { timeout: 10000 });
+          |                        ^
+      211 |     await expect(page.locator("text=Không có quyền truy cập")).toBeVisible({ timeout: 8000 });
+      212 |
+      213 |     await page.screenshot({ path: path.join(ARTIFACTS_DIR, "scenario3_customer_forbidden.png"), fullPage: true });
+        at E:\TLCN\CSM-FE\tests\e2e.spec.ts:210:24
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\e2e-CSM-E2E-Test-Suite---S-5427a-uy-cập-admin-orders-bị-chặn-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\e2e-CSM-E2E-Test-Suite---S-5427a-uy-cập-admin-orders-bị-chặn-chromium\error-context.md
+
+  2) [chromium] › tests\e2e.spec.ts:216:3 › CSM E2E Test Suite - Stack Thực › 4. Manager br-01 chỉ thấy đơn hàng của chi nhánh br-01 
+
+    Error: expect(locator).toBeVisible() failed
+
+    Locator: locator('text=Khoá chi nhánh: br-01')
+    Expected: visible
+    Timeout: 10000ms
+    Error: element(s) not found
+
+    Call log:
+      - Expect "toBeVisible" locator('text=Khoá chi nhánh: br-01') with timeout 10000ms
+      - waiting for locator('text=Khoá chi nhánh: br-01')
+
+
+      231 |     // Kiểm tra huy hiệu khoá chi nhánh br-01
+      232 |     const lockIndicator = page.locator("text=Khoá chi nhánh: br-01");
+    > 233 |     await expect(lockIndicator).toBeVisible({ timeout: 10000 });
+          |                                 ^
+      234 |
+      235 |     // Kiểm tra chip chi nhánh br-01 xuất hiện
+      236 |     const branchChips = page.locator("span:has-text('br-01')");
+        at E:\TLCN\CSM-FE\tests\e2e.spec.ts:233:33
+
+    attachment #1: screenshot (image/png) ──────────────────────────────────────────────────────────
+    test-results\e2e-CSM-E2E-Test-Suite---S-7d040-ơn-hàng-của-chi-nhánh-br-01-chromium\test-failed-1.png
+    ────────────────────────────────────────────────────────────────────────────────────────────────
+
+    Error Context: test-results\e2e-CSM-E2E-Test-Suite---S-7d040-ơn-hàng-của-chi-nhánh-br-01-chromium\error-context.md
+
+  2 failed
+    [chromium] › tests\e2e.spec.ts:194:3 › CSM E2E Test Suite - Stack Thực › 3. Khách hàng (CUSTOMER) truy cập /admin/orders bị chặn 
+    [chromium] › tests\e2e.spec.ts:216:3 › CSM E2E Test Suite - Stack Thực › 4. Manager br-01 chỉ thấy đơn hàng của chi nhánh br-01 
+  6 passed (1.0m)
