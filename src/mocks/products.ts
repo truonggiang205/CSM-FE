@@ -82,3 +82,15 @@ export const mockProducts: Product[] = [
     reviewsCount: 34,
   },
 ];
+
+/**
+ * Mô phỏng đúng cấu trúc phân trang của Backend thật:
+ * GET /products -> { items, total, page, limit, totalPages }
+ */
+export const mockPaginatedProducts = {
+  items: mockProducts,
+  total: mockProducts.length,
+  page: 1,
+  limit: mockProducts.length,
+  totalPages: 1,
+};
