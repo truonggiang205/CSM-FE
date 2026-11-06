@@ -28,7 +28,7 @@ import { Product } from "../../../types/product";
 type SortOption = "default" | "price-asc" | "price-desc" | "name-asc";
 type PriceRangeOption = "all" | "under-50k" | "50k-100k" | "100k-200k" | "above-200k";
 
-const ITEMS_PER_PAGE = 8;
+const ITEMS_PER_PAGE = 50;
 
 const PRICE_RANGES: { id: PriceRangeOption; label: string }[] = [
   { id: "all", label: "Tất cả mức giá" },
