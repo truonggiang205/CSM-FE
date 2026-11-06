@@ -128,8 +128,22 @@ apiClient.interceptors.response.use(
           }
         }
 
+        // Mô phỏng đúng cấu trúc phân trang của BE thật: { items, total, page, limit, totalPages }
+        const limitParam = error.config?.params?.limit ? Number(error.config.params.limit) : mockProducts.length;
+        const pageParam = error.config?.params?.page ? Number(error.config.params.page) : 1;
+        const total = mockProducts.length;
+        const totalPages = Math.ceil(total / (limitParam || 1)) || 1;
+        const startIndex = (pageParam - 1) * limitParam;
+        const pagedItems = mockProducts.slice(startIndex, startIndex + limitParam);
+
         return Promise.resolve({
-          data: mapBackendProductsToFrontend(mockProducts),
+          data: {
+            items: pagedItems,
+            total,
+            page: pageParam,
+            limit: limitParam,
+            totalPages,
+          },
           status: 200,
           statusText: "OK",
           headers: {},

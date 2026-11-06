@@ -100,9 +100,30 @@ export function mapBackendProductToFrontend(raw: any): Product {
 }
 
 /**
- * Chuyển đổi danh sách sản phẩm an toàn
+ * Chuyển đổi danh sách sản phẩm an toàn từ Backend hoặc Mock.
+ * Hỗ trợ đồng thời cả 2 hợp đồng dữ liệu:
+ * 1. Mảng cũ: raw = [ ... ]
+ * 2. Đối tượng phân trang mới: raw = { items: [ ... ], total, page, limit, totalPages }
+ *    (hoặc { data: [ ... ] })
+ * 3. Trả về [] an toàn nếu dữ liệu rỗng, null, undefined hoặc sai cấu trúc.
  */
-export function mapBackendProductsToFrontend(rawList: any[]): Product[] {
-  if (!Array.isArray(rawList)) return [];
-  return rawList.map(mapBackendProductToFrontend);
+export function mapBackendProductsToFrontend(raw: any): Product[] {
+  if (!raw) return [];
+
+  // Trường hợp 1: Dữ liệu là mảng trực tiếp
+  if (Array.isArray(raw)) {
+    return raw.filter(Boolean).map(mapBackendProductToFrontend);
+  }
+
+  // Trường hợp 2: Dữ liệu là đối tượng chứa items hoặc data
+  if (typeof raw === "object") {
+    if (Array.isArray(raw.items)) {
+      return raw.items.filter(Boolean).map(mapBackendProductToFrontend);
+    }
+    if (Array.isArray(raw.data)) {
+      return raw.data.filter(Boolean).map(mapBackendProductToFrontend);
+    }
+  }
+
+  return [];
 }
