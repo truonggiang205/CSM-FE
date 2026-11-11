@@ -1,5 +1,5 @@
 import { Truck, ShieldCheck, Store, Clock, Sparkles } from "lucide-react";
-import { mockWhyChooseUs } from "../../../mocks/homeMock";
+import { mockWhyChooseUs } from "../homeData";
 
 export function WhyChooseUsSection() {
   const getIcon = (iconName: string) => {

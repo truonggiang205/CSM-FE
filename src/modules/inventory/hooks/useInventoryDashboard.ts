@@ -30,13 +30,17 @@ export function useInventoryDashboard() {
   // 2. Lấy danh sách sản phẩm để làm giàu thông tin tên/SKU/ảnh
   const { data: products = [], isLoading: isLoadingProducts } = useQuery({
     queryKey: ["products"],
-    queryFn: productApi.getProducts,
+    queryFn: () => productApi.getProducts(),
+    staleTime: 60000,
   });
 
-  // Map product_id -> Product
+  // Map product_id & sku -> Product
   const productMap = useMemo(() => {
-    const map = new Map();
-    products.forEach((p) => map.set(p.id, p));
+    const map = new Map<string, any>();
+    products.forEach((p) => {
+      if (p.id) map.set(String(p.id), p);
+      if (p.sku) map.set(String(p.sku), p);
+    });
     return map;
   }, [products]);
 
@@ -63,17 +67,25 @@ export function useInventoryDashboard() {
   // Làm giàu dữ liệu tồn kho với thông tin Product
   const enrichedInventory = useMemo(() => {
     return rawInventory.map((item) => {
-      const prod = productMap.get(item.product_id);
+      const prodId = String(item.product_id || "");
+      const prod = productMap.get(prodId) || (item.sku ? productMap.get(String(item.sku)) : undefined);
       const available = Math.max(0, (Number(item.quantity) || 0) - (Number(item.reserved_quantity) || 0));
+
+      // Ưu tiên: Tên thật từ Product catalog -> Tên lưu kèm -> Tên mặc định đẹp
+      const finalName =
+        prod?.name ||
+        item.product_name ||
+        (item.sku ? `Sản phẩm [${item.sku}]` : (prodId ? `Sản phẩm ${prodId.slice(0, 8)}` : "Sản phẩm CSM"));
+
       return {
         ...item,
         quantity: Number(item.quantity) || 0,
         reserved_quantity: Number(item.reserved_quantity) || 0,
         available,
-        product_name: item.product_name || prod?.name || `Sản phẩm #${item.product_id}`,
-        sku: item.sku || prod?.sku || `SKU-${item.product_id.slice(0, 6)}`,
+        product_name: finalName,
+        sku: item.sku || prod?.sku || `SKU-${prodId.slice(0, 6)}`,
         price: item.price || prod?.price || 0,
-        image_url: prod?.images?.[0],
+        image_url: prod?.images?.[0] || (item as any).image_url,
       };
     });
   }, [rawInventory, productMap]);

@@ -1,5 +1,5 @@
 import { Star, MessageSquareQuote } from "lucide-react";
-import { mockTestimonials } from "../../../mocks/homeMock";
+import { mockTestimonials } from "../homeData";
 
 const FALLBACK_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80";
 

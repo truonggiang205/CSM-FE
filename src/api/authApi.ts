@@ -45,6 +45,13 @@ export const authApi = {
     const res = await apiClient.get<UserProfile>("/auth/profile");
     return res.data;
   },
+
+  getUsers: async (role?: string): Promise<UserProfile[]> => {
+    const res = await apiClient.get<UserProfile[]>("/auth/users", {
+      params: role ? { role } : undefined,
+    });
+    return res.data;
+  },
 };
 
 export default authApi;
