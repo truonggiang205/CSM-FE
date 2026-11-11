@@ -10,23 +10,25 @@ import {
   CheckCircle2,
   XCircle,
   ChevronRight,
-  ShieldAlert,
+  Truck,
+  CreditCard,
+  Package,
+  Clock,
+  ExternalLink,
+  X,
 } from "lucide-react";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { orderApi, Order, OrderStatus, Paginated } from "../../../api/orderApi";
 import { branchApi } from "../../../api/branchApi";
 import { Branch } from "../../../types/branch";
-import { OrderStatusBadge } from "../components/OrderStatusBadge";
+import {
+  OrderStatusBadge,
+  PaymentStatusBadge,
+  DeliveryStatusBadge,
+} from "../components/OrderStatusBadge";
+import { OrderDetailModal } from "../components/OrderDetailModal";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-
-const VALID_TRANSITIONS: Record<OrderStatus, OrderStatus[]> = {
-  PENDING: ["CONFIRMED", "CANCELLED"],
-  CONFIRMED: ["PAID", "SHIPPED", "CANCELLED"],
-  PAID: ["SHIPPED", "CANCELLED"],
-  SHIPPED: [],
-  CANCELLED: [],
-};
 
 export function OrderListPage() {
   const { user } = useAuthStore();
@@ -53,11 +55,13 @@ export function OrderListPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  // Status Change Dialog states
-  const [selectedOrder, setSelectedOrder] = useState<Order | null>(null);
-  const [targetStatus, setTargetStatus] = useState<OrderStatus | null>(null);
-  const [isUpdating, setIsUpdating] = useState(false);
-  const [updateError, setUpdateError] = useState("");
+  // Modal dialog states khi click vào trạng thái giao hàng hoặc thanh toán
+  const [selectedDetailOrder, setSelectedDetailOrder] = useState<Order | null>(null);
+  const [viewingDeliveryOrder, setViewingDeliveryOrder] = useState<Order | null>(null);
+  const [selectedDeliveryStatus, setSelectedDeliveryStatus] = useState<OrderStatus | null>(null);
+  const [viewingPaymentOrder, setViewingPaymentOrder] = useState<Order | null>(null);
+  const [isUpdatingStatus, setIsUpdatingStatus] = useState(false);
+  const [statusActionError, setStatusActionError] = useState("");
   const [successToast, setSuccessToast] = useState("");
 
   // Tải danh sách chi nhánh nếu là ADMIN
@@ -129,15 +133,12 @@ export function OrderListPage() {
     }
   };
 
-  // Xác nhận đổi trạng thái
-  const handleConfirmStatusChange = async () => {
-    if (!selectedOrder || !targetStatus) return;
-    setIsUpdating(true);
-    setUpdateError("");
-
+  // Cập nhật trạng thái từ Modal
+  const handleUpdateStatus = async (orderId: string, newStatus: OrderStatus) => {
+    setIsUpdatingStatus(true);
+    setStatusActionError("");
     try {
-      const updated = await orderApi.updateOrderStatus(selectedOrder.id, targetStatus);
-      // Cập nhật lại trong bảng
+      const updated = await orderApi.updateOrderStatus(orderId, newStatus);
       setData((prev) => {
         if (!prev) return null;
         return {
@@ -146,16 +147,21 @@ export function OrderListPage() {
         };
       });
 
-      setSuccessToast(`Đã chuyển trạng thái đơn #${selectedOrder.id.slice(0, 8)} sang ${targetStatus}`);
+      setSuccessToast(`Đã cập nhật trạng thái đơn #${orderId.slice(0, 8)} thành công!`);
       setTimeout(() => setSuccessToast(""), 4000);
 
-      setSelectedOrder(null);
-      setTargetStatus(null);
+      // Cập nhật lại order đang hiển thị trong modal
+      if (viewingDeliveryOrder?.id === orderId) {
+        setViewingDeliveryOrder(updated);
+      }
+      if (viewingPaymentOrder?.id === orderId) {
+        setViewingPaymentOrder(updated);
+      }
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || "Cập nhật trạng thái thất bại.";
-      setUpdateError(typeof msg === "string" ? msg : JSON.stringify(msg));
+      setStatusActionError(typeof msg === "string" ? msg : JSON.stringify(msg));
     } finally {
-      setIsUpdating(false);
+      setIsUpdatingStatus(false);
     }
   };
 
@@ -169,7 +175,7 @@ export function OrderListPage() {
             <span>Quản lý đơn hàng</span>
           </h1>
           <p className="text-muted text-xs sm:text-sm mt-0.5">
-            Xử lý quy trình đơn hàng toàn hệ thống theo State Machine & Saga Pattern.
+            Quản lý và theo dõi quy trình thanh toán & giao hàng toàn hệ thống.
           </p>
         </div>
 
@@ -229,11 +235,11 @@ export function OrderListPage() {
               className="w-full h-10 px-3 rounded-xl border border-border bg-surface text-xs font-medium text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
             >
               <option value="ALL">Tất cả trạng thái</option>
-              <option value="PENDING">Chờ xử lý (PENDING)</option>
-              <option value="CONFIRMED">Đã xác nhận (CONFIRMED)</option>
-              <option value="PAID">Đã thanh toán (PAID)</option>
-              <option value="SHIPPED">Đang giao / Hoàn tất (SHIPPED)</option>
-              <option value="CANCELLED">Đã hủy (CANCELLED)</option>
+              <option value="PENDING">Chờ xử lý</option>
+              <option value="CONFIRMED">Đã xác nhận</option>
+              <option value="PAID">Đã thanh toán</option>
+              <option value="SHIPPED">Đang giao / Hoàn tất</option>
+              <option value="CANCELLED">Đã hủy</option>
             </select>
           </div>
 
@@ -345,22 +351,37 @@ export function OrderListPage() {
           {!loading &&
             data &&
             data.items.map((order) => {
-              const allowedNextStatuses = VALID_TRANSITIONS[order.status] || [];
-              const isTerminal = allowedNextStatuses.length === 0;
-
               return (
                 <div key={order.id} className="p-4 space-y-3 bg-surface hover:bg-surface-soft/40 transition-colors">
                   <div className="flex items-start justify-between gap-2">
                     <div>
-                      <Link
-                        to={`/orders/${order.id}`}
-                        className="font-mono font-bold text-sm text-foreground hover:text-primary transition-colors"
+                      <button
+                        type="button"
+                        onClick={() => setSelectedDetailOrder(order)}
+                        className="font-mono font-bold text-sm text-foreground hover:text-primary transition-colors text-left cursor-pointer"
+                        title="Xem chi tiết đơn hàng"
                       >
-                        #${order.id.slice(0, 13)}...
-                      </Link>
+                        #{order.id.slice(0, 13)}...
+                      </button>
                       <p className="text-[11px] text-muted">{order.payment_method} &bull; {order.branch_id || "Chưa gán chi nhánh"}</p>
                     </div>
-                    <OrderStatusBadge status={order.status} />
+                    <div className="flex flex-col items-end gap-1.5">
+                      <PaymentStatusBadge
+                        status={order.status}
+                        onClick={() => {
+                          setStatusActionError("");
+                          setViewingPaymentOrder(order);
+                        }}
+                      />
+                      <DeliveryStatusBadge
+                        status={order.status}
+                        onClick={() => {
+                          setStatusActionError("");
+                          setSelectedDeliveryStatus(order.status);
+                          setViewingDeliveryOrder(order);
+                        }}
+                      />
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between text-xs py-2 px-3 rounded-2xl bg-surface-soft border border-border/60">
@@ -377,30 +398,18 @@ export function OrderListPage() {
                   </div>
 
                   <div className="flex items-center justify-between gap-2 pt-1">
-                    <span className="text-[11px] text-muted truncate max-w-[140px]">
+                    <span className="text-[11px] text-muted truncate max-w-[180px]">
                       Khách: {order.user_id ? order.user_id.slice(0, 10) + "..." : "Khách lẻ"}
                     </span>
-
-                    {isTerminal ? (
-                      <span className="text-[11px] text-muted italic font-medium px-2 py-1">Đã chốt</span>
-                    ) : (
-                      <div className="flex flex-wrap gap-1.5 justify-end">
-                        {allowedNextStatuses.map((st) => (
-                          <Button
-                            key={st}
-                            size="sm"
-                            variant={st === "CANCELLED" ? "destructive" : "outline"}
-                            onClick={() => {
-                              setSelectedOrder(order);
-                              setTargetStatus(st);
-                            }}
-                            className="rounded-xl text-[11px] font-bold h-7 px-2.5 shadow-2xs"
-                          >
-                            &rarr; {st}
-                          </Button>
-                        ))}
-                      </div>
-                    )}
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setSelectedDetailOrder(order)}
+                      className="h-7 px-2.5 text-xs text-primary font-semibold cursor-pointer"
+                    >
+                      Chi tiết &rarr;
+                    </Button>
                   </div>
                 </div>
               );
@@ -417,14 +426,15 @@ export function OrderListPage() {
                 <th className="px-5 py-4">Chi nhánh</th>
                 <th className="px-5 py-4">Thời gian</th>
                 <th className="px-5 py-4 text-right">Tổng tiền</th>
-                <th className="px-5 py-4 text-center">Trạng thái</th>
-                <th className="px-5 py-4 text-right">Thao tác State Machine</th>
+                <th className="px-5 py-4 text-center">Trạng thái thanh toán</th>
+                <th className="px-5 py-4 text-center">Trạng thái giao hàng</th>
+                <th className="px-5 py-4 text-right">Chi tiết</th>
               </tr>
             </thead>
             <tbody className="divide-y divide-border/60">
               {loading && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted">
+                  <td colSpan={8} className="text-center py-12 text-muted">
                     <span className="inline-flex items-center gap-2 font-medium">
                       <span className="w-4 h-4 border-2 border-primary border-t-transparent rounded-full animate-spin" />
                       Đang tải danh sách đơn hàng...
@@ -435,7 +445,7 @@ export function OrderListPage() {
 
               {!loading && (!data || data.items.length === 0) && (
                 <tr>
-                  <td colSpan={7} className="text-center py-12 text-muted">
+                  <td colSpan={8} className="text-center py-12 text-muted">
                     <p className="font-semibold text-foreground">Không tìm thấy đơn hàng nào</p>
                     <p className="text-xs mt-1">Vui lòng điều chỉnh lại bộ lọc hoặc tìm kiếm.</p>
                   </td>
@@ -445,15 +455,17 @@ export function OrderListPage() {
               {!loading &&
                 data &&
                 data.items.map((order) => {
-                  const allowedNextStatuses = VALID_TRANSITIONS[order.status] || [];
-                  const isTerminal = allowedNextStatuses.length === 0;
-
                   return (
                     <tr key={order.id} className="hover:bg-surface-soft/40 transition-colors">
                       <td className="px-5 py-4 font-mono font-bold text-foreground">
-                        <Link to={`/orders/${order.id}`} className="hover:text-primary transition-colors">
+                        <button
+                          type="button"
+                          onClick={() => setSelectedDetailOrder(order)}
+                          className="hover:text-primary transition-colors text-left font-mono font-bold cursor-pointer"
+                          title="Xem chi tiết đơn hàng"
+                        >
                           #{order.id.slice(0, 13)}...
-                        </Link>
+                        </button>
                         <span className="block text-[10px] text-muted font-normal">
                           {order.payment_method}
                         </span>
@@ -482,48 +494,40 @@ export function OrderListPage() {
                         {formatCurrency(order.total_amount)}
                       </td>
 
+                      {/* Cột Trạng thái thanh toán */}
                       <td className="px-5 py-4 text-center">
-                        <OrderStatusBadge status={order.status} />
+                        <PaymentStatusBadge
+                          status={order.status}
+                          onClick={() => {
+                            setStatusActionError("");
+                            setViewingPaymentOrder(order);
+                          }}
+                        />
                       </td>
 
-                      {/* Dropdown / Nút đổi trạng thái State Machine */}
-                      <td className="px-5 py-4 text-right">
-                        <div className="flex items-center justify-end gap-2">
-                          {isTerminal ? (
-                            <span className="text-[11px] text-muted italic font-medium px-2 py-1 rounded-md bg-surface-soft">
-                              Trạng thái cuối
-                            </span>
-                          ) : (
-                            <div className="flex items-center gap-1.5">
-                              {allowedNextStatuses.map((nextSt) => (
-                                <button
-                                  key={nextSt}
-                                  onClick={() => {
-                                    setSelectedOrder(order);
-                                    setTargetStatus(nextSt);
-                                  }}
-                                  className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all shadow-xs ${
-                                    nextSt === "CONFIRMED"
-                                      ? "bg-info-pastel hover:bg-info-pastel/80 text-info-dark border-info/30"
-                                      : nextSt === "PAID"
-                                      ? "bg-primary-tint hover:bg-primary-tint/80 text-primary-dark border-primary/30"
-                                      : nextSt === "SHIPPED"
-                                      ? "bg-success-pastel hover:bg-success-pastel/80 text-success-dark border-success/30"
-                                      : "bg-danger-pastel hover:bg-danger-pastel/80 text-danger-dark border-danger/30"
-                                  }`}
-                                >
-                                  &rarr; {nextSt}
-                                </button>
-                              ))}
-                            </div>
-                          )}
+                      {/* Cột Trạng thái giao hàng */}
+                      <td className="px-5 py-4 text-center">
+                        <DeliveryStatusBadge
+                          status={order.status}
+                          onClick={() => {
+                            setStatusActionError("");
+                            setSelectedDeliveryStatus(order.status);
+                            setViewingDeliveryOrder(order);
+                          }}
+                        />
+                      </td>
 
-                          <Button asChild variant="ghost" size="sm" className="h-7 px-2 text-xs">
-                            <Link to={`/orders/${order.id}`}>
-                              <ChevronRight className="w-3.5 h-3.5" />
-                            </Link>
-                          </Button>
-                        </div>
+                      <td className="px-5 py-4 text-right">
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => setSelectedDetailOrder(order)}
+                          className="h-7 px-2 text-xs cursor-pointer"
+                          title="Xem chi tiết đơn hàng (Cửa sổ)"
+                        >
+                          <ChevronRight className="w-3.5 h-3.5" />
+                        </Button>
                       </td>
                     </tr>
                   );
@@ -560,68 +564,309 @@ export function OrderListPage() {
         )}
       </div>
 
-      {/* Modal xác nhận đổi trạng thái đơn hàng */}
-      {selectedOrder && targetStatus && (
+      {/* GIAO DIỆN / MODAL CHI TIẾT TRẠNG THÁI GIAO HÀNG */}
+      {viewingDeliveryOrder && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
-          <div className="bg-surface rounded-3xl border border-border p-6 sm:p-8 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
-            <div className="w-12 h-12 rounded-2xl bg-primary-tint border border-primary/30 flex items-center justify-center text-primary font-bold text-xl">
-              🔄
-            </div>
-
-            <div>
-              <h3 className="text-lg font-bold text-foreground">Xác nhận chuyển trạng thái?</h3>
-              <p className="text-muted text-xs sm:text-sm mt-1.5 leading-relaxed">
-                Đơn hàng: <b className="font-mono text-foreground">#{selectedOrder.id}</b>
-                <br />
-                Chuyển từ <b className="text-foreground">{selectedOrder.status}</b> &rarr;{" "}
-                <b className="text-primary-dark">{targetStatus}</b>.
-              </p>
-
-              {/* Ghi chú Saga tương ứng */}
-              <div className="mt-3 p-3 rounded-xl bg-surface-soft border border-border text-[11px] text-muted space-y-1">
-                {selectedOrder.status === "PENDING" && (targetStatus === "CONFIRMED" || targetStatus === "PAID") && (
-                  <p className="text-info-dark font-medium">
-                    ⚡ Thao tác này sẽ kích hoạt Saga xác nhận trừ tồn kho thực tế (confirm-deduct).
+          <div className="bg-surface rounded-3xl border border-border p-6 sm:p-7 max-w-lg w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header Modal */}
+            <div className="flex items-start justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-primary-tint border border-primary/30 flex items-center justify-center text-primary">
+                  <Truck className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Trạng thái giao hàng</h3>
+                  <p className="text-xs text-muted font-mono">
+                    Mã đơn: #{viewingDeliveryOrder.id}
                   </p>
-                )}
-                {selectedOrder.status === "PENDING" && targetStatus === "CANCELLED" && (
-                  <p className="text-danger-dark font-medium">
-                    ⚡ Thao tác huỷ đơn PENDING sẽ kích hoạt Saga giải phóng giữ kho (release-stock).
-                  </p>
-                )}
-                {targetStatus === "SHIPPED" && (
-                  <p className="text-success-dark font-medium">
-                    ⚡ SHIPPED là trạng thái kết thúc cuối cùng, sau khi chuyển sẽ không thể thay đổi hay huỷ đơn.
-                  </p>
-                )}
+                </div>
               </div>
+              <button
+                onClick={() => setViewingDeliveryOrder(null)}
+                className="p-1 rounded-xl text-muted hover:text-foreground hover:bg-surface-soft transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
 
-            {updateError && (
-              <div className="p-3 rounded-xl bg-danger-pastel text-danger-dark text-xs flex items-center gap-1.5">
-                <AlertCircle className="w-4 h-4 shrink-0" />
-                <span>{updateError}</span>
+            {/* Stepper Timeline Tiến trình giao hàng */}
+            {viewingDeliveryOrder.status === "CANCELLED" ? (
+              <div className="p-3.5 rounded-2xl bg-danger-pastel border border-danger/30 text-danger-dark text-xs flex items-center gap-2.5">
+                <XCircle className="w-5 h-5 shrink-0" />
+                <div>
+                  <p className="font-bold">Đơn hàng này đã bị hủy</p>
+                  <p className="text-[11px] opacity-90 mt-0.5">Không tiến hành đóng gói hay giao hàng.</p>
+                </div>
+              </div>
+            ) : (
+              <div className="p-4 rounded-2xl bg-surface-soft border border-border/80 space-y-3">
+                <span className="text-[11px] font-bold uppercase tracking-wider text-muted block">
+                  Tiến trình vận chuyển
+                </span>
+                <div className="grid grid-cols-4 gap-2 text-center text-[11px]">
+                  {[
+                    { label: "Tiếp nhận", status: "PENDING", icon: Clock },
+                    { label: "Chuẩn bị", status: "CONFIRMED", icon: Package },
+                    { label: "Đang giao", status: "PAID", icon: Truck },
+                    { label: "Đã giao", status: "SHIPPED", icon: CheckCircle2 },
+                  ].map((step, idx) => {
+                    const stepWeights: Record<string, number> = {
+                      PENDING: 1,
+                      CONFIRMED: 2,
+                      PAID: 3,
+                      SHIPPED: 4,
+                    };
+                    const currentWeight = stepWeights[viewingDeliveryOrder.status] || 1;
+                    const stepWeight = stepWeights[step.status];
+                    const isDone = currentWeight >= stepWeight;
+                    const isCurrent = currentWeight === stepWeight;
+                    const StepIcon = step.icon;
+
+                    return (
+                      <div key={step.status} className="flex flex-col items-center">
+                        <div
+                          className={`w-8 h-8 rounded-full flex items-center justify-center transition-all ${
+                            isCurrent
+                              ? "bg-primary text-white shadow-xs ring-4 ring-primary-tint"
+                              : isDone
+                              ? "bg-primary-tint text-primary-dark font-bold"
+                              : "bg-surface border border-border text-muted"
+                          }`}
+                        >
+                          <StepIcon className="w-3.5 h-3.5" />
+                        </div>
+                        <span className={`mt-1.5 font-medium ${isCurrent ? "text-primary-dark font-bold" : isDone ? "text-foreground" : "text-muted"}`}>
+                          {step.label}
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
               </div>
             )}
 
-            <div className="flex gap-3 justify-end pt-2">
+            {/* Thông tin vận đơn */}
+            <div className="grid grid-cols-2 gap-3 text-xs bg-surface-soft p-4 rounded-2xl border border-border">
+              <div>
+                <span className="text-[11px] text-muted block">Mã vận đơn</span>
+                <span className="font-mono font-bold text-foreground">
+                  VN-CSM-{viewingDeliveryOrder.id.slice(0, 8).toUpperCase()}
+                </span>
+              </div>
+              <div>
+                <span className="text-[11px] text-muted block">Đơn vị vận chuyển</span>
+                <span className="font-semibold text-foreground">CSM Express Delivery</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-muted block">Chi nhánh gửi</span>
+                <span className="font-semibold text-foreground">{viewingDeliveryOrder.branch_id}</span>
+              </div>
+              <div>
+                <span className="text-[11px] text-muted block">Khách hàng nhận</span>
+                <span className="font-medium text-foreground truncate block max-w-[150px]">
+                  {viewingDeliveryOrder.user_id}
+                </span>
+              </div>
+            </div>
+
+            {/* Bộ điều khiển cập nhật trạng thái giao hàng */}
+            <div className="space-y-2 pt-2 border-t border-border">
+              <label className="text-xs font-bold text-foreground block">
+                Cập nhật trạng thái giao hàng:
+              </label>
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                <Button
+                  size="sm"
+                  type="button"
+                  variant={selectedDeliveryStatus === "CONFIRMED" ? "default" : "outline"}
+                  onClick={() => setSelectedDeliveryStatus("CONFIRMED")}
+                  className="text-xs h-8 font-semibold"
+                >
+                  Chuẩn bị hàng
+                </Button>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant={selectedDeliveryStatus === "PAID" ? "default" : "outline"}
+                  onClick={() => setSelectedDeliveryStatus("PAID")}
+                  className="text-xs h-8 font-semibold"
+                >
+                  Đang giao
+                </Button>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant={selectedDeliveryStatus === "SHIPPED" ? "default" : "outline"}
+                  onClick={() => setSelectedDeliveryStatus("SHIPPED")}
+                  className="text-xs h-8 font-semibold"
+                >
+                  Đã giao hàng
+                </Button>
+                <Button
+                  size="sm"
+                  type="button"
+                  variant={selectedDeliveryStatus === "CANCELLED" ? "destructive" : "outline"}
+                  onClick={() => setSelectedDeliveryStatus("CANCELLED")}
+                  className="text-xs h-8 font-semibold"
+                >
+                  Hủy đơn
+                </Button>
+              </div>
+            </div>
+
+            {statusActionError && (
+              <div className="p-3 rounded-xl bg-danger-pastel text-danger-dark text-xs flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{statusActionError}</span>
+              </div>
+            )}
+
+            {/* Footer Modal */}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
               <Button
-                variant="outline"
-                disabled={isUpdating}
+                type="button"
+                variant="ghost"
+                size="sm"
                 onClick={() => {
-                  setSelectedOrder(null);
-                  setTargetStatus(null);
+                  const target = viewingDeliveryOrder;
+                  setViewingDeliveryOrder(null);
+                  setSelectedDetailOrder(target);
                 }}
+                className="text-xs text-primary font-semibold gap-1 cursor-pointer"
               >
-                Huỷ bỏ
+                <span>Xem chi tiết cửa sổ</span>
+                <ExternalLink className="w-3.5 h-3.5" />
               </Button>
-              <Button disabled={isUpdating} onClick={handleConfirmStatusChange} className="shadow-sm">
-                {isUpdating ? "Đang xử lý..." : "Xác nhận chuyển"}
-              </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isUpdatingStatus}
+                  onClick={() => setViewingDeliveryOrder(null)}
+                >
+                  Đóng
+                </Button>
+                {selectedDeliveryStatus && selectedDeliveryStatus !== viewingDeliveryOrder.status && (
+                  <Button
+                    size="sm"
+                    disabled={isUpdatingStatus}
+                    onClick={() => handleUpdateStatus(viewingDeliveryOrder.id, selectedDeliveryStatus)}
+                    className="shadow-sm"
+                  >
+                    {isUpdatingStatus ? "Đang lưu..." : "Lưu thay đổi"}
+                  </Button>
+                )}
+              </div>
             </div>
           </div>
         </div>
       )}
+
+      {/* GIAO DIỆN / MODAL CHI TIẾT TRẠNG THÁI THANH TOÁN */}
+      {viewingPaymentOrder && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+          <div className="bg-surface rounded-3xl border border-border p-6 sm:p-7 max-w-md w-full shadow-2xl space-y-5 animate-in fade-in zoom-in-95 duration-150">
+            {/* Header Modal */}
+            <div className="flex items-start justify-between pb-3 border-b border-border">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-2xl bg-primary-tint border border-primary/30 flex items-center justify-center text-primary">
+                  <CreditCard className="w-5 h-5" />
+                </div>
+                <div>
+                  <h3 className="text-base font-bold text-foreground">Trạng thái thanh toán</h3>
+                  <p className="text-xs text-muted font-mono">
+                    Mã đơn: #{viewingPaymentOrder.id}
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={() => setViewingPaymentOrder(null)}
+                className="p-1 rounded-xl text-muted hover:text-foreground hover:bg-surface-soft transition-colors"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+
+            {/* Thông tin thanh toán */}
+            <div className="space-y-3 bg-surface-soft p-4 rounded-2xl border border-border text-xs">
+              <div className="flex items-center justify-between pb-2 border-b border-border/80">
+                <span className="text-muted">Tổng tiền đơn hàng:</span>
+                <span className="text-base font-extrabold text-primary-dark font-mono">
+                  {formatCurrency(viewingPaymentOrder.total_amount)}
+                </span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Phương thức thanh toán:</span>
+                <span className="font-bold text-foreground">{viewingPaymentOrder.payment_method}</span>
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Tình trạng thanh toán:</span>
+                <PaymentStatusBadge status={viewingPaymentOrder.status} />
+              </div>
+              <div className="flex items-center justify-between">
+                <span className="text-muted">Thời gian đặt:</span>
+                <span className="text-foreground">{formatDate(viewingPaymentOrder.created_at)}</span>
+              </div>
+            </div>
+
+            {statusActionError && (
+              <div className="p-3 rounded-xl bg-danger-pastel text-danger-dark text-xs flex items-center gap-1.5">
+                <AlertCircle className="w-4 h-4 shrink-0" />
+                <span>{statusActionError}</span>
+              </div>
+            )}
+
+            {/* Footer Modal */}
+            <div className="flex items-center justify-between pt-2 border-t border-border">
+              <Button
+                type="button"
+                variant="ghost"
+                size="sm"
+                onClick={() => {
+                  const target = viewingPaymentOrder;
+                  setViewingPaymentOrder(null);
+                  setSelectedDetailOrder(target);
+                }}
+                className="text-xs text-primary font-semibold gap-1 cursor-pointer"
+              >
+                <span>Xem chi tiết cửa sổ</span>
+                <ExternalLink className="w-3.5 h-3.5" />
+              </Button>
+
+              <div className="flex gap-2">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={isUpdatingStatus}
+                  onClick={() => setViewingPaymentOrder(null)}
+                >
+                  Đóng
+                </Button>
+                {viewingPaymentOrder.status !== "PAID" && viewingPaymentOrder.status !== "SHIPPED" && viewingPaymentOrder.status !== "CANCELLED" && (
+                  <Button
+                    size="sm"
+                    disabled={isUpdatingStatus}
+                    onClick={() => handleUpdateStatus(viewingPaymentOrder.id, "PAID")}
+                    className="shadow-sm"
+                  >
+                    {isUpdatingStatus ? "Đang xử lý..." : "Xác nhận đã thanh toán"}
+                  </Button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* MODAL CỬA SỔ XEM CHI TIẾT ĐƠN HÀNG TRỰC TIẾP TRÊN GIAO DIỆN */}
+      <OrderDetailModal
+        order={selectedDetailOrder}
+        isOpen={!!selectedDetailOrder}
+        onClose={() => setSelectedDetailOrder(null)}
+        onUpdateStatus={handleUpdateStatus}
+        isUpdatingStatus={isUpdatingStatus}
+      />
     </div>
   );
 }

@@ -35,6 +35,18 @@ const OrderDetailPage = lazy(() =>
 const InventoryPage = lazy(() =>
   import("../modules/inventory/pages/InventoryPage").then((m) => ({ default: m.InventoryPage }))
 );
+const AdminProductListPage = lazy(() =>
+  import("../modules/products/pages/AdminProductListPage").then((m) => ({ default: m.AdminProductListPage }))
+);
+const BranchesPage = lazy(() =>
+  import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
+);
+const CustomersPage = lazy(() =>
+  import("../modules/customers/pages/CustomersPage").then((m) => ({ default: m.CustomersPage }))
+);
+const SettingsPage = lazy(() =>
+  import("../modules/settings/pages/SettingsPage").then((m) => ({ default: m.SettingsPage }))
+);
 const LoginPage = lazy(() =>
   import("../modules/auth/pages/LoginPage").then((m) => ({ default: m.LoginPage }))
 );
@@ -154,6 +166,18 @@ const router = createBrowserRouter([
             element: withSuspense(OrderListPage),
           },
           {
+            path: "branches",
+            element: withSuspense(BranchesPage),
+          },
+          {
+            path: "customers",
+            element: withSuspense(CustomersPage),
+          },
+          {
+            path: "settings",
+            element: withSuspense(SettingsPage),
+          },
+          {
             element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
             children: [
               {
@@ -162,7 +186,7 @@ const router = createBrowserRouter([
               },
               {
                 path: "products",
-                element: withSuspense(InventoryPage),
+                element: withSuspense(AdminProductListPage),
               },
             ],
           },

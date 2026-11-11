@@ -7,7 +7,7 @@ import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { Button } from "../../../components/ui/Button";
-import { mockCsmPickMetadata } from "../../../mocks/brandMock";
+import { mockCsmPickMetadata } from "../homeData";
 
 interface CsmPicksSectionProps {
   products: Product[];
