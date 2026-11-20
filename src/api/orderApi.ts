@@ -41,6 +41,7 @@ export interface CreateOrderPayload {
   items: CreateOrderItemPayload[];
   shippingAddress?: string;
   paymentMethod: PaymentMethod;
+  voucherCode?: string;
 }
 
 export interface CreateOrderResponse {
