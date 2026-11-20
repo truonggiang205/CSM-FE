@@ -491,7 +491,12 @@ export function OrderListPage() {
                       </td>
 
                       <td className="px-5 py-4 text-right font-extrabold text-primary-dark">
-                        {formatCurrency(order.total_amount)}
+                        <div>{formatCurrency(order.total_amount)}</div>
+                        {Number(order.discount_amount) > 0 && (
+                          <div className="text-[10px] text-emerald-600 font-semibold font-mono">
+                            Voucher: -{formatCurrency(Number(order.discount_amount))}
+                          </div>
+                        )}
                       </td>
 
                       {/* Cột Trạng thái thanh toán */}
