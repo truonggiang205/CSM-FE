@@ -19,7 +19,8 @@ import {
 import { useCartStore } from "../../../store/useCartStore";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { useAuthStore } from "../../../store/useAuthStore";
-import { orderApi, PaymentMethod } from "../../../api/orderApi";
+import { orderApi, PaymentMethod, CreateOrderPayload } from "../../../api/orderApi";
+import { discountApi } from "../../../api/discountApi";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Label } from "../../../components/ui/Label";
@@ -45,6 +46,7 @@ export function CheckoutPage() {
   const [appliedDiscount, setAppliedDiscount] = useState(0);
   const [voucherError, setVoucherError] = useState("");
   const [voucherSuccess, setVoucherSuccess] = useState("");
+  const [isValidatingVoucher, setIsValidatingVoucher] = useState(false);
 
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState("");
@@ -57,14 +59,20 @@ export function CheckoutPage() {
     }).format(amount);
   };
 
-  // TODO: Mã giảm giá/Voucher và Phí ship hiện tại chỉ mang tính minh hoạ UI/UX và chưa được backend OrderService hỗ trợ trong contract POST /orders. Tổng tiền chính thức do hệ thống backend tự tính dựa trên đơn giá snapshot từ database.
-  // Tuyệt đối không gửi giá hay mã giảm giá lên backend.
   const rawTotal = getTotalPrice();
   const shippingFee = rawTotal >= FREESHIP_THRESHOLD ? 0 : 15000;
   const finalTotal = Math.max(0, rawTotal + shippingFee - appliedDiscount);
 
-  // Áp dụng voucher giảm giá (minh hoạ giao diện)
-  const handleApplyVoucher = (e: React.FormEvent) => {
+  // Tự động hủy voucher nếu giỏ hàng trống hoặc thay đổi
+  React.useEffect(() => {
+    if (appliedDiscount > 0 && rawTotal === 0) {
+      setAppliedDiscount(0);
+      setVoucherSuccess("");
+    }
+  }, [rawTotal, appliedDiscount]);
+
+  // Áp dụng voucher giảm giá thực tế qua API Backend
+  const handleApplyVoucher = async (e: React.FormEvent) => {
     e.preventDefault();
     setVoucherError("");
     setVoucherSuccess("");
@@ -72,12 +80,27 @@ export function CheckoutPage() {
     const code = voucherCode.trim().toUpperCase();
     if (!code) return;
 
-    if (code === "CSM20K" || code === "WELCOME" || code === "TIENLOI") {
-      setAppliedDiscount(20000);
-      setVoucherSuccess(`Đã áp dụng mã ${code}: Giảm 20.000₫!`);
-    } else {
-      setVoucherError("Mã giảm giá không hợp lệ hoặc đã hết hạn (Thử mã: CSM20K)");
+    try {
+      setIsValidatingVoucher(true);
+      const res = await discountApi.validateVoucher(code, rawTotal);
+      if (res && res.valid) {
+        setAppliedDiscount(res.discountAmount);
+        setVoucherSuccess(`Đã áp dụng mã ${res.code}: Giảm ${formatCurrency(res.discountAmount)}!`);
+      }
+    } catch (err: any) {
+      setAppliedDiscount(0);
+      const msg = err.response?.data?.message || err.message || "Mã giảm giá không hợp lệ hoặc đã hết hạn";
+      setVoucherError(Array.isArray(msg) ? msg.join(", ") : msg);
+    } finally {
+      setIsValidatingVoucher(false);
     }
+  };
+
+  const handleRemoveVoucher = () => {
+    setAppliedDiscount(0);
+    setVoucherCode("");
+    setVoucherSuccess("");
+    setVoucherError("");
   };
 
   // Nếu giỏ hàng trống và chưa tạo đơn thành công
@@ -122,7 +145,7 @@ export function CheckoutPage() {
       const branchId = selectedBranch?.id || "br-01";
       const fullAddress = shippingAddress.trim() + (orderNotes.trim() ? ` (Ghi chú: ${orderNotes.trim()})` : "");
 
-      const orderPayload = {
+      const orderPayload: CreateOrderPayload = {
         branchId,
         items: items.map((i) => ({
           productId: i.product.id,
@@ -130,6 +153,7 @@ export function CheckoutPage() {
         })),
         shippingAddress: fullAddress || "Tại quầy / Địa chỉ khách cung cấp",
         paymentMethod,
+        voucherCode: appliedDiscount > 0 ? voucherCode.trim().toUpperCase() : undefined,
       };
 
       const res = await orderApi.createOrder(orderPayload);
@@ -345,6 +369,8 @@ export function CheckoutPage() {
               voucherCode={voucherCode}
               setVoucherCode={setVoucherCode}
               onApplyVoucher={handleApplyVoucher}
+              onRemoveVoucher={handleRemoveVoucher}
+              isValidatingVoucher={isValidatingVoucher}
               voucherError={voucherError}
               voucherSuccess={voucherSuccess}
             />
@@ -491,6 +517,8 @@ export function CheckoutPage() {
               voucherCode={voucherCode}
               setVoucherCode={setVoucherCode}
               onApplyVoucher={handleApplyVoucher}
+              onRemoveVoucher={handleRemoveVoucher}
+              isValidatingVoucher={isValidatingVoucher}
               voucherError={voucherError}
               voucherSuccess={voucherSuccess}
             />
@@ -541,6 +569,8 @@ interface OrderSummaryBoxProps {
   voucherCode: string;
   setVoucherCode: (val: string) => void;
   onApplyVoucher: (e: React.FormEvent) => void;
+  onRemoveVoucher?: () => void;
+  isValidatingVoucher?: boolean;
   voucherError: string;
   voucherSuccess: string;
 }
@@ -555,6 +585,8 @@ function OrderSummaryBox({
   voucherCode,
   setVoucherCode,
   onApplyVoucher,
+  onRemoveVoucher,
+  isValidatingVoucher,
   voucherError,
   voucherSuccess,
 }: OrderSummaryBoxProps) {
@@ -603,17 +635,31 @@ function OrderSummaryBox({
               placeholder="Mã voucher (CSM20K)..."
               value={voucherCode}
               onChange={(e) => setVoucherCode(e.target.value)}
+              disabled={discount > 0 || isValidatingVoucher}
               className="pl-8 text-xs rounded-xl bg-surface-soft uppercase"
             />
           </div>
-          <Button
-            type="submit"
-            variant="outline"
-            size="sm"
-            className="rounded-xl text-xs font-semibold px-3"
-          >
-            Áp dụng
-          </Button>
+          {discount > 0 ? (
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              onClick={onRemoveVoucher}
+              className="rounded-xl text-xs font-semibold px-3 text-danger border-danger/30 hover:bg-danger/10"
+            >
+              Hủy mã
+            </Button>
+          ) : (
+            <Button
+              type="submit"
+              variant="outline"
+              size="sm"
+              disabled={isValidatingVoucher || !voucherCode.trim()}
+              className="rounded-xl text-xs font-semibold px-3"
+            >
+              {isValidatingVoucher ? "Đang ktra..." : "Áp dụng"}
+            </Button>
+          )}
         </div>
         {voucherSuccess && (
           <p className="text-[11px] font-semibold text-emerald-600 flex items-center gap-1">
