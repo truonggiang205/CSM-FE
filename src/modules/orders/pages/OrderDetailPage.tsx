@@ -13,6 +13,7 @@ import {
   Clock,
   Truck,
   PackageCheck,
+  Tag,
 } from "lucide-react";
 import { orderApi, Order, OrderStatus } from "../../../api/orderApi";
 import { OrderStatusBadge } from "../components/OrderStatusBadge";
@@ -431,14 +432,46 @@ export function OrderDetailPage() {
                 ))}
               </tbody>
               <tfoot className="bg-surface-soft/50 font-bold border-t border-border">
-                <tr>
-                  <td colSpan={3} className="px-5 py-4 text-right text-muted text-xs">
-                    Tổng cộng:
-                  </td>
-                  <td className="px-5 py-4 text-right text-base font-extrabold text-primary-dark">
-                    {formatCurrency(order.total_amount)}
-                  </td>
-                </tr>
+                {Number(order.discount_amount) > 0 ? (
+                  <>
+                    <tr className="border-b border-border/40">
+                      <td colSpan={3} className="px-5 py-3 text-right text-muted text-xs font-normal">
+                        Tạm tính hàng hóa:
+                      </td>
+                      <td className="px-5 py-3 text-right text-xs font-semibold text-foreground">
+                        {formatCurrency(Number(order.subtotal_amount) || order.items.reduce((s, i) => s + i.price_snapshot * i.quantity, 0))}
+                      </td>
+                    </tr>
+                    <tr className="border-b border-border/40 text-emerald-600 bg-emerald-500/5">
+                      <td colSpan={3} className="px-5 py-3 text-right text-xs">
+                        <span className="inline-flex items-center gap-1.5 font-semibold">
+                          <Tag className="w-3.5 h-3.5" />
+                          Giảm giá voucher {order.voucher_code ? `(${order.voucher_code})` : ""}:
+                        </span>
+                      </td>
+                      <td className="px-5 py-3 text-right text-xs font-bold font-mono">
+                        -{formatCurrency(Number(order.discount_amount))}
+                      </td>
+                    </tr>
+                    <tr>
+                      <td colSpan={3} className="px-5 py-4 text-right text-foreground text-xs">
+                        Tổng thanh toán:
+                      </td>
+                      <td className="px-5 py-4 text-right text-base font-extrabold text-primary-dark">
+                        {formatCurrency(order.total_amount)}
+                      </td>
+                    </tr>
+                  </>
+                ) : (
+                  <tr>
+                    <td colSpan={3} className="px-5 py-4 text-right text-muted text-xs">
+                      Tổng cộng:
+                    </td>
+                    <td className="px-5 py-4 text-right text-base font-extrabold text-primary-dark">
+                      {formatCurrency(order.total_amount)}
+                    </td>
+                  </tr>
+                )}
               </tfoot>
             </table>
           </div>

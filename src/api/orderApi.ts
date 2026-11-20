@@ -15,6 +15,9 @@ export interface Order {
   id: string;
   user_id: string;
   branch_id: string;
+  subtotal_amount?: number;
+  discount_amount?: number;
+  voucher_code?: string;
   total_amount: number;
   payment_method: PaymentMethod;
   status: OrderStatus;
