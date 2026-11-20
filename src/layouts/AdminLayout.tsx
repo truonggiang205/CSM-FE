@@ -12,6 +12,7 @@ import {
   X,
   Store,
   Building2,
+  Tag,
 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 
@@ -29,6 +30,7 @@ export default function AdminLayout() {
     { name: "Dashboard", href: "/admin", icon: LayoutDashboard },
     { name: "Quản lý sản phẩm", href: "/admin/products", icon: Package },
     { name: "Quản lý tồn kho", href: "/admin/inventory", icon: Store },
+    { name: "Khuyến mãi & Voucher", href: "/admin/vouchers", icon: Tag },
     { name: "Quản lý chi nhánh", href: "/admin/branches", icon: Building2 },
     { name: "Đơn hàng", href: "/admin/orders", icon: ShoppingBag },
     { name: "Quản lý người dùng", href: "/admin/customers", icon: Users },
