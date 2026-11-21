@@ -20,6 +20,7 @@ import { inventoryApi } from "../../../api/inventoryApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { ProductCard } from "../../products/components/ProductCard";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { mockProducts, mockCategories } from "../../../mocks/products";
 
 const CATEGORY_STYLES = [
   { emoji: "🧃", color: "bg-pastel-sky/60", border: "border-info/20" },
@@ -34,17 +35,22 @@ export function HomePage() {
   const { selectedBranch } = useBranchStore();
   const shouldReduceMotion = useReducedMotion();
 
-  // 1. Lấy danh mục từ API
-  const { data: categories = [], isLoading: isLoadingCats } = useQuery({
+  // 1. Lấy danh mục từ API (kèm fallback mockCategories)
+  const { data: categories = mockCategories, isLoading: isLoadingCats } = useQuery({
     queryKey: ["categories"],
     queryFn: productApi.getCategories,
+    initialData: mockCategories,
   });
 
-  // 2. Lấy sản phẩm nổi bật từ API
-  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+  // 2. Lấy sản phẩm nổi bật từ API (kèm fallback mockProducts)
+  const { data: rawProducts = mockProducts, isLoading: isLoadingProducts } = useQuery({
     queryKey: ["products"],
     queryFn: productApi.getProducts,
+    initialData: mockProducts,
   });
+
+  // Đảm bảo products không bao giờ rỗng
+  const products = rawProducts && rawProducts.length > 0 ? rawProducts : mockProducts;
 
   // 3. Lấy tồn kho của chi nhánh đang chọn một lần (fallback br-01 để luôn có dữ liệu tồn kho)
   const activeBranchId = selectedBranch?.id || "br-01";

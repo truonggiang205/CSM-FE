@@ -10,9 +10,11 @@ import {
   ArrowRight,
   Percent,
   Coins,
+  Truck,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { discountApi, VoucherItem } from "../../../api/discountApi";
+import { useAuthStore } from "../../../store/useAuthStore";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 
@@ -20,6 +22,7 @@ interface VoucherModalProps {
   isOpen: boolean;
   onClose: () => void;
   orderValue: number;
+  shippingFee?: number;
   currentVoucherCode?: string;
   onSelectVoucher: (code: string) => Promise<boolean | void> | void;
 }
@@ -28,17 +31,19 @@ export function VoucherModal({
   isOpen,
   onClose,
   orderValue,
+  shippingFee = 0,
   currentVoucherCode = "",
   onSelectVoucher,
 }: VoucherModalProps) {
+  const { user } = useAuthStore();
   const [inputCode, setInputCode] = useState("");
   const [actionError, setActionError] = useState("");
   const [isApplying, setIsApplying] = useState(false);
 
-  // Lấy danh sách voucher công khai còn hiệu lực từ Backend
+  // Lấy danh sách voucher công khai còn hiệu lực từ Backend (tự động lọc theo user)
   const { data: vouchers = [], isLoading, refetch } = useQuery({
-    queryKey: ["available-vouchers"],
-    queryFn: discountApi.getAvailableVouchers,
+    queryKey: ["available-vouchers", user?.id],
+    queryFn: () => discountApi.getAvailableVouchers(user?.id),
     enabled: isOpen,
     staleTime: 30000,
   });
@@ -198,7 +203,13 @@ export function VoucherModal({
             vouchers.map((v) => {
               const isFixed = v.discount_type === "FIXED_AMOUNT";
               const isSelected = currentVoucherCode.trim().toUpperCase() === v.code.toUpperCase();
-              const isEligible = orderValue >= Number(v.min_order_value);
+              const isFreeship =
+                Boolean(v.is_freeship) ||
+                v.code.toUpperCase().includes("FREESHIP") ||
+                v.code.toUpperCase().includes("SHIP") ||
+                (v.description && v.description.toLowerCase().includes("vận chuyển"));
+              const isShippingZero = isFreeship && shippingFee <= 0;
+              const isEligible = orderValue >= Number(v.min_order_value) && !isShippingZero;
               const missingAmount = Number(v.min_order_value) - orderValue;
 
               return (
@@ -221,7 +232,12 @@ export function VoucherModal({
                           : "bg-surface-soft text-muted border border-border"
                       }`}
                     >
-                      {isFixed ? (
+                      {isFreeship ? (
+                        <>
+                          <Truck className="w-5 h-5 mb-0.5" />
+                          <span className="text-[9px] leading-none">FREESHIP</span>
+                        </>
+                      ) : isFixed ? (
                         <>
                           <Coins className="w-5 h-5 mb-0.5" />
                           <span className="text-[10px] leading-none">GIẢM TIỀN</span>
@@ -242,6 +258,11 @@ export function VoucherModal({
                         {isSelected && (
                           <span className="inline-flex items-center gap-1 text-[10px] font-bold text-success bg-success/10 px-2 py-0.5 rounded-full border border-success/20">
                             <CheckCircle2 className="w-3 h-3" /> Đang dùng
+                          </span>
+                        )}
+                        {isFreeship && (
+                          <span className="inline-flex items-center gap-1 text-[10px] font-bold text-sky-600 dark:text-sky-400 bg-sky-500/10 px-2 py-0.5 rounded-full border border-sky-500/20">
+                            <Truck className="w-2.5 h-2.5" /> Miễn phí ship
                           </span>
                         )}
                       </div>
@@ -268,12 +289,17 @@ export function VoucherModal({
                         </span>
                       </div>
 
-                      {!isEligible && (
+                      {isShippingZero ? (
+                        <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 pt-1">
+                          <AlertCircle className="w-3 h-3 shrink-0" />
+                          Đơn hàng hiện không có phí vận chuyển (đã miễn phí ship)
+                        </p>
+                      ) : !isEligible ? (
                         <p className="text-[11px] text-amber-600 dark:text-amber-400 font-medium flex items-center gap-1 pt-1">
                           <AlertCircle className="w-3 h-3 shrink-0" />
                           Mua thêm {formatCurrency(missingAmount)} để áp dụng
                         </p>
-                      )}
+                      ) : null}
                     </div>
                   </div>
 
@@ -288,6 +314,16 @@ export function VoucherModal({
                         className="rounded-xl text-xs font-bold text-success border-success/40 w-full sm:w-auto"
                       >
                         Đã chọn
+                      </Button>
+                    ) : isShippingZero ? (
+                      <Button
+                        type="button"
+                        variant="outline"
+                        size="sm"
+                        disabled
+                        className="rounded-xl text-[11px] text-muted w-full sm:w-auto opacity-70"
+                      >
+                        Đã miễn phí ship
                       </Button>
                     ) : isEligible ? (
                       <Button

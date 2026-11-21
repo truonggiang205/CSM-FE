@@ -33,7 +33,7 @@ const FREESHIP_THRESHOLD = 150000;
 export function CheckoutPage() {
   const { items, getTotalPrice, clearCart } = useCartStore();
   const { selectedBranch } = useBranchStore();
-  const { isAuthenticated } = useAuthStore();
+  const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Info, 2: Payment, 3: Success
@@ -66,13 +66,27 @@ export function CheckoutPage() {
   const shippingFee = rawTotal >= FREESHIP_THRESHOLD ? 0 : 15000;
   const finalTotal = Math.max(0, rawTotal + shippingFee - appliedDiscount);
 
-  // Tự động hủy voucher nếu giỏ hàng trống hoặc thay đổi
+  // Tự động hủy voucher nếu giỏ hàng trống hoặc nếu đơn đạt freeship tự động
   React.useEffect(() => {
     if (appliedDiscount > 0 && rawTotal === 0) {
       setAppliedDiscount(0);
       setVoucherSuccess("");
     }
-  }, [rawTotal, appliedDiscount]);
+    // Tự động gỡ mã freeship nếu đơn hàng đạt mức freeship tự động (shippingFee === 0)
+    if (
+      voucherCode &&
+      (voucherCode.toUpperCase().includes("FREESHIP") || voucherCode.toUpperCase().includes("SHIP")) &&
+      shippingFee === 0 &&
+      appliedDiscount > 0
+    ) {
+      setAppliedDiscount(0);
+      setVoucherCode("");
+      setVoucherSuccess("");
+      setVoucherError(
+        "Đơn hàng từ 150.000đ đã được miễn phí vận chuyển tự động. Mã Freeship đã được gỡ bỏ."
+      );
+    }
+  }, [rawTotal, appliedDiscount, shippingFee, voucherCode]);
 
   // Xác thực và áp dụng voucher qua API Backend
   const handleValidateAndApplyVoucher = async (code: string): Promise<boolean> => {
@@ -84,7 +98,7 @@ export function CheckoutPage() {
 
     try {
       setIsValidatingVoucher(true);
-      const res = await discountApi.validateVoucher(normalizedCode, rawTotal);
+      const res = await discountApi.validateVoucher(normalizedCode, rawTotal, user?.id, shippingFee);
       if (res && (res.valid || (res as any).isValid)) {
         setVoucherCode(normalizedCode);
         setAppliedDiscount(res.discountAmount);
@@ -580,6 +594,7 @@ export function CheckoutPage() {
         isOpen={isVoucherModalOpen}
         onClose={() => setIsVoucherModalOpen(false)}
         orderValue={rawTotal}
+        shippingFee={shippingFee}
         currentVoucherCode={voucherCode}
         onSelectVoucher={handleValidateAndApplyVoucher}
       />
