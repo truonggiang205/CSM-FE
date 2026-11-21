@@ -9,6 +9,8 @@ export interface VoucherItem {
   min_order_value: number;
   max_discount_amount?: number | null;
   usage_limit: number;
+  max_usage_per_user?: number;
+  is_freeship?: boolean;
   used_count: number;
   start_date: string;
   end_date: string;
@@ -18,7 +20,9 @@ export interface VoucherItem {
 
 export interface ValidateVoucherResponse {
   valid: boolean;
+  isValid?: boolean;
   code: string;
+  isFreeship?: boolean;
   discountAmount: number;
   finalAmount: number;
   voucher: {
@@ -27,6 +31,7 @@ export interface ValidateVoucherResponse {
     description: string;
     discount_type: "FIXED_AMOUNT" | "PERCENTAGE";
     discount_value: number;
+    is_freeship?: boolean;
   };
 }
 
@@ -38,26 +43,52 @@ export interface CreateVoucherPayload {
   min_order_value?: number;
   max_discount_amount?: number;
   usage_limit?: number;
+  max_usage_per_user?: number;
+  is_freeship?: boolean;
   start_date: string;
   end_date: string;
 }
 
 export const discountApi = {
-  // Kiểm tra mã voucher khi khách hàng đặt hàng
-  validateVoucher: async (code: string, orderValue: number): Promise<ValidateVoucherResponse> => {
-    const res = await apiClient.post<ValidateVoucherResponse>("/vouchers/validate", { code, orderValue });
+  // Kiểm tra mã voucher khi khách hàng đặt hàng (hỗ trợ kiểm tra theo user và phí vận chuyển)
+  validateVoucher: async (
+    code: string,
+    orderValue: number,
+    userId?: string,
+    shippingFee?: number,
+  ): Promise<ValidateVoucherResponse> => {
+    const res = await apiClient.post<ValidateVoucherResponse>("/vouchers/validate", {
+      code,
+      orderValue,
+      userId,
+      shippingFee,
+    });
     return res.data;
   },
 
-  // Lấy các voucher khả dụng cho khách hàng
-  getAvailableVouchers: async (): Promise<VoucherItem[]> => {
-    const res = await apiClient.get<VoucherItem[]>("/vouchers");
+  // Lấy các voucher khả dụng cho khách hàng (hỗ trợ lọc theo userId)
+  getAvailableVouchers: async (userId?: string): Promise<VoucherItem[]> => {
+    const params: any = {};
+    if (userId) params.userId = userId;
+    const res = await apiClient.get<VoucherItem[]>("/vouchers", { params });
     return res.data;
   },
 
   // Dành cho Admin: Lấy toàn bộ voucher (kể cả đã hết hạn / tạm dừng)
   getAllVouchers: async (): Promise<VoucherItem[]> => {
     const res = await apiClient.get<VoucherItem[]>("/vouchers?all=true");
+    return res.data;
+  },
+
+  // Dành cho Admin: Lấy lịch sử sử dụng của 1 voucher
+  getVoucherUsages: async (voucherId: string) => {
+    const res = await apiClient.get(`/vouchers/${voucherId}/usages`);
+    return res.data;
+  },
+
+  // Hoàn lại lượt sử dụng voucher (khi huỷ đơn hoặc rollback)
+  releaseVoucher: async (code: string, userId?: string, orderId?: string) => {
+    const res = await apiClient.post("/vouchers/release", { code, userId, orderId });
     return res.data;
   },
 
