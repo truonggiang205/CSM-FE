@@ -42,6 +42,7 @@ const PRICE_RANGES: { id: PriceRangeOption; label: string }[] = [
 export function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlCategory = searchParams.get("category");
+  const urlFilter = searchParams.get("filter");
   const urlQuery = searchParams.get("q") || "";
 
   const [searchInput, setSearchInput] = useState(urlQuery);
@@ -93,20 +94,31 @@ export function ProductListPage() {
     return () => clearTimeout(timer);
   }, [searchInput, setSearchParams]);
 
-  // Đồng bộ category từ URL param
-  useEffect(() => {
-    if (urlCategory) {
-      setSelectedCategory(urlCategory);
-    } else {
-      setSelectedCategory(null);
-    }
-  }, [urlCategory]);
-
   // 1. Fetch categories
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ["categories"],
     queryFn: productApi.getCategories,
   });
+
+  // Đồng bộ category từ URL param (hỗ trợ cả ID hoặc tên danh mục, vd: ?category=Đồ uống)
+  useEffect(() => {
+    if (!urlCategory) {
+      setSelectedCategory(null);
+      return;
+    }
+    const matchedById = categories.find((c) => c.id === urlCategory);
+    if (matchedById) {
+      setSelectedCategory(matchedById.id);
+      return;
+    }
+    const normalized = urlCategory.trim().toLowerCase();
+    const matchedByName = categories.find((c) => c.name.toLowerCase().includes(normalized));
+    if (matchedByName) {
+      setSelectedCategory(matchedByName.id);
+    } else {
+      setSelectedCategory(urlCategory);
+    }
+  }, [urlCategory, categories]);
 
   const {
     data: products = [],
@@ -212,6 +224,29 @@ export function ProductListPage() {
 
       const matchesCategory = selectedCategory ? product.category.id === selectedCategory : true;
 
+      let matchesSpecialFilter = true;
+      if (urlFilter === "late-night") {
+        const catName = (product.category?.name || "").toLowerCase();
+        const prodName = product.name.toLowerCase();
+        const lateNightKeywords = [
+          "mì",
+          "xúc xích",
+          "bánh bao",
+          "cơm nắm",
+          "onigiri",
+          "snack",
+          "khoai tây",
+          "bắp rang",
+          "tăng lực",
+          "cà phê",
+          "bánh mì",
+        ];
+        matchesSpecialFilter =
+          catName.includes("thức ăn nhanh") ||
+          catName.includes("snack") ||
+          lateNightKeywords.some((kw) => prodName.includes(kw));
+      }
+
       const effectivePrice = product.discountPrice || product.price;
       let matchesPrice = true;
       if (priceRange === "under-50k") {
@@ -227,7 +262,7 @@ export function ProductListPage() {
       const available = stockMap.get(String(product.id)) ?? (product.sku ? stockMap.get(String(product.sku)) : undefined) ?? product.stock;
       const matchesInStock = onlyInStock ? available > 0 : true;
 
-      return matchesSearch && matchesCategory && matchesPrice && matchesInStock;
+      return matchesSearch && matchesCategory && matchesSpecialFilter && matchesPrice && matchesInStock;
     });
 
     if (sortBy === "price-asc") {
@@ -248,9 +283,18 @@ export function ProductListPage() {
   // Tính số bộ lọc đang áp dụng
   const activeFilterCount =
     (selectedCategory ? 1 : 0) +
+    (urlFilter ? 1 : 0) +
     (priceRange !== "all" ? 1 : 0) +
     (onlyInStock ? 1 : 0) +
     (debouncedSearch ? 1 : 0);
+
+  const handleClearSpecialFilter = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("filter");
+      return next;
+    });
+  };
 
   const handleCategorySelect = (catId: string | null) => {
     setSelectedCategory(catId);
@@ -524,6 +568,14 @@ export function ProductListPage() {
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface border border-border text-xs text-foreground shadow-xs">
                   Từ khoá: &ldquo;{debouncedSearch}&rdquo;
                   <button onClick={() => setSearchInput("")} className="hover:text-danger">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {urlFilter === "late-night" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-700 shadow-xs">
+                  🌙 Món ăn khuya tiện lợi
+                  <button onClick={handleClearSpecialFilter} className="hover:text-danger">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
