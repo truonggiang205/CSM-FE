@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Star, ShoppingBag, Sparkles, Heart, Award } from "lucide-react";
+import { ShoppingBag, Sparkles, Heart, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
+import { useWishlistStore } from "../../../store/useWishlistStore";
+import { useAuthStore } from "../../../store/useAuthStore";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { Button } from "../../../components/ui/Button";
 import { mockCsmPickMetadata } from "../homeData";
@@ -15,10 +17,18 @@ interface CsmPicksSectionProps {
   branchName?: string;
 }
 
-export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSectionProps) {
+export function CsmPicksSection({ products, stockMap }: CsmPicksSectionProps) {
   const { addItem } = useCartStore();
   const { showToast } = useCartToastStore();
+  const { productIds: wishlistIds, toggle: toggleWishlist, syncFromServer, synced } = useWishlistStore();
+  const { isAuthenticated } = useAuthStore();
   const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (isAuthenticated && !synced) {
+      syncFromServer();
+    }
+  }, [isAuthenticated, synced, syncFromServer]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -27,7 +37,8 @@ export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSect
     }).format(amount);
   };
 
-  const pickedProducts = products.slice(0, 4);
+  const featuredProducts = products.filter((p) => p.isFeatured);
+  const pickedProducts = (featuredProducts.length > 0 ? featuredProducts : products).slice(0, 4);
 
   if (pickedProducts.length === 0) return null;
 
@@ -73,9 +84,12 @@ export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSect
             const isOutOfStock = availableStock <= 0;
             const meta = mockCsmPickMetadata[product.id] || {
               tagline: "Hương vị tinh hoa",
-              curatorNote: "Sản phẩm chọn lọc với chất lượng hảo hạng và độ tươi mới mỗi ngày.",
+              curatorNote:
+                product.curatorNote ||
+                "Sản phẩm chọn lọc với chất lượng hảo hạng và độ tươi mới mỗi ngày.",
               pairingNote: "Phù hợp cho mọi bữa ăn nhẹ tiện lợi.",
             };
+            const isLiked = wishlistIds.includes(product.id);
 
             const price = product.discountPrice || product.price;
 
@@ -94,11 +108,29 @@ export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSect
                   <span>CSM Pick</span>
                 </div>
 
-                {/* Wishlist subtle indicator */}
+                {/* Wishlist interactive button */}
                 <div className="absolute top-4 right-4 z-10">
-                  <span className="w-8 h-8 rounded-full bg-surface/90 backdrop-blur-xs border border-border flex items-center justify-center text-rose-500 shadow-2xs">
-                    <Heart className="w-3.5 h-3.5 fill-current" />
-                  </span>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const added = await toggleWishlist(product.id, isAuthenticated);
+                      showToast(
+                        added
+                          ? `Đã lưu ${product.name} vào yêu thích`
+                          : `Đã bỏ ${product.name} khỏi yêu thích`
+                      );
+                    }}
+                    aria-label={isLiked ? `Bỏ yêu thích ${product.name}` : `Yêu thích ${product.name}`}
+                    className={`w-8 h-8 rounded-full bg-surface/90 backdrop-blur-xs border flex items-center justify-center shadow-2xs transition-all cursor-pointer ${
+                      isLiked
+                        ? "border-rose-300 text-rose-500 scale-105"
+                        : "border-border text-muted hover:text-rose-500 hover:border-rose-200"
+                    }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isLiked ? "fill-current" : ""}`} />
+                  </button>
                 </div>
 
                 <div>
