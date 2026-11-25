@@ -7,6 +7,8 @@
     "dev": "vite",
     "build": "tsc -b && vite build",
     "lint": "tsc --noEmit",
+    "lint:eslint": "eslint .",
+    "lint:report": "eslint . --format stylish",
     "preview": "vite preview",
     "test:mapper": "node scripts/test-product-mapper.mjs"
   },
@@ -26,14 +28,20 @@
     "zustand": "^5.0.15"
   },
   "devDependencies": {
+    "@eslint/js": "^10.0.1",
     "@playwright/test": "^1.64.1",
     "@types/react": "^18.3.5",
     "@types/react-dom": "^18.3.0",
     "@vitejs/plugin-react": "^4.3.1",
     "autoprefixer": "^10.5.5",
+    "eslint": "^10.15.0",
+    "eslint-plugin-react-hooks": "^7.1.1",
+    "eslint-plugin-react-refresh": "^0.5.8",
+    "globals": "^17.14.0",
     "postcss": "^8.5.28",
     "tailwindcss": "^3.4.19",
     "typescript": "^5.5.3",
+    "typescript-eslint": "^8.74.0",
     "vite": "^5.4.2"
   }
 }
