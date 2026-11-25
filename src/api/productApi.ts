@@ -94,6 +94,34 @@ export const productApi = {
     }
   },
 
+  getMyWishlist: async (): Promise<string[]> => {
+    try {
+      const response = await apiClient.get<string[]>("/products/wishlist/my");
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  toggleWishlist: async (productId: string): Promise<{ wishlisted: boolean; productId: string }> => {
+    const response = await apiClient.post<{ wishlisted: boolean; productId: string }>(
+      `/products/${productId}/wishlist`
+    );
+    return response.data;
+  },
+
+  toggleFeatured: async (
+    productId: string,
+    isFeatured?: boolean,
+    curatorNote?: string
+  ): Promise<Product> => {
+    const response = await apiClient.patch<any>(`/products/${productId}/featured`, {
+      is_featured: isFeatured,
+      curator_note: curatorNote,
+    });
+    return mapBackendProductToFrontend(response.data);
+  },
+
   createProduct: async (data: {
     name: string;
     sku: string;

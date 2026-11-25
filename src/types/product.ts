@@ -39,4 +39,6 @@ export interface Product {
   reviewsCount?: number;
   createdAt?: string;
   flashSaleMeta?: ProductFlashSaleMeta;
+  isFeatured?: boolean;
+  curatorNote?: string;
 }
