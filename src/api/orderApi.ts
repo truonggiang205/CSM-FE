@@ -99,6 +99,17 @@ export interface CreatePaymentResponse {
   message?: string;
 }
 
+export interface OrderReview {
+  id: string;
+  order_id: string;
+  user_id: string;
+  customer_name: string;
+  rating: number;
+  comment: string;
+  purchased_item?: string | null;
+  created_at: string;
+}
+
 export function mapBackendOrderItemToFrontend(raw: any): OrderItem {
   return {
     id: raw.id,
@@ -168,6 +179,32 @@ export const orderApi = {
 
   createPayment: async (payload: CreatePaymentPayload): Promise<CreatePaymentResponse> => {
     const res = await apiClient.post<CreatePaymentResponse>("/payments/create", payload);
+    return res.data;
+  },
+
+  getPublicReviews: async (): Promise<OrderReview[]> => {
+    try {
+      const res = await apiClient.get<OrderReview[]>("/orders/reviews/public");
+      return Array.isArray(res.data) ? res.data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  getOrderReview: async (orderId: string): Promise<OrderReview | null> => {
+    try {
+      const res = await apiClient.get<OrderReview | null>(`/orders/${orderId}/review`);
+      return res.data || null;
+    } catch {
+      return null;
+    }
+  },
+
+  submitOrderReview: async (
+    orderId: string,
+    payload: { rating: number; comment: string; customerName?: string }
+  ): Promise<OrderReview> => {
+    const res = await apiClient.post<OrderReview>(`/orders/${orderId}/review`, payload);
     return res.data;
   },
 };
