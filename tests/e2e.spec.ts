@@ -7,10 +7,10 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
 
-// Mật khẩu tài khoản seed lấy từ biến môi trường E2E_* (fallback dev seed)
-const CUSTOMER_PASSWORD = process.env.E2E_CUSTOMER_PASSWORD || "Customer@123456";
-const MANAGER_PASSWORD = process.env.E2E_MANAGER_PASSWORD || "Manager@123456";
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || "Admin@123456";
+// Mật khẩu tài khoản seed lấy từ biến môi trường E2E_* hoặc SEED_PASSWORD (fallback dev seed)
+const CUSTOMER_PASSWORD = process.env.E2E_CUSTOMER_PASSWORD || process.env.SEED_PASSWORD || "Demo@123456";
+const MANAGER_PASSWORD = process.env.E2E_MANAGER_PASSWORD || process.env.SEED_PASSWORD || "Demo@123456";
+const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || process.env.SEED_PASSWORD || "Demo@123456";
 
 test.describe("CSM E2E Test Suite - Stack Thực", () => {
   test("1. Khách đăng ký, chọn chi nhánh, thêm giỏ, checkout COD, xem /orders, huỷ đơn", async ({ page }) => {
