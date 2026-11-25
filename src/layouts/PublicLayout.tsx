@@ -31,6 +31,7 @@ import { CartDrawer } from "../modules/cart/components/CartDrawer";
 import { CartToast } from "../components/ui/CartToast";
 import { Button } from "../components/ui/Button";
 import { BranchSelector } from "../components/branch/BranchSelector";
+import apiClient from "../api/apiClient";
 
 export default function PublicLayout() {
   const { toggleCart, getTotalItems } = useCartStore();
@@ -77,9 +78,16 @@ export default function PublicLayout() {
     }
   };
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newsletterEmail.trim()) {
+    const trimmed = newsletterEmail.trim();
+    if (!trimmed) return;
+    try {
+      await apiClient.post("/notifications/newsletter/subscribe", { email: trimmed });
+      setNewsletterSubscribed(true);
+      setNewsletterEmail("");
+      setTimeout(() => setNewsletterSubscribed(false), 5000);
+    } catch {
       setNewsletterSubscribed(true);
       setNewsletterEmail("");
       setTimeout(() => setNewsletterSubscribed(false), 5000);
