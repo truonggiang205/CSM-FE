@@ -93,8 +93,8 @@ export function ComboSection({ products, stockMap, branchName }: ComboSectionPro
           </div>
 
           <Button variant="outline" asChild className="rounded-2xl text-xs sm:text-sm font-semibold shrink-0">
-            <Link to="/products" className="flex items-center gap-1.5">
-              <span>Xem thêm sản phẩm</span>
+            <Link to="/combos" className="flex items-center gap-1.5">
+              <span>Xem thêm combo</span>
               <ArrowRight className="w-4 h-4" />
             </Link>
           </Button>

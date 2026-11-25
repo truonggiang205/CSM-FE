@@ -50,6 +50,9 @@ const AdminComboListPage = lazy(() =>
 const DealsPage = lazy(() =>
   import("../modules/discounts/pages/DealsPage").then((m) => ({ default: m.DealsPage }))
 );
+const CombosPage = lazy(() =>
+  import("../modules/discounts/pages/CombosPage").then((m) => ({ default: m.CombosPage }))
+);
 const BranchesPage = lazy(() =>
   import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
 );
@@ -125,6 +128,10 @@ const router = createBrowserRouter([
       {
         path: "discounts",
         element: withSuspense(DealsPage),
+      },
+      {
+        path: "combos",
+        element: withSuspense(CombosPage),
       },
       {
         path: "cart",
