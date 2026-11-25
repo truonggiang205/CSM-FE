@@ -81,7 +81,6 @@ export function OrderDetailDrawer({
   );
   const discountAmount = Number(order.discount_amount) || 0;
   const totalAmount = Number(order.total_amount) || 0;
-  const shippingFee = Math.max(0, totalAmount + discountAmount - subtotal);
 
   return (
     <div className="fixed inset-0 z-50 flex justify-end bg-black/60 backdrop-blur-xs transition-opacity animate-in fade-in">
@@ -204,12 +203,6 @@ export function OrderDetailDrawer({
                 <span className="font-mono font-bold">-{formatCurrency(discountAmount)}</span>
               </div>
             )}
-            <div className="flex justify-between text-muted">
-              <span>Phí giao hàng:</span>
-              <span className="font-semibold text-foreground">
-                {shippingFee > 0 ? formatCurrency(shippingFee) : "Miễn phí (0 ₫)"}
-              </span>
-            </div>
             <div className="pt-2 border-t border-border/60 flex justify-between items-center text-sm">
               <span className="font-extrabold text-foreground">Tổng cộng thanh toán:</span>
               <span className="text-base font-black text-primary-dark">
