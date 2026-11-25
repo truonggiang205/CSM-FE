@@ -26,7 +26,7 @@ import { Button } from "../../../components/ui/Button";
 import { Skeleton } from "../../../components/ui/Skeleton";
 import { Product } from "../../../types/product";
 
-type SortOption = "default" | "price-asc" | "price-desc" | "name-asc";
+type SortOption = "default" | "newest" | "price-asc" | "price-desc" | "name-asc";
 type PriceRangeOption = "all" | "under-50k" | "50k-100k" | "100k-200k" | "above-200k";
 
 const ITEMS_PER_PAGE = 50;
@@ -43,6 +43,7 @@ export function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlCategory = searchParams.get("category");
   const urlFilter = searchParams.get("filter");
+  const urlSort = searchParams.get("sort") as SortOption | null;
   const urlQuery = searchParams.get("q") || "";
 
   const [searchInput, setSearchInput] = useState(urlQuery);
@@ -50,7 +51,11 @@ export function ProductListPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory);
   const [priceRange, setPriceRange] = useState<PriceRangeOption>("all");
   const [onlyInStock, setOnlyInStock] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [sortBy, setSortBy] = useState<SortOption>(
+    urlSort && ["default", "newest", "price-asc", "price-desc", "name-asc"].includes(urlSort)
+      ? urlSort
+      : "default"
+  );
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
@@ -63,11 +68,17 @@ export function ProductListPage() {
   const { selectedBranch, openModal } = useBranchStore();
   const shouldReduceMotion = useReducedMotion();
 
-  // Đồng bộ search input khi param `q` trên URL thay đổi từ Header
+  // Đồng bộ search input & sort khi param trên URL thay đổi
   useEffect(() => {
     const q = searchParams.get("q") || "";
     setSearchInput(q);
     setDebouncedSearch(q);
+    const s = searchParams.get("sort") as SortOption | null;
+    if (s && ["default", "newest", "price-asc", "price-desc", "name-asc"].includes(s)) {
+      setSortBy(s);
+    } else if (!s) {
+      setSortBy("default");
+    }
   }, [searchParams]);
 
   // Debounce search query 300ms và đồng bộ lên URL searchParams
@@ -265,7 +276,14 @@ export function ProductListPage() {
       return matchesSearch && matchesCategory && matchesSpecialFilter && matchesPrice && matchesInStock;
     });
 
-    if (sortBy === "price-asc") {
+    if (sortBy === "newest") {
+      result = [...result].sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        return b.id.localeCompare(a.id);
+      });
+    } else if (sortBy === "price-asc") {
       result = [...result].sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
     } else if (sortBy === "price-desc") {
       result = [...result].sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
@@ -274,7 +292,7 @@ export function ProductListPage() {
     }
 
     return result;
-  }, [productsWithFlashSale, debouncedSearch, selectedCategory, priceRange, onlyInStock, stockMap, sortBy]);
+  }, [productsWithFlashSale, debouncedSearch, selectedCategory, urlFilter, priceRange, onlyInStock, stockMap, sortBy]);
 
   // Phân trang
   const displayedProducts = filteredProducts.slice(0, visibleCount);
@@ -551,6 +569,7 @@ export function ProductListPage() {
                   className="appearance-none pl-3.5 pr-8 py-2 rounded-2xl border border-border bg-surface text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer shadow-xs"
                 >
                   <option value="default">Sắp xếp: Mặc định</option>
+                  <option value="newest">Sắp xếp: Mới nhất</option>
                   <option value="price-asc">Giá: Thấp đến Cao</option>
                   <option value="price-desc">Giá: Cao đến Thấp</option>
                   <option value="name-asc">Tên: A-Z</option>
