@@ -55,7 +55,7 @@ export const mockHeroBanners: HeroBannerItem[] = [
     highlight: "Freeship Đơn Từ 100k",
     description: "Đóng gói kỹ lưỡng và giao đến tận bàn làm việc hoặc trước cửa nhà bạn từ chi nhánh CSM gần nhất.",
     ctaText: "Khám phá ngay",
-    ctaLink: "/products",
+    ctaLink: "/explore",
     image: "https://images.unsplash.com/photo-1607344645866-009c320c5ab8?auto=format&fit=crop&w=700&q=80",
     bgGradient: "from-pastel-lavender/70 via-surface to-primary-tint/50",
     tagColor: "bg-pastel-mint text-primary-dark border-primary/30",
