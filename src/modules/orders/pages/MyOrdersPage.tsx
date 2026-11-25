@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
-import { ShoppingBag, ChevronRight, Calendar, CreditCard, AlertCircle, RefreshCw } from "lucide-react";
+import { ShoppingBag, ChevronRight, Calendar, CreditCard, AlertCircle, RefreshCw, Tag } from "lucide-react";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { orderApi, Order, OrderStatus, Paginated } from "../../../api/orderApi";
 import { OrderStatusBadge } from "../components/OrderStatusBadge";
@@ -188,6 +188,12 @@ export function MyOrdersPage() {
                   <span className="text-[11px] px-2.5 py-0.5 rounded-full bg-surface-soft border border-border text-muted font-semibold">
                     {order.payment_method}
                   </span>
+                  {order.voucher_code && (
+                    <span className="text-[10px] px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-600 border border-emerald-500/20 font-bold flex items-center gap-1">
+                      <Tag className="w-2.5 h-2.5" />
+                      {order.voucher_code}
+                    </span>
+                  )}
                 </div>
                 <OrderStatusBadge status={order.status} />
               </div>
@@ -231,6 +237,11 @@ export function MyOrdersPage() {
                     <span className="font-extrabold text-base sm:text-lg text-primary-dark">
                       {formatCurrency(order.total_amount)}
                     </span>
+                    {Number(order.discount_amount) > 0 && (
+                      <span className="block text-[10px] text-emerald-600 font-semibold font-mono">
+                        Voucher: -{formatCurrency(Number(order.discount_amount))}
+                      </span>
+                    )}
                   </div>
 
                   <Button asChild size="sm" className="shadow-xs text-xs font-semibold">
