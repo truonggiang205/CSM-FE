@@ -132,14 +132,15 @@ export function FlashSaleSection({ products, stockMap }: FlashSaleSectionProps) 
     }
 
     if (item.rawProduct) {
-      addItem({ ...item.rawProduct, price: item.salePrice }, 1);
+      addItem({ ...item.rawProduct, discountPrice: item.salePrice }, 1);
     } else {
       addItem(
         {
           id: item.id,
           name: item.name,
           slug: "flash-sale-product",
-          price: item.salePrice,
+          price: item.originalPrice,
+          discountPrice: item.salePrice,
           images: item.image ? [item.image] : [],
           category: { id: "deal", name: item.categoryName },
           stock: 50,
