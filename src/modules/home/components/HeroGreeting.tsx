@@ -93,7 +93,7 @@ export function getTimeSlotContent(hour: number): TimeSlotContent {
     badge: "🌙 Mở Cửa 24/7",
     subTitle: "Cú đêm không lo đói! Mì ly nóng hổi, snack ăn vặt & nước giải khát ướp lạnh phục vụ xuyên đêm.",
     ctaText: "Ăn khuya tiện lợi",
-    ctaLink: "/products?q=snack",
+    ctaLink: "/products?filter=late-night",
     gradient: "from-indigo-500/10 via-surface to-pastel-lavender/40",
     accentColor: "text-indigo-700 bg-indigo-100/70 border-indigo-300/40",
     items: [
