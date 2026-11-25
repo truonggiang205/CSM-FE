@@ -56,6 +56,9 @@ const DealsPage = lazy(() =>
 const CombosPage = lazy(() =>
   import("../modules/discounts/pages/CombosPage").then((m) => ({ default: m.CombosPage }))
 );
+const ExplorePage = lazy(() =>
+  import("../modules/home/pages/ExplorePage").then((m) => ({ default: m.ExplorePage }))
+);
 const BranchesPage = lazy(() =>
   import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
 );
@@ -135,6 +138,10 @@ const router = createBrowserRouter([
       {
         path: "combos",
         element: withSuspense(CombosPage),
+      },
+      {
+        path: "explore",
+        element: withSuspense(ExplorePage),
       },
       {
         path: "cart",
