@@ -1,12 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { Link } from "react-router-dom";
 import { Zap, Clock, ArrowRight, ShoppingCart } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
-import { flashSaleApi, ActiveOrUpcomingResponse, FlashSaleItem } from "../../../api/flashSaleApi";
+import { flashSaleApi } from "../../../api/flashSaleApi";
 
 interface FlashSaleSectionProps {
   products: Product[];
@@ -18,10 +19,13 @@ export function FlashSaleSection({ products, stockMap }: FlashSaleSectionProps) 
   const { addItem, items: cartItems } = useCartStore();
   const { showToast } = useCartToastStore();
 
-  const [flashSaleData, setFlashSaleData] = useState<ActiveOrUpcomingResponse>({
-    status: "NONE",
-    campaign: null,
-    items: [],
+  const {
+    data: flashSaleData = { status: "NONE" as const, campaign: null, items: [] },
+    refetch,
+  } = useQuery({
+    queryKey: ["active-flash-sale"],
+    queryFn: flashSaleApi.getActiveOrUpcoming,
+    refetchInterval: 15000,
   });
 
   const [timeLeft, setTimeLeft] = useState<{ hours: string; minutes: string; seconds: string }>({
@@ -29,43 +33,39 @@ export function FlashSaleSection({ products, stockMap }: FlashSaleSectionProps) 
     minutes: "00",
     seconds: "00",
   });
-
-  useEffect(() => {
-    let isMounted = true;
-    flashSaleApi.getActiveOrUpcoming().then((res) => {
-      if (isMounted) setFlashSaleData(res);
-    });
-    return () => {
-      isMounted = false;
-    };
-  }, []);
+  const hasTriggeredExpireRefetch = useRef(false);
 
   const isLiveCampaign = flashSaleData.status !== "NONE" && !!flashSaleData.campaign;
   const isUpcoming = flashSaleData.status === "UPCOMING";
   const campaign = flashSaleData.campaign;
 
   useEffect(() => {
+    hasTriggeredExpireRefetch.current = false;
+  }, [flashSaleData.status, flashSaleData.targetTime, campaign?.id]);
+
+  useEffect(() => {
+    if (!isLiveCampaign || !flashSaleData.targetTime) {
+      setTimeLeft({ hours: "00", minutes: "00", seconds: "00" });
+      return;
+    }
+
     const calculateTimeRemaining = () => {
       const now = new Date();
-      let targetDate = new Date();
+      const targetDate = new Date();
+      const parts = flashSaleData.targetTime!.split(":");
+      const th = parseInt(parts[0], 10) || 0;
+      const tm = parseInt(parts[1], 10) || 0;
+      const ts = parseInt(parts[2], 10) || 0;
 
-      if (isLiveCampaign && flashSaleData.targetTime) {
-        const parts = flashSaleData.targetTime.split(":");
-        const th = parseInt(parts[0], 10) || 0;
-        const tm = parseInt(parts[1], 10) || 0;
-        const ts = parseInt(parts[2], 10) || 0;
-
-        targetDate.setHours(th, tm, ts, 0);
-        if (targetDate.getTime() <= now.getTime()) {
-          targetDate.setDate(targetDate.getDate() + 1);
-        }
-      } else {
-        targetDate.setHours(23, 59, 59, 999);
-      }
+      targetDate.setHours(th, tm, ts, 0);
 
       const diffMs = targetDate.getTime() - now.getTime();
       if (diffMs <= 0) {
         setTimeLeft({ hours: "00", minutes: "00", seconds: "00" });
+        if (!hasTriggeredExpireRefetch.current) {
+          hasTriggeredExpireRefetch.current = true;
+          refetch();
+        }
         return;
       }
 
@@ -84,7 +84,7 @@ export function FlashSaleSection({ products, stockMap }: FlashSaleSectionProps) 
     calculateTimeRemaining();
     const interval = setInterval(calculateTimeRemaining, 1000);
     return () => clearInterval(interval);
-  }, [isLiveCampaign, flashSaleData.targetTime]);
+  }, [isLiveCampaign, flashSaleData.targetTime, refetch]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -93,52 +93,34 @@ export function FlashSaleSection({ products, stockMap }: FlashSaleSectionProps) 
     }).format(amount);
   };
 
-  const displayItems = isLiveCampaign && campaign?.items && campaign.items.length > 0
-    ? campaign.items.map((item) => {
-        const matchingProduct = products.find((p) => p.id === item.product_id);
-        const originalPrice = Number(item.original_price) || 20000;
-        const salePrice = Number(item.sale_price) || Math.round(originalPrice * 0.8);
-        const percentOff = item.discount_percentage || Math.round(((originalPrice - salePrice) / originalPrice) * 100);
-        const limit = Number(item.quantity_limit) || 50;
-        const sold = Number(item.sold_count) || 0;
-        const soldPercent = Math.min(100, Math.round((sold / Math.max(1, limit)) * 100));
+  if (!isLiveCampaign || !campaign?.items || campaign.items.length === 0) {
+    return null;
+  }
 
-        return {
-          id: item.product_id,
-          name: item.product_name || matchingProduct?.name || "Sản phẩm ưu đãi",
-          image: item.product_image || (matchingProduct?.images && matchingProduct.images[0]) || "",
-          categoryName: matchingProduct?.category?.name || "Giờ Vàng",
-          originalPrice,
-          salePrice,
-          percentOff,
-          soldPercent,
-          quantityLimit: limit,
-          soldCount: sold,
-          maxPerUser: Number(item.max_per_user) || 2,
-          rawProduct: matchingProduct,
-        };
-      })
-    : products.slice(0, 6).map((product, idx) => {
-        const originalPrice = product.price;
-        const salePrice = product.discountPrice || Math.round(product.price * 0.85);
-        const percentOff = Math.round(((originalPrice - salePrice) / originalPrice) * 100);
-        const soldPercent = Math.min(95, 30 + (idx * 15) % 60);
+  const displayItems = campaign.items.map((item) => {
+    const matchingProduct = products.find((p) => p.id === item.product_id);
+    const originalPrice = Number(item.original_price) || 20000;
+    const salePrice = Number(item.sale_price) || Math.round(originalPrice * 0.8);
+    const percentOff = item.discount_percentage || Math.round(((originalPrice - salePrice) / originalPrice) * 100);
+    const limit = Number(item.quantity_limit) || 50;
+    const sold = Number(item.sold_count) || 0;
+    const soldPercent = Math.min(100, Math.round((sold / Math.max(1, limit)) * 100));
 
-        return {
-          id: product.id,
-          name: product.name,
-          image: product.images && product.images[0],
-          categoryName: product.category?.name || "Tiện lợi",
-          originalPrice,
-          salePrice,
-          percentOff,
-          soldPercent,
-          quantityLimit: 50,
-          soldCount: 15,
-          maxPerUser: 2,
-          rawProduct: product,
-        };
-      });
+    return {
+      id: item.product_id,
+      name: item.product_name || matchingProduct?.name || "Sản phẩm ưu đãi",
+      image: item.product_image || (matchingProduct?.images && matchingProduct.images[0]) || "",
+      categoryName: matchingProduct?.category?.name || "Giờ Vàng",
+      originalPrice,
+      salePrice,
+      percentOff,
+      soldPercent,
+      quantityLimit: limit,
+      soldCount: sold,
+      maxPerUser: Number(item.max_per_user) || 2,
+      rawProduct: matchingProduct,
+    };
+  });
 
   if (displayItems.length === 0) return null;
 
