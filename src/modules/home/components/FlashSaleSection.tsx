@@ -4,6 +4,7 @@ import { Zap, Clock, ArrowRight, ShoppingCart } from "lucide-react";
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
 import { Button } from "../../../components/ui/Button";
+import { mockProducts } from "../../../mocks/products";
 
 import { ProductImage } from "../../../components/ui/ProductImage";
 
@@ -59,8 +60,9 @@ export function FlashSaleSection({ products, stockMap, branchName }: FlashSaleSe
     }).format(amount);
   };
 
-  // Lọc sản phẩm có discount hoặc lấy danh sách nổi bật làm deal
-  const flashSaleProducts = products.slice(0, 8);
+  // Đảm bảo luôn có sản phẩm để hiển thị, fallback mockProducts
+  const productSource = products && products.length > 0 ? products : mockProducts;
+  const flashSaleProducts = productSource.slice(0, 8);
 
   if (flashSaleProducts.length === 0) return null;
 

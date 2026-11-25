@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { Sparkles, ShoppingBag, ArrowRight, ChevronLeft, ChevronRight, Flame, Pause, Play } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { productApi } from "../../../api/productApi";
+import { mockProducts } from "../../../mocks/products";
 
 interface FeaturedCombo {
   id: string;
@@ -38,33 +39,50 @@ export function HeroOrbitBanner() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        const products = await productApi.getProducts();
-        if (products && products.length > 0) {
-          // Map DB products to FeaturedCombo structure
-          const mappedCombos = products.slice(0, 6).map((p: any, index: number) => {
-            const style = STYLE_PRESETS[index % STYLE_PRESETS.length];
-            const basePrice = Number(p.price ?? p.base_price ?? 0);
-            return {
-              id: p.id.toString(),
-              name: p.name,
-              emoji: style.emoji,
-              price: `${basePrice.toLocaleString("vi-VN")}₫`,
-              originalPrice: `${(basePrice + 10000).toLocaleString("vi-VN")}₫`, // Fake original price
-              tag: index === 0 ? "Bán chạy #1" : "Ưu đãi",
-              desc: p.description || "Món ngon hấp dẫn",
-              bgColor: style.bgColor,
-              textColor: style.textColor,
-              borderColor: style.borderColor,
-              accentBg: style.accentBg,
-            };
-          });
-          setCombos(mappedCombos);
-        } else {
-          setCombos([]);
+        let products = await productApi.getProducts();
+        if (!products || products.length === 0) {
+          products = mockProducts;
         }
+
+        const mappedCombos = products.slice(0, 6).map((p: any, index: number) => {
+          const style = STYLE_PRESETS[index % STYLE_PRESETS.length];
+          const basePrice = Number(p.price ?? p.base_price ?? 0);
+          return {
+            id: p.id.toString(),
+            name: p.name,
+            emoji: style.emoji,
+            price: `${basePrice.toLocaleString("vi-VN")}₫`,
+            originalPrice: `${(basePrice + 10000).toLocaleString("vi-VN")}₫`,
+            tag: index === 0 ? "Bán chạy #1" : "Ưu đãi",
+            desc: p.description || "Món ngon hấp dẫn",
+            bgColor: style.bgColor,
+            textColor: style.textColor,
+            borderColor: style.borderColor,
+            accentBg: style.accentBg,
+          };
+        });
+        setCombos(mappedCombos);
       } catch (error) {
         console.error("Failed to fetch products:", error);
-        setCombos([]);
+        // Fallback trực tiếp với mockProducts
+        const mappedCombos = mockProducts.slice(0, 6).map((p: any, index: number) => {
+          const style = STYLE_PRESETS[index % STYLE_PRESETS.length];
+          const basePrice = Number(p.price || 20000);
+          return {
+            id: p.id.toString(),
+            name: p.name,
+            emoji: style.emoji,
+            price: `${basePrice.toLocaleString("vi-VN")}₫`,
+            originalPrice: `${(basePrice + 10000).toLocaleString("vi-VN")}₫`,
+            tag: index === 0 ? "Bán chạy #1" : "Ưu đãi",
+            desc: p.description || "Món ngon hấp dẫn",
+            bgColor: style.bgColor,
+            textColor: style.textColor,
+            borderColor: style.borderColor,
+            accentBg: style.accentBg,
+          };
+        });
+        setCombos(mappedCombos);
       } finally {
         setIsLoading(false);
       }
@@ -89,11 +107,12 @@ export function HeroOrbitBanner() {
   const handleNext = () => setActiveIndex((prev) => (prev + 1) % totalItems);
   const handlePrev = () => setActiveIndex((prev) => (prev - 1 + totalItems) % totalItems);
 
-  if (isLoading) return null; // Or a loading spinner
-
-  if (totalItems === 0) {
-    // Không có data từ BE thì trả về rỗng (như yêu cầu)
-    return null;
+  if (isLoading || totalItems === 0) {
+    return (
+      <div className="w-[360px] h-[360px] rounded-full border border-dashed border-primary/30 flex items-center justify-center animate-pulse bg-surface/50">
+        <Sparkles className="w-8 h-8 text-primary animate-spin" />
+      </div>
+    );
   }
 
   const activeCombo = combos[activeIndex];

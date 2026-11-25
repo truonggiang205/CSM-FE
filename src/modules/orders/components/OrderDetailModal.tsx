@@ -11,6 +11,7 @@ import {
   Printer,
   ShoppingBag,
   ExternalLink,
+  Tag,
 } from "lucide-react";
 import { Order, OrderStatus } from "../../../api/orderApi";
 import {
@@ -217,9 +218,20 @@ export function OrderDetailModal({
             <div className="flex justify-between text-muted">
               <span>Tạm tính hàng hóa:</span>
               <span className="font-mono font-semibold text-foreground">
-                {formatCurrency(subtotal || order.total_amount)}
+                {formatCurrency(Number(order.subtotal_amount) || subtotal || order.total_amount)}
               </span>
             </div>
+            {Number(order.discount_amount) > 0 && (
+              <div className="flex justify-between text-emerald-600 bg-emerald-500/10 px-2.5 py-1.5 rounded-xl border border-emerald-500/20 font-semibold">
+                <span className="flex items-center gap-1.5">
+                  <Tag className="w-3.5 h-3.5" />
+                  Giảm giá voucher {order.voucher_code ? `(${order.voucher_code})` : ""}:
+                </span>
+                <span className="font-mono font-bold">
+                  -{formatCurrency(Number(order.discount_amount))}
+                </span>
+              </div>
+            )}
             <div className="flex justify-between text-muted">
               <span>Phí vận chuyển giao hàng:</span>
               <span className="font-semibold text-success-dark">Miễn phí (0 ₫)</span>
