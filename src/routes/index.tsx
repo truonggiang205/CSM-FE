@@ -191,6 +191,11 @@ const router = createBrowserRouter([
                 path: "products",
                 element: withSuspense(AdminProductListPage),
               },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+            children: [
               {
                 path: "vouchers",
                 element: withSuspense(AdminVoucherListPage),
