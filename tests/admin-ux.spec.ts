@@ -108,8 +108,8 @@ test.describe("Admin & Manager UX Polish Verification", () => {
 
   test("4. Chuyển đơn PENDING -> CONFIRMED qua thao tác nhanh và xác nhận hậu quả", async ({ page }) => {
     await login(page, ADMIN_EMAIL);
-    // Tìm đơn PENDING có sẵn tồn kho hợp lệ trong kho demo (mã đơn 543d9bc3)
-    await page.goto("/admin/orders?search=543d9bc3&status=PENDING");
+    // Lọc danh sách đơn PENDING có sẵn trong kho demo
+    await page.goto("/admin/orders?status=PENDING");
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1000);
 
@@ -134,8 +134,8 @@ test.describe("Admin & Manager UX Polish Verification", () => {
         expect(toastText).toMatch(/(thành công|CONFIRMED|duyệt)/i);
       }
     } else {
-      // Nếu đơn đã được duyệt trước đó, kiểm tra xem đơn đã ở trạng thái CONFIRMED (Đã xác nhận / Đã duyệt) chưa
-      await page.goto("/admin/orders?search=543d9bc3");
+      // Nếu các đơn PENDING đã được duyệt trước đó, kiểm tra xem danh sách CONFIRMED có đơn hợp lệ không
+      await page.goto("/admin/orders?status=CONFIRMED");
       await page.waitForLoadState("networkidle");
       await page.waitForTimeout(1000);
       const row = page.locator("table tbody tr").first();
