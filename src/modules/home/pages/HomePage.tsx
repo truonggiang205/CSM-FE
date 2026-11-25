@@ -188,7 +188,7 @@ export function HomePage() {
                   </Link>
                 </Button>
                 <Button size="lg" variant="outline" asChild className="w-full sm:w-auto rounded-2xl text-xs sm:text-sm font-semibold">
-                  <Link to="/products?q=combo">
+                  <Link to="/combos">
                     Xem combo ưu đãi
                   </Link>
                 </Button>
