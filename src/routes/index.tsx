@@ -169,27 +169,32 @@ const router = createBrowserRouter([
             element: withSuspense(OrderListPage),
           },
           {
-            path: "branches",
-            element: withSuspense(BranchesPage),
-          },
-          {
-            path: "customers",
-            element: withSuspense(CustomersPage),
-          },
-          {
-            path: "settings",
-            element: withSuspense(SettingsPage),
-          },
-          {
             element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
             children: [
               {
                 path: "inventory",
                 element: withSuspense(InventoryPage),
               },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+            children: [
               {
                 path: "products",
                 element: withSuspense(AdminProductListPage),
+              },
+              {
+                path: "branches",
+                element: withSuspense(BranchesPage),
+              },
+              {
+                path: "customers",
+                element: withSuspense(CustomersPage),
+              },
+              {
+                path: "settings",
+                element: withSuspense(SettingsPage),
               },
             ],
           },

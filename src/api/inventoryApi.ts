@@ -1,5 +1,5 @@
 import apiClient from "./apiClient";
-import { BranchInventoryItem, ProductStockByBranch, AddStockPayload } from "../types/inventory";
+import { BranchInventoryItem, ProductStockByBranch, AddStockPayload, StockTransactionRecord } from "../types/inventory";
 
 export const inventoryApi = {
   getInventoryByBranch: async (branchId: string): Promise<BranchInventoryItem[]> => {
@@ -23,5 +23,10 @@ export const inventoryApi = {
       payload
     );
     return response.data;
+  },
+
+  getTransactions: async (params?: { referenceId?: string; stockId?: string }): Promise<StockTransactionRecord[]> => {
+    const response = await apiClient.get<StockTransactionRecord[]>("/inventory/transactions", { params });
+    return response.data || [];
   },
 };
