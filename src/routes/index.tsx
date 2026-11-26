@@ -47,9 +47,6 @@ const AdminFlashSaleListPage = lazy(() =>
 const AdminComboListPage = lazy(() =>
   import("../modules/discounts/pages/AdminComboListPage").then((m) => ({ default: m.AdminComboListPage }))
 );
-const AdminGiftPromotionPage = lazy(() =>
-  import("../modules/discounts/pages/AdminGiftPromotionPage").then((m) => ({ default: m.AdminGiftPromotionPage }))
-);
 const DealsPage = lazy(() =>
   import("../modules/discounts/pages/DealsPage").then((m) => ({ default: m.DealsPage }))
 );
@@ -243,10 +240,6 @@ const router = createBrowserRouter([
               {
                 path: "combos",
                 element: withSuspense(AdminComboListPage),
-              },
-              {
-                path: "gift-promotions",
-                element: withSuspense(AdminGiftPromotionPage),
               },
             ],
           },

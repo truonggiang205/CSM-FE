@@ -22,7 +22,6 @@ import { useBranchStore } from "../../../store/useBranchStore";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { orderApi, PaymentMethod, CreateOrderPayload } from "../../../api/orderApi";
 import { discountApi } from "../../../api/discountApi";
-import { giftPromotionApi } from "../../../api/giftPromotionApi";
 import { useQuery } from "@tanstack/react-query";
 import { VoucherModal } from "../../discounts/components/VoucherModal";
 import { Button } from "../../../components/ui/Button";
@@ -649,15 +648,6 @@ function OrderSummaryBox({
   voucherError,
   voucherSuccess,
 }: OrderSummaryBoxProps) {
-  const regularCartItems = items
-    .filter((i) => i.itemType !== "COMBO")
-    .map((i) => ({ productId: i.product.id, quantity: i.quantity }));
-  const { data: qualifiedGifts = [] } = useQuery({
-    queryKey: ["checkout-evaluate-gifts", regularCartItems, rawTotal],
-    queryFn: () => giftPromotionApi.evaluate(regularCartItems, rawTotal),
-    enabled: items.length > 0,
-  });
-
   return (
     <div className="bg-surface p-6 rounded-3xl border border-border shadow-card space-y-5">
       <div className="flex items-center justify-between pb-3 border-b border-border/80">
@@ -702,18 +692,6 @@ function OrderSummaryBox({
             <span className="font-bold text-xs text-primary-dark shrink-0">
               {format((item.product.discountPrice || item.product.price) * item.quantity)}
             </span>
-          </div>
-        ))}
-        {qualifiedGifts.map((gift) => (
-          <div key={gift.promotionId} className="pt-3 flex items-center justify-between gap-3 text-xs bg-emerald-50/70 p-2.5 rounded-xl border border-emerald-200/70">
-            <div className="min-w-0">
-              <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-emerald-600 text-white uppercase">
-                Quà tặng 0₫
-              </span>
-              <h4 className="font-bold text-foreground truncate mt-0.5">🎁 {gift.productName}</h4>
-              <span className="text-[10px] text-emerald-700 block truncate">{gift.promotionName}</span>
-            </div>
-            <span className="font-black text-emerald-700 shrink-0">x{gift.quantity} · 0₫</span>
           </div>
         ))}
       </div>
