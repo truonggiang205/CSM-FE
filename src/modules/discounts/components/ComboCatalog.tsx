@@ -21,7 +21,6 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
   const { showToast } = useCartToastStore();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [onlyInStock, setOnlyInStock] = useState(false);
 
   const { data: combos = [], isLoading: isLoadingCombos } = useQuery({
     queryKey: ["public-combos"],
@@ -56,16 +55,15 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
   const filteredCombos = useMemo(() => {
     const q = searchQuery.trim().toLowerCase();
     return combos.filter((combo) => {
+      if (!q) return true;
       const metrics = resolveComboMetrics(combo, products, stockMap);
-      const matchesQuery =
-        !q ||
+      return (
         combo.name.toLowerCase().includes(q) ||
         (combo.description || "").toLowerCase().includes(q) ||
-        metrics.resolvedItems.some((ri) => ri.name.toLowerCase().includes(q));
-      const matchesStock = onlyInStock ? !metrics.isOutOfStock && metrics.maxComboStock > 0 : true;
-      return matchesQuery && matchesStock;
+        metrics.resolvedItems.some((ri) => ri.name.toLowerCase().includes(q))
+      );
     });
-  }, [combos, products, stockMap, searchQuery, onlyInStock]);
+  }, [combos, products, stockMap, searchQuery]);
 
   const handleBuyCombo = (combo: Combo, maxComboStock: number, e: React.MouseEvent) => {
     e.preventDefault();
@@ -100,16 +98,6 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
               className="pl-10 rounded-2xl bg-surface text-xs"
             />
           </div>
-
-          <label className="inline-flex items-center gap-2 px-4 py-2.5 rounded-2xl bg-surface border border-border text-xs font-semibold text-foreground cursor-pointer select-none">
-            <input
-              type="checkbox"
-              checked={onlyInStock}
-              onChange={(e) => setOnlyInStock(e.target.checked)}
-              className="w-4 h-4 rounded accent-primary"
-            />
-            <span>Chỉ hiện combo còn hàng</span>
-          </label>
         </div>
       )}
 
@@ -124,19 +112,16 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
           <Layers className="w-10 h-10 text-primary mx-auto" />
           <h2 className="text-lg font-bold text-foreground">Không tìm thấy Combo phù hợp</h2>
           <p className="text-xs text-muted">
-            Hãy thử từ khóa khác hoặc bỏ lọc chỉ hiện combo còn hàng.
+            Hãy thử từ khóa khác để tìm kiếm Combo phù hợp.
           </p>
-          {(searchQuery || onlyInStock) && (
+          {searchQuery && (
             <Button
               variant="outline"
               size="sm"
-              onClick={() => {
-                setSearchQuery("");
-                setOnlyInStock(false);
-              }}
+              onClick={() => setSearchQuery("")}
               className="rounded-2xl text-xs"
             >
-              Đặt lại bộ lọc
+              Xoá từ khóa tìm kiếm
             </Button>
           )}
         </div>
