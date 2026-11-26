@@ -1,6 +1,6 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ShoppingCart, Eye, Star, Check } from "lucide-react";
+import { ShoppingCart, Eye, Star, Check, Clock } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
@@ -18,6 +18,49 @@ interface ProductCardProps {
   onQuickView?: (product: Product) => void;
 }
 
+function useFlashSaleCountdown(endTimeStr?: string) {
+  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [isExpired, setIsExpired] = useState<boolean>(false);
+
+  useEffect(() => {
+    if (!endTimeStr) {
+      setTimeLeft("");
+      setIsExpired(false);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const parts = endTimeStr.split(":").map(Number);
+      if (parts.length < 2) return;
+
+      const target = new Date(now);
+      target.setHours(parts[0], parts[1], parts[2] || 0, 0);
+
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) {
+        setTimeLeft("");
+        setIsExpired(true);
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setTimeLeft(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+      setIsExpired(false);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [endTimeStr]);
+
+  return { timeLeft, isExpired };
+}
+
 export function ProductCard({
   product,
   availableStock,
@@ -29,6 +72,7 @@ export function ProductCard({
   const [isAdded, setIsAdded] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const tilt = useTilt({ maxTilt: 3, perspective: 800 });
+  const { timeLeft, isExpired } = useFlashSaleCountdown(product.flashSaleMeta?.endTime);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -37,14 +81,15 @@ export function ProductCard({
     }).format(amount);
   };
 
-  // Tính số lượng tồn kho khả dụng
   const effectiveStock = availableStock !== undefined ? availableStock : product.stock;
   const isOutOfStock = effectiveStock <= 0;
   const isLowStock = effectiveStock > 0 && effectiveStock <= 5;
 
+  const isFlashSaleActive = !!product.flashSaleMeta && !product.flashSaleMeta.isSoldOut && !isExpired;
+
   const originalPrice = product.price;
-  const salePrice = product.discountPrice || originalPrice;
-  const hasDiscount = !!product.discountPrice && product.discountPrice < originalPrice;
+  const salePrice = isFlashSaleActive && product.discountPrice ? product.discountPrice : originalPrice;
+  const hasDiscount = isFlashSaleActive && !!product.discountPrice && product.discountPrice < originalPrice;
   const percentOff = hasDiscount
     ? Math.round(((originalPrice - salePrice) / originalPrice) * 100)
     : 0;
@@ -52,7 +97,6 @@ export function ProductCard({
   const targetPath = `/products/${product.id}`;
   const displayImage = product.images && product.images[0];
 
-  // Đánh giá sao phân bổ hợp lý (4.3 - 4.9) nếu không có dữ liệu thật từ API
   const computedRating = product.rating || Number((4.3 + ((product.id.charCodeAt(product.id.length - 1) || 5) % 7) * 0.1).toFixed(1));
   const computedReviews = product.reviewsCount || (40 + ((product.id.charCodeAt(0) || 3) * 7) % 150);
 
@@ -74,7 +118,6 @@ export function ProductCard({
     }
   };
 
-  // ==================== LIST VIEW MODE ====================
   if (viewMode === "list") {
     return (
       <motion.div
@@ -82,7 +125,6 @@ export function ProductCard({
         transition={{ duration: 0.18 }}
         className="group relative flex flex-col sm:flex-row items-center gap-4 sm:gap-6 rounded-3xl border border-border bg-surface shadow-card hover:shadow-card-hover overflow-hidden transition-all duration-200 p-4"
       >
-        {/* Image Area */}
         <Link
           to={targetPath}
           className="relative w-full sm:w-44 aspect-square rounded-2xl overflow-hidden bg-surface-soft flex-shrink-0 block"
@@ -95,18 +137,38 @@ export function ProductCard({
             loading="lazy"
           />
           {hasDiscount && (
-            <div className="absolute top-2 left-2">
+            <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10 pointer-events-none">
               <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-black shadow-xs">
                 -{percentOff}%
               </span>
             </div>
           )}
+
+          {isFlashSaleActive && product.flashSaleMeta && (
+            <div className="absolute inset-x-2 bottom-2 z-10 p-1.5 rounded-xl bg-white/95 backdrop-blur-xs border border-red-200/90 shadow-xs pointer-events-none space-y-1">
+              <div className="flex items-center justify-between text-[10px] font-bold text-red-500">
+                <span>🔥 {product.flashSaleMeta.soldCount}/{product.flashSaleMeta.quantityLimit}</span>
+                {timeLeft && (
+                  <span className="font-mono text-[9px] flex items-center gap-0.5 text-red-500">
+                    <Clock className="w-2.5 h-2.5" />
+                    {timeLeft}
+                  </span>
+                )}
+              </div>
+              <div className="w-full h-1 bg-red-100 rounded-full overflow-hidden">
+                <div
+                  className="h-full bg-gradient-to-r from-amber-500 to-red-500 rounded-full"
+                  style={{
+                    width: `${Math.min(100, Math.max(8, Math.round(((product.flashSaleMeta.soldCount || 0) / (product.flashSaleMeta.quantityLimit || 1)) * 100)))}%`,
+                  }}
+                />
+              </div>
+            </div>
+          )}
         </Link>
 
-        {/* Info Area */}
         <div className="flex-1 min-w-0 flex flex-col justify-between w-full h-full">
           <div>
-            {/* Category: Dòng riêng, không viết hoa toàn bộ, có title */}
             <span
               className="text-xs font-semibold text-primary-dark truncate block max-w-full mb-1"
               title={product.category?.name || "Tiện lợi"}
@@ -120,20 +182,17 @@ export function ProductCard({
               </h3>
             </Link>
 
-            {/* Rating (ẩn SKU khỏi thẻ) */}
             <div className="flex items-center gap-1.5 mt-1.5 text-xs text-amber-500 font-bold">
               <Star className="w-3.5 h-3.5 fill-current text-amber-400" />
               <span>{computedRating}</span>
               <span className="text-muted font-normal text-[11px]">({computedReviews} đánh giá)</span>
             </div>
 
-            {/* Description snippet */}
             <p className="text-xs text-muted mt-2 line-clamp-2 leading-relaxed">
               {product.description || "Sản phẩm tươi ngon, tiện lợi mỗi ngày tại CSM Store."}
             </p>
           </div>
 
-          {/* Bottom row: Price + Stock Badge */}
           <div className="mt-3 flex items-center justify-between pt-2 border-t border-border/40">
             <div className="flex items-baseline gap-2">
               <span className="text-primary-dark font-black text-lg">
@@ -164,7 +223,6 @@ export function ProductCard({
           </div>
         </div>
 
-        {/* Action Buttons Column */}
         <div className="flex sm:flex-col items-center justify-end gap-2 w-full sm:w-36 flex-shrink-0 pt-2 sm:pt-0 border-t sm:border-t-0 sm:border-l border-border/50 sm:pl-4">
           <Button
             size="sm"
@@ -205,7 +263,6 @@ export function ProductCard({
     );
   }
 
-  // ==================== GRID VIEW MODE (DEFAULT) ====================
   return (
     <motion.div
       ref={tilt.ref}
@@ -216,7 +273,6 @@ export function ProductCard({
       transition={{ duration: 0.18 }}
       className="group relative flex flex-col h-full rounded-3xl border border-border bg-surface shadow-card hover:shadow-card-hover overflow-hidden transition-shadow duration-200 transform-gpu"
     >
-      {/* Image Area */}
       <Link to={targetPath} className="relative aspect-square overflow-hidden bg-surface-soft block">
         <ProductImage
           src={displayImage}
@@ -226,7 +282,6 @@ export function ProductCard({
           loading="lazy"
         />
 
-        {/* Badges Overlay */}
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start z-10 pointer-events-none">
           {hasDiscount && (
             <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-black shadow-xs">
@@ -249,8 +304,31 @@ export function ProductCard({
           )}
         </div>
 
-        {/* Desktop Quick-Action Overlay (Slide-up on hover) */}
-        <div className="absolute inset-x-3 bottom-3 hidden md:flex items-center gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200 z-10">
+        {isFlashSaleActive && product.flashSaleMeta && (
+          <div className="absolute inset-x-2.5 bottom-2.5 z-10 p-2 sm:px-2.5 sm:py-2 rounded-2xl bg-white/95 backdrop-blur-xs border border-red-200/90 shadow-sm pointer-events-none transition-opacity duration-200 md:group-hover:opacity-0 space-y-1">
+            <div className="flex items-center justify-between text-[11px] font-bold text-red-500">
+              <span className="flex items-center gap-1">
+                🔥 Đã bán {product.flashSaleMeta.soldCount}/{product.flashSaleMeta.quantityLimit}
+              </span>
+              {timeLeft && (
+                <span className="font-mono text-[10px] flex items-center gap-0.5 text-red-500">
+                  <Clock className="w-2.5 h-2.5" />
+                  {timeLeft}
+                </span>
+              )}
+            </div>
+            <div className="w-full h-1.5 bg-red-100 rounded-full overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-amber-500 to-red-500 rounded-full transition-all duration-300"
+                style={{
+                  width: `${Math.min(100, Math.max(8, Math.round(((product.flashSaleMeta.soldCount || 0) / (product.flashSaleMeta.quantityLimit || 1)) * 100)))}%`,
+                }}
+              />
+            </div>
+          </div>
+        )}
+
+        <div className="absolute inset-x-3 bottom-3 hidden md:flex items-center gap-2 translate-y-3 opacity-0 group-hover:translate-y-0 group-hover:opacity-100 transition-all duration-200 z-20">
           <Button
             type="button"
             size="sm"
@@ -295,9 +373,7 @@ export function ProductCard({
         </div>
       </Link>
 
-      {/* Content Area */}
       <div className="flex flex-col flex-1 p-4 sm:p-5">
-        {/* Category: Dòng riêng, không viết hoa toàn bộ, có title (xoá chip chi nhánh) */}
         <span
           className="text-xs font-semibold text-primary-dark truncate block max-w-full mb-1"
           title={product.category?.name || "Tiện lợi"}
@@ -311,7 +387,6 @@ export function ProductCard({
           </h3>
         </Link>
 
-        {/* Rating Stars (ẩn SKU khỏi thẻ) */}
         <div className="flex items-center gap-1 text-amber-500 font-semibold text-[11px] mt-1.5">
           <div className="flex items-center gap-1 text-amber-500 font-semibold">
             <Star className="w-3 h-3 fill-current text-amber-400" />
@@ -320,7 +395,6 @@ export function ProductCard({
           </div>
         </div>
 
-        {/* Price & Mobile Actions */}
         <div className="mt-auto pt-3 flex items-end justify-between border-t border-border/50">
           <div>
             <div className="text-primary-dark font-black text-sm sm:text-base">
@@ -333,7 +407,6 @@ export function ProductCard({
             )}
           </div>
 
-          {/* Action buttons (always visible on mobile, minimum 44px tap target) */}
           <div className="flex items-center gap-2 md:hidden">
             {onQuickView && (
               <Button
@@ -368,4 +441,3 @@ export function ProductCard({
     </motion.div>
   );
 }
-

@@ -19,7 +19,7 @@ export const mockHeroBanners: HeroBannerItem[] = [
     highlight: "Đồng Giá Từ 15.000₫",
     description: "Thưởng thức các món ăn vặt, mì ly và nước giải khát mát lạnh với mức giá ưu đãi nhất khung giờ trưa và tối.",
     ctaText: "Săn deal ngay",
-    ctaLink: "/products?q=sale",
+    ctaLink: "/deals",
     image: "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=700&q=80",
     bgGradient: "from-primary-tint/70 via-surface to-pastel-peach/40",
     tagColor: "bg-danger-pastel text-danger-dark border-danger/30",

@@ -23,6 +23,7 @@ import {
   Menu,
   User,
   ShoppingBag,
+  Zap,
 } from "lucide-react";
 import { useCartStore } from "../store/useCartStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -141,6 +142,19 @@ export default function PublicLayout() {
                 }
               >
                 Tất cả sản phẩm
+              </NavLink>
+              <NavLink
+                to="/deals"
+                className={({ isActive }) =>
+                  `relative px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl flex items-center gap-1.5 ${
+                    isActive
+                      ? "text-accent-dark font-bold after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-accent after:rounded-full"
+                      : "text-muted hover:text-accent-dark"
+                  }`
+                }
+              >
+                <Zap className="w-3.5 h-3.5 fill-current text-accent" />
+                <span>Giờ Vàng Ưu Đãi</span>
               </NavLink>
               {isAuthenticated && (
                 <NavLink
@@ -357,6 +371,21 @@ export default function PublicLayout() {
                 >
                   <ShoppingBag className="w-4 h-4" />
                   Tất cả sản phẩm
+                </NavLink>
+
+                <NavLink
+                  to="/deals"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-accent-tint text-accent-dark font-bold border border-accent/25"
+                        : "text-muted hover:bg-surface-soft hover:text-foreground"
+                    }`
+                  }
+                >
+                  <Zap className="w-4 h-4 fill-current text-accent" />
+                  Giờ Vàng Ưu Đãi
                 </NavLink>
 
                 {isAuthenticated && (

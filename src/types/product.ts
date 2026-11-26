@@ -17,6 +17,13 @@ export interface BackendProduct {
   updated_at?: string;
 }
 
+export interface ProductFlashSaleMeta {
+  soldCount: number;
+  quantityLimit: number;
+  endTime?: string;
+  isSoldOut?: boolean;
+}
+
 export interface Product {
   id: string;
   sku?: string;
@@ -31,4 +38,5 @@ export interface Product {
   rating?: number;
   reviewsCount?: number;
   createdAt?: string;
+  flashSaleMeta?: ProductFlashSaleMeta;
 }
