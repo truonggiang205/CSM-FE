@@ -245,7 +245,7 @@ export function AdminFlashSaleListPage() {
     setSubmitting(true);
     const payload: CreateFlashSalePayload = {
       name: name.trim(),
-      apply_date: applyDate ? applyDate : undefined,
+      apply_date: (applyDate ? applyDate : null) as any,
       start_time: startTime.length === 5 ? `${startTime}:00` : startTime,
       end_time: endTime.length === 5 ? `${endTime}:00` : endTime,
       is_active: isActive,
