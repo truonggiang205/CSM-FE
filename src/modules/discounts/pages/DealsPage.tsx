@@ -1,34 +1,22 @@
-import React, { useState, useEffect, useMemo, useRef } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
-import {
-  Zap,
-  Clock,
-  ShoppingCart,
-  Flame,
-  RefreshCw,
-  Layers,
-  Package,
-  Plus,
-  AlertCircle,
-} from "lucide-react";
+import { Zap, Clock, ShoppingCart, Flame, RefreshCw, Layers } from "lucide-react";
 import { flashSaleApi, TodayDealsResponse, TodayDealItem } from "../../../api/flashSaleApi";
-import { comboApi, Combo } from "../../../api/comboApi";
-import { productApi } from "../../../api/productApi";
-import { inventoryApi } from "../../../api/inventoryApi";
+import { comboApi } from "../../../api/comboApi";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { Button } from "../../../components/ui/Button";
 import { Card } from "../../../components/ui/Card";
-import { ProductImage } from "../../../components/ui/ProductImage";
+import { ComboCatalog } from "../components/ComboCatalog";
 
 export function DealsPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const initialTab = searchParams.get("tab") === "combo" ? "combo" : "flash-sale";
   const [activeTab, setActiveTab] = useState<"flash-sale" | "combo">(initialTab);
 
-  const { addItem, addCombo, items: cartItems } = useCartStore();
+  const { addItem, items: cartItems } = useCartStore();
   const { showToast } = useCartToastStore();
   const { selectedBranch } = useBranchStore();
 
@@ -132,36 +120,12 @@ export function DealsPage() {
     return () => clearInterval(timer);
   }, [isLiveCampaign, data.flashSale.targetTime]);
 
-  // Combo data for Tab 2
-  const { data: combos = [], isLoading: isLoadingCombos } = useQuery({
+  // Combo count for Tab 2 badge
+  const { data: combos = [] } = useQuery({
     queryKey: ["public-combos"],
     queryFn: comboApi.getPublicCombos,
     refetchInterval: 30000,
   });
-
-  const { data: products = [] } = useQuery({
-    queryKey: ["products"],
-    queryFn: () => productApi.getProducts(),
-  });
-
-  const activeBranchId = selectedBranch?.id || "br-01";
-  const { data: branchInventory = [] } = useQuery({
-    queryKey: ["inventory", "branch", activeBranchId],
-    queryFn: () => inventoryApi.getInventoryByBranch(activeBranchId),
-    enabled: !!activeBranchId,
-  });
-
-  const stockMap = useMemo(() => {
-    const map = new Map<string, number>();
-    branchInventory.forEach((item) => {
-      const avail =
-        item.available ??
-        Math.max(0, (Number(item.quantity) || 0) - (Number(item.reserved_quantity) || 0));
-      if (item.product_id) map.set(String(item.product_id), avail);
-      if (item.sku) map.set(String(item.sku), avail);
-    });
-    return map;
-  }, [branchInventory]);
 
   const handleAddToCart = (deal: TodayDealItem) => {
     const currentInCart = cartItems.find((i) => i.product.id === deal.product_id)?.quantity || 0;
@@ -187,23 +151,6 @@ export function DealsPage() {
       1
     );
     showToast(deal.product_name);
-  };
-
-  const handleBuyCombo = (combo: Combo, maxComboStock: number) => {
-    const enriched: Combo = {
-      ...combo,
-      items: (combo.items || []).map((ci) => {
-        const found = products.find((p) => p.id === ci.product_id);
-        return {
-          ...ci,
-          product_name: found?.name || ci.product_name || ci.product_id,
-          product_image: found?.images?.[0] || ci.product_image || null,
-          original_price: Number(found?.price || ci.original_price || 0),
-        };
-      }),
-    };
-    addCombo(enriched, maxComboStock, 1);
-    showToast(`Đã thêm ${combo.name} vào giỏ hàng`);
   };
 
   const activeDeals = useMemo(() => {
@@ -459,137 +406,8 @@ export function DealsPage() {
               })}
             </div>
           )
-        ) : isLoadingCombos ? (
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {[1, 2, 3].map((i) => (
-              <div key={i} className="h-80 rounded-3xl bg-surface-soft border border-border animate-pulse" />
-            ))}
-          </div>
-        ) : combos.length === 0 ? (
-          <div className="p-16 text-center bg-surface rounded-3xl border border-dashed border-border text-muted space-y-2">
-            <div className="text-base font-bold text-foreground">Hiện chưa có Combo nào đang mở bán</div>
-            <p className="text-xs">Vui lòng quay lại sau hoặc khám phá các sản phẩm lẻ tại cửa hàng.</p>
-          </div>
         ) : (
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {combos.map((combo) => {
-              const resolvedItems = (combo.items || []).map((ci) => {
-                const found = products.find((p) => p.id === ci.product_id);
-                const unitPrice = Number(found?.price ?? ci.original_price ?? 0);
-                const stock = stockMap.get(ci.product_id) ?? found?.stock ?? 50;
-                const requiredQty = Math.max(1, Number(ci.quantity) || 1);
-                return {
-                  ...ci,
-                  name: found?.name || ci.product_name || ci.product_id,
-                  image: found?.images?.[0] || ci.product_image || undefined,
-                  unitPrice,
-                  stock,
-                  requiredQty,
-                };
-              });
-
-              const originalTotal =
-                Number(combo.original_price) > 0
-                  ? Number(combo.original_price)
-                  : resolvedItems.reduce((sum, item) => sum + item.unitPrice * item.requiredQty, 0);
-              const comboPrice = Number(combo.combo_price);
-              const savings = Math.max(0, originalTotal - comboPrice);
-              const discountPercent =
-                originalTotal > 0 ? Math.round((savings / originalTotal) * 100) : 0;
-
-              const outOfStockItems = resolvedItems.filter((item) => item.stock < item.requiredQty);
-              const isOutOfStock = outOfStockItems.length > 0;
-              const maxComboFromStock =
-                resolvedItems.length > 0
-                  ? Math.min(...resolvedItems.map((i) => Math.floor(i.stock / i.requiredQty)))
-                  : 0;
-              const remainingQuota =
-                combo.max_quantity !== null && combo.max_quantity !== undefined
-                  ? Math.max(0, Number(combo.max_quantity) - Number(combo.sold_count || 0))
-                  : 99;
-              const maxComboStock = Math.max(0, Math.min(maxComboFromStock, remainingQuota));
-
-              return (
-                <div
-                  key={combo.id}
-                  className="bg-surface rounded-3xl border border-border/80 hover:border-primary/40 shadow-card p-6 flex flex-col justify-between gap-4"
-                >
-                  <div>
-                    <div className="flex items-center justify-between gap-2 mb-3">
-                      <span className="text-[11px] font-extrabold px-3 py-1 rounded-full border bg-amber-100 text-amber-800 border-amber-300">
-                        TIẾT KIỆM {formatVND(savings)}
-                        {discountPercent > 0 ? ` (-${discountPercent}%)` : ""}
-                      </span>
-                      {combo.max_quantity !== null && combo.max_quantity !== undefined && (
-                        <span className="text-[11px] font-bold text-muted font-mono">
-                          Còn {remainingQuota} suất
-                        </span>
-                      )}
-                    </div>
-
-                    <h3 className="text-lg font-black text-foreground">{combo.name}</h3>
-                    {combo.description && (
-                      <p className="text-xs text-muted line-clamp-2 mt-1">{combo.description}</p>
-                    )}
-
-                    <div className="flex items-stretch justify-center flex-wrap gap-2 mt-4 p-3 rounded-2xl bg-surface-soft border border-border/60">
-                      {resolvedItems.map((item, idx) => (
-                        <React.Fragment key={`${item.product_id}-${idx}`}>
-                          {idx > 0 && (
-                            <div className="flex items-center text-primary">
-                              <Plus className="w-3.5 h-3.5" />
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-[76px] max-w-[105px] flex flex-col items-center text-center p-2 rounded-xl bg-surface border border-border/70 relative">
-                            <div className="w-10 h-10 rounded-lg overflow-hidden bg-surface-soft mb-1">
-                              <ProductImage
-                                src={item.image}
-                                alt={item.name}
-                                productName={item.name}
-                                className="w-full h-full object-cover"
-                              />
-                            </div>
-                            <span className="text-[10px] font-bold line-clamp-1 w-full">
-                              {item.name}
-                            </span>
-                            <span className="text-[9px] text-muted">
-                              x{item.requiredQty} · {formatVND(item.unitPrice)}
-                            </span>
-                          </div>
-                        </React.Fragment>
-                      ))}
-                    </div>
-
-                    {isOutOfStock && (
-                      <div className="mt-3 p-2.5 rounded-xl bg-danger-pastel/70 border border-danger/30 text-danger-dark text-xs flex items-center gap-2">
-                        <AlertCircle className="w-4 h-4 shrink-0" />
-                        <span>Hết món: {outOfStockItems.map((i) => i.name).join(", ")}</span>
-                      </div>
-                    )}
-                  </div>
-
-                  <div className="pt-4 border-t border-border/60 flex items-center justify-between gap-2">
-                    <div>
-                      <div className="text-[11px] text-muted line-through">
-                        {formatVND(originalTotal)}
-                      </div>
-                      <div className="text-xl font-black text-rose-600 font-mono">
-                        {formatVND(comboPrice)}
-                      </div>
-                    </div>
-                    <Button
-                      disabled={isOutOfStock || maxComboStock <= 0}
-                      onClick={() => handleBuyCombo(combo, maxComboStock)}
-                      className="rounded-2xl text-xs font-bold gap-1.5 h-10 px-4 cursor-pointer"
-                    >
-                      <Package className="w-4 h-4" />
-                      <span>{isOutOfStock ? "Hết hàng" : "Thêm Combo"}</span>
-                    </Button>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
+          <ComboCatalog showSearchBar />
         )}
       </div>
     </div>
