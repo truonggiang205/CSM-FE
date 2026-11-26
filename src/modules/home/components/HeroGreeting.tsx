@@ -1,9 +1,11 @@
 import { useState, useEffect, useMemo } from "react";
 import { motion, useMotionValue, useTransform, useSpring, useReducedMotion } from "framer-motion";
 import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
 import { Sparkles, ArrowRight, Clock, MapPin } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { useBranchStore } from "../../../store/useBranchStore";
+import { productApi } from "../../../api/productApi";
 import {
   MOTION_DURATION,
   MOTION_EASE,
@@ -116,6 +118,11 @@ const CORNER_POSITIONS = [
 export function HeroGreeting() {
   const shouldReduceMotion = useReducedMotion();
   const { selectedBranch } = useBranchStore();
+
+  const { data: products = [] } = useQuery({
+    queryKey: ["products"],
+    queryFn: () => productApi.getProducts(),
+  });
 
   // 1. Cập nhật giờ mỗi phút
   const [currentHour, setCurrentHour] = useState(() => new Date().getHours());
@@ -287,54 +294,67 @@ export function HeroGreeting() {
                 const layerTransformY =
                   item.layer === 3 ? moveY3 : item.layer === 2 ? moveY2 : moveY1;
 
+                const firstWord = item.label.toLowerCase().split(" ").slice(0, 2).join(" ");
+                const matchedProduct =
+                  products.find((p) => p.name.toLowerCase().includes(item.label.toLowerCase())) ||
+                  products.find((p) => p.name.toLowerCase().includes(firstWord));
+                const targetTo = matchedProduct
+                  ? `/products/${matchedProduct.id}`
+                  : `/products?q=${encodeURIComponent(item.label)}`;
+                const displayPrice = matchedProduct
+                  ? `${Number(matchedProduct.discountPrice || matchedProduct.price).toLocaleString("vi-VN")}₫`
+                  : item.price;
+
                 return (
                   <div
                     key={`${item.label}-${idx}`}
                     className={`absolute z-10 ${CORNER_POSITIONS[idx]}`}
                   >
-                    <motion.div
-                      style={
-                        shouldReduceMotion || isTouchDevice
-                          ? undefined
-                          : { x: layerTransformX, y: layerTransformY }
-                      }
-                      animate={
-                        shouldReduceMotion || isTouchDevice
-                          ? {}
-                          : {
-                              y: idx % 2 === 0 ? [-2, 2, -2] : [2, -2, 2],
-                            }
-                      }
-                      transition={{
-                        repeat: Infinity,
-                        duration: 3.2 + idx * 0.4,
-                        ease: "easeInOut",
-                      }}
-                      className="w-[155px] sm:w-[190px] lg:w-[205px] p-2 sm:p-2.5 rounded-2xl bg-surface/95 backdrop-blur-md border border-border/80 shadow-card hover:shadow-card-hover transition-all duration-200 flex items-center gap-2 sm:gap-2.5 cursor-pointer group"
-                    >
-                      {/* Emoji Icon */}
-                      <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-primary-tint/70 border border-primary/25 flex items-center justify-center text-lg sm:text-xl group-hover:scale-110 transition-transform">
-                        {item.emoji}
-                      </div>
+                    <Link to={targetTo} className="block">
+                      <motion.div
+                        style={
+                          shouldReduceMotion || isTouchDevice
+                            ? undefined
+                            : { x: layerTransformX, y: layerTransformY }
+                        }
+                        animate={
+                          shouldReduceMotion || isTouchDevice
+                            ? {}
+                            : {
+                                y: idx % 2 === 0 ? [-2, 2, -2] : [2, -2, 2],
+                              }
+                        }
+                        transition={{
+                          repeat: Infinity,
+                          duration: 3.2 + idx * 0.4,
+                          ease: "easeInOut",
+                        }}
+                        className="w-[155px] sm:w-[190px] lg:w-[205px] p-2 sm:p-2.5 rounded-2xl bg-surface/95 backdrop-blur-md border border-border/80 shadow-card hover:shadow-card-hover hover:border-primary/40 transition-all duration-200 flex items-center gap-2 sm:gap-2.5 cursor-pointer group"
+                      >
+                        {/* Emoji Icon */}
+                        <div className="w-8 h-8 sm:w-9 sm:h-9 shrink-0 rounded-xl bg-primary-tint/70 border border-primary/25 flex items-center justify-center text-lg sm:text-xl group-hover:scale-110 transition-transform">
+                          {item.emoji}
+                        </div>
 
-                      {/* Thông tin sản phẩm */}
-                      <div className="min-w-0 flex-1 text-left">
-                        <div className="flex items-center justify-between gap-1 w-full">
-                          <h4
-                            className="text-[11px] sm:text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate"
-                            title={item.label}
-                          >
-                            {item.label}
-                          </h4>
-                          <span className="text-[8px] sm:text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-accent-tint text-accent-dark shrink-0">
-                            {item.tag}
+                        {/* Thông tin sản phẩm */}
+                        <div className="min-w-0 flex-1 text-left">
+                          <div className="flex items-center justify-between gap-1 w-full">
+                            <h4
+                              className="text-[11px] sm:text-xs font-bold text-foreground group-hover:text-primary transition-colors truncate"
+                              title={matchedProduct?.name || item.label}
+                            >
+                              {matchedProduct?.name || item.label}
+                            </h4>
+                            <span className="text-[8px] sm:text-[9px] font-extrabold px-1.5 py-0.2 rounded bg-accent-tint text-accent-dark shrink-0">
+                              {item.tag}
+                            </span>
+                          </div>
+                          <span className="text-[10px] sm:text-[11px] font-black text-primary-dark block mt-0.5">
+                            {displayPrice}
                           </span>
                         </div>
-                        <span className="text-[10px] sm:text-[11px] font-black text-primary-dark block mt-0.5">
-                          {item.price}
-                        </span>
-                      </div>
-                    </motion.div>
+                      </motion.div>
+                    </Link>
                   </div>
                 );
               })}
