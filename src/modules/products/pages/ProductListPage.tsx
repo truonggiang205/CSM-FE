@@ -19,6 +19,7 @@ import { ProductCard } from "../components/ProductCard";
 import { QuickViewModal } from "../components/QuickViewModal";
 import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
+import { flashSaleApi } from "../../../api/flashSaleApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
@@ -107,7 +108,6 @@ export function ProductListPage() {
     queryFn: productApi.getCategories,
   });
 
-  // 2. Fetch products
   const {
     data: products = [],
     isLoading: isLoadingProducts,
@@ -118,7 +118,12 @@ export function ProductListPage() {
     queryFn: () => productApi.getProducts(),
   });
 
-  // 3. Fetch inventory for selected branch (fallback br-01 để luôn có dữ liệu tồn kho)
+  const { data: flashSaleData } = useQuery({
+    queryKey: ["active-flash-sale"],
+    queryFn: flashSaleApi.getActiveOrUpcoming,
+    refetchInterval: 30000,
+  });
+
   const activeBranchId = selectedBranch?.id || "br-01";
   const { data: branchInventory = [] } = useQuery({
     queryKey: ["inventory", "branch", activeBranchId],
@@ -126,7 +131,6 @@ export function ProductListPage() {
     enabled: !!activeBranchId,
   });
 
-  // Tạo Map product_id & sku -> availableStock để tra cứu O(1)
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
     branchInventory.forEach((item) => {
@@ -137,18 +141,77 @@ export function ProductListPage() {
     return map;
   }, [branchInventory]);
 
-  // Lọc và sắp xếp sản phẩm đa tiêu chí
+  const activeFlashSaleMap = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        salePrice: number;
+        soldCount: number;
+        quantityLimit: number;
+        isSoldOut: boolean;
+        endTime?: string;
+      }
+    >();
+    if (flashSaleData?.status === "ACTIVE" && flashSaleData.items) {
+      for (const item of flashSaleData.items) {
+        const sale = Number(item.sale_price);
+        const sold = Number(item.sold_count) || 0;
+        const limit = Number(item.quantity_limit) || 0;
+        const isSoldOut = limit > 0 && sold >= limit;
+        if (sale > 0) {
+          map.set(String(item.product_id), {
+            salePrice: sale,
+            soldCount: sold,
+            quantityLimit: limit,
+            isSoldOut,
+            endTime: flashSaleData.endTime || flashSaleData.campaign?.end_time,
+          });
+        }
+      }
+    }
+    return map;
+  }, [flashSaleData]);
+
+  const productsWithFlashSale = useMemo(() => {
+    if (activeFlashSaleMap.size === 0) return products;
+    return products.map((product) => {
+      const fs = activeFlashSaleMap.get(String(product.id));
+      if (fs) {
+        if (!fs.isSoldOut && fs.salePrice > 0 && fs.salePrice < product.price) {
+          return {
+            ...product,
+            discountPrice: fs.salePrice,
+            flashSaleMeta: {
+              soldCount: fs.soldCount,
+              quantityLimit: fs.quantityLimit,
+              endTime: fs.endTime,
+              isSoldOut: false,
+            },
+          };
+        }
+        return {
+          ...product,
+          discountPrice: undefined,
+          flashSaleMeta: {
+            soldCount: fs.soldCount,
+            quantityLimit: fs.quantityLimit,
+            endTime: fs.endTime,
+            isSoldOut: true,
+          },
+        };
+      }
+      return product;
+    });
+  }, [products, activeFlashSaleMap]);
+
   const filteredProducts = useMemo(() => {
-    let result = products.filter((product) => {
-      // 1. Search text
+    let result = productsWithFlashSale.filter((product) => {
       const matchesSearch =
         product.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         (product.sku && product.sku.toLowerCase().includes(debouncedSearch.toLowerCase()));
 
-      // 2. Category
       const matchesCategory = selectedCategory ? product.category.id === selectedCategory : true;
 
-      // 3. Price range
       const effectivePrice = product.discountPrice || product.price;
       let matchesPrice = true;
       if (priceRange === "under-50k") {
@@ -161,14 +224,12 @@ export function ProductListPage() {
         matchesPrice = effectivePrice > 200000;
       }
 
-      // 4. In stock
       const available = stockMap.get(String(product.id)) ?? (product.sku ? stockMap.get(String(product.sku)) : undefined) ?? product.stock;
       const matchesInStock = onlyInStock ? available > 0 : true;
 
       return matchesSearch && matchesCategory && matchesPrice && matchesInStock;
     });
 
-    // Sắp xếp
     if (sortBy === "price-asc") {
       result = [...result].sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
     } else if (sortBy === "price-desc") {
@@ -178,7 +239,7 @@ export function ProductListPage() {
     }
 
     return result;
-  }, [products, debouncedSearch, selectedCategory, priceRange, onlyInStock, stockMap, sortBy]);
+  }, [productsWithFlashSale, debouncedSearch, selectedCategory, priceRange, onlyInStock, stockMap, sortBy]);
 
   // Phân trang
   const displayedProducts = filteredProducts.slice(0, visibleCount);
@@ -500,7 +561,6 @@ export function ProductListPage() {
             </div>
           )}
 
-          {/* Loading Skeleton */}
           {isLoading ? (
             <div
               className={

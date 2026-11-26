@@ -52,7 +52,6 @@ export const useCartStore = create<CartState>()(
       items: [],
       isOpen: false,
 
-      // Thêm sản phẩm vào giỏ (cập nhật số lượng ngay)
       addItem: (product, quantity = 1) => {
         set((state) => {
           const existingItem = state.items.find((i) => i.product.id === product.id);
@@ -60,7 +59,14 @@ export const useCartStore = create<CartState>()(
             return {
               items: state.items.map((i) =>
                 i.product.id === product.id
-                  ? { ...i, quantity: i.quantity + quantity }
+                  ? {
+                      ...i,
+                      product: {
+                        ...existingItem.product,
+                        discountPrice: product.discountPrice !== undefined ? product.discountPrice : existingItem.product.discountPrice,
+                      },
+                      quantity: i.quantity + quantity,
+                    }
                   : i
               ),
               isOpen: true,

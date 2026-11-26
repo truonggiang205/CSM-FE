@@ -4,7 +4,6 @@ import { Link } from "react-router-dom";
 import { Sparkles, ShoppingBag, ArrowRight, ChevronLeft, ChevronRight, Flame, Pause, Play } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { productApi } from "../../../api/productApi";
-import { mockProducts } from "../../../mocks/products";
 
 interface FeaturedCombo {
   id: string;
@@ -39,9 +38,10 @@ export function HeroOrbitBanner() {
   useEffect(() => {
     const fetchProducts = async () => {
       try {
-        let products = await productApi.getProducts();
+        const products = await productApi.getProducts();
         if (!products || products.length === 0) {
-          products = mockProducts;
+          setCombos([]);
+          return;
         }
 
         const mappedCombos = products.slice(0, 6).map((p: any, index: number) => {
@@ -62,27 +62,8 @@ export function HeroOrbitBanner() {
           };
         });
         setCombos(mappedCombos);
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-        // Fallback trực tiếp với mockProducts
-        const mappedCombos = mockProducts.slice(0, 6).map((p: any, index: number) => {
-          const style = STYLE_PRESETS[index % STYLE_PRESETS.length];
-          const basePrice = Number(p.price || 20000);
-          return {
-            id: p.id.toString(),
-            name: p.name,
-            emoji: style.emoji,
-            price: `${basePrice.toLocaleString("vi-VN")}₫`,
-            originalPrice: `${(basePrice + 10000).toLocaleString("vi-VN")}₫`,
-            tag: index === 0 ? "Bán chạy #1" : "Ưu đãi",
-            desc: p.description || "Món ngon hấp dẫn",
-            bgColor: style.bgColor,
-            textColor: style.textColor,
-            borderColor: style.borderColor,
-            accentBg: style.accentBg,
-          };
-        });
-        setCombos(mappedCombos);
+      } catch {
+        setCombos([]);
       } finally {
         setIsLoading(false);
       }

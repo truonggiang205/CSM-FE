@@ -41,6 +41,12 @@ const AdminProductListPage = lazy(() =>
 const AdminVoucherListPage = lazy(() =>
   import("../modules/discounts/pages/AdminVoucherListPage").then((m) => ({ default: m.AdminVoucherListPage }))
 );
+const AdminFlashSaleListPage = lazy(() =>
+  import("../modules/discounts/pages/AdminFlashSaleListPage").then((m) => ({ default: m.AdminFlashSaleListPage }))
+);
+const DealsPage = lazy(() =>
+  import("../modules/discounts/pages/DealsPage").then((m) => ({ default: m.DealsPage }))
+);
 const BranchesPage = lazy(() =>
   import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
 );
@@ -108,6 +114,14 @@ const router = createBrowserRouter([
       {
         path: "products/:id",
         element: withSuspense(ProductDetailPage),
+      },
+      {
+        path: "deals",
+        element: withSuspense(DealsPage),
+      },
+      {
+        path: "discounts",
+        element: withSuspense(DealsPage),
       },
       {
         path: "cart",
@@ -204,6 +218,10 @@ const router = createBrowserRouter([
               {
                 path: "vouchers",
                 element: withSuspense(AdminVoucherListPage),
+              },
+              {
+                path: "flash-sales",
+                element: withSuspense(AdminFlashSaleListPage),
               },
             ],
           },
