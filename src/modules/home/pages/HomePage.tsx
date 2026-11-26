@@ -337,17 +337,28 @@ export function HomePage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-              {displayProducts.slice(0, 8).map((product) => {
-                const availableStock = stockMap.get(product.id);
-                return (
-                  <ProductCard
-                    key={product.id}
-                    product={product}
-                    availableStock={availableStock}
-                    branchName={selectedBranch?.name}
-                  />
-                );
-              })}
+              {(() => {
+                const foodAndDrink = displayProducts.filter((p) => {
+                  const catName = (p.category?.name || "").toLowerCase();
+                  return (
+                    !catName.includes("đồ dùng") &&
+                    !catName.includes("tiện ích") &&
+                    !catName.includes("cá nhân")
+                  );
+                });
+                const list = foodAndDrink.length > 0 ? foodAndDrink : displayProducts;
+                return list.slice(0, 8).map((product) => {
+                  const availableStock = stockMap.get(product.id);
+                  return (
+                    <ProductCard
+                      key={product.id}
+                      product={product}
+                      availableStock={availableStock}
+                      branchName={selectedBranch?.name}
+                    />
+                  );
+                });
+              })()}
             </div>
           )}
         </div>
