@@ -7,9 +7,14 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
 
-const SEED_PASSWORD = process.env.E2E_PASSWORD || process.env.SEED_PASSWORD;
-if (!SEED_PASSWORD) {
-  throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD hoặc E2E_PASSWORD");
+// Mật khẩu: E2E_<ROLE>_PASSWORD > SEED_<ROLE>_PASSWORD > E2E_PASSWORD > SEED_PASSWORD (giống CSM-BE)
+const FALLBACK_PASSWORD = process.env.E2E_PASSWORD || process.env.SEED_PASSWORD;
+const ADMIN_PASSWORD =
+  process.env.E2E_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD || FALLBACK_PASSWORD;
+const MANAGER_PASSWORD =
+  process.env.E2E_MANAGER_PASSWORD || process.env.SEED_MANAGER_PASSWORD || FALLBACK_PASSWORD;
+if (!ADMIN_PASSWORD || !MANAGER_PASSWORD) {
+  throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD (hoặc SEED_*_PASSWORD / E2E_*_PASSWORD)");
 }
 
 test.describe("CSM Voucher E2E Suite - Playwright Real Stack", () => {
@@ -23,7 +28,7 @@ test.describe("CSM Voucher E2E Suite - Playwright Real Stack", () => {
     await page.goto("/login");
     await page.waitForLoadState("networkidle");
     await page.fill("#login-email", "admin@csm.vn");
-    await page.fill("#login-password", SEED_PASSWORD);
+    await page.fill("#login-password", ADMIN_PASSWORD);
     await page.click("form button:has-text('Đăng nhập')");
 
     await page.waitForURL(/\/admin/, { timeout: 10000 });
@@ -158,7 +163,7 @@ test.describe("CSM Voucher E2E Suite - Playwright Real Stack", () => {
     await page.goto("/login");
     await page.waitForLoadState("networkidle");
     await page.fill("#login-email", "manager.q1@csm.vn");
-    await page.fill("#login-password", SEED_PASSWORD);
+    await page.fill("#login-password", MANAGER_PASSWORD);
     await page.click("form button:has-text('Đăng nhập')");
 
     await page.waitForURL(/\/admin/, { timeout: 10000 });
