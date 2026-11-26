@@ -13,10 +13,19 @@ import {
   EyeOff,
   Calendar,
   Link2,
+  MousePointerClick,
+  ArrowRight,
 } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
-import { storefrontApi, Banner, BannerInput } from "../../../api/storefrontApi";
+import {
+  storefrontApi,
+  Banner,
+  BannerInput,
+  BannerPlacement,
+  BANNER_PLACEMENTS,
+  BANNER_PLACEMENT_META,
+} from "../../../api/storefrontApi";
 import { resolveAssetUrl } from "../../../lib/assetUrl";
 import {
   getErrorMessage,
@@ -33,6 +42,7 @@ interface BannerManagerProps {
 }
 
 interface BannerForm {
+  placement: BannerPlacement;
   title: string;
   highlight: string;
   badge: string;
@@ -46,6 +56,7 @@ interface BannerForm {
 }
 
 const EMPTY_FORM: BannerForm = {
+  placement: "HOME_HERO",
   title: "",
   highlight: "",
   badge: "",
@@ -61,7 +72,74 @@ const EMPTY_FORM: BannerForm = {
 const MAX_IMAGE_SIZE = 2 * 1024 * 1024;
 const ALLOWED_MIME = ["image/jpeg", "image/png", "image/webp"];
 
+/** Xem trước banner gần giống cách khách nhìn thấy ở từng vị trí. */
+function BannerPreview({ form }: { form: BannerForm }) {
+  const img = resolveAssetUrl(form.image_url);
+  const title = form.title || "Tiêu đề banner";
+  const cta = form.cta_text || (form.placement === "POPUP" ? "Xem ưu đãi" : "Khám phá ngay");
+
+  if (form.placement === "POPUP") {
+    return (
+      <div className="w-full max-w-[260px] mx-auto rounded-2xl overflow-hidden border border-border bg-surface shadow-card">
+        <div className="aspect-[4/3] bg-surface-soft">{img && <img src={img} alt="" className="w-full h-full object-cover" />}</div>
+        <div className="p-3 text-center space-y-1.5">
+          {form.badge && <p className="text-[9px] font-bold uppercase text-accent-dark">{form.badge}</p>}
+          <p className="text-sm font-extrabold text-foreground leading-tight">{title}</p>
+          {form.highlight && <p className="text-xs font-bold text-primary-dark">{form.highlight}</p>}
+          <span className="inline-flex w-full justify-center items-center gap-1 h-8 rounded-xl bg-primary text-white text-[11px] font-semibold">
+            {cta} <ArrowRight className="w-3 h-3" />
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  if (form.placement === "PRODUCTS_TOP" || form.placement === "CART") {
+    return (
+      <div className="rounded-2xl overflow-hidden border border-border bg-gradient-to-r from-primary-tint/70 via-surface to-pastel-peach/50 flex">
+        <div className="w-24 shrink-0 bg-surface-soft">{img && <img src={img} alt="" className="w-full h-full object-cover" />}</div>
+        <div className="p-3 flex-1 min-w-0 space-y-1">
+          {form.badge && <p className="text-[9px] font-bold uppercase text-accent-dark truncate">{form.badge}</p>}
+          <p className="text-xs font-extrabold text-foreground leading-tight">
+            {title}
+            {form.highlight && <span className="text-primary-dark"> · {form.highlight}</span>}
+          </p>
+          <span className="inline-flex items-center gap-1 h-7 px-3 rounded-lg bg-primary text-white text-[10px] font-semibold">
+            {cta} <ArrowRight className="w-3 h-3" />
+          </span>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="rounded-2xl overflow-hidden border border-border bg-gradient-to-br from-primary-tint/70 via-surface to-pastel-peach/40 grid grid-cols-5 items-center">
+      <div className="col-span-3 p-3 space-y-1.5">
+        <span className="inline-block text-[9px] font-bold uppercase px-2 py-0.5 rounded-full bg-surface/90 border border-border text-primary-dark">
+          {form.badge || "✨ CSM ƯU ĐÃI"}
+        </span>
+        <p className="text-sm font-extrabold text-foreground leading-tight">{title}</p>
+        {form.highlight && (
+          <span className="inline-block text-[11px] font-bold bg-primary-tint text-primary-dark px-1.5 py-0.5 rounded-lg border border-primary/20">
+            {form.highlight}
+          </span>
+        )}
+        {form.description && <p className="text-[10px] text-muted line-clamp-2">{form.description}</p>}
+        <span className="inline-flex items-center gap-1 h-7 px-3 rounded-lg bg-primary text-white text-[10px] font-semibold">
+          {cta} <ArrowRight className="w-3 h-3" />
+        </span>
+      </div>
+      <div className="col-span-2 p-2">
+        <div className="aspect-square rounded-xl overflow-hidden bg-surface border border-border">
+          {img && <img src={img} alt="" className="w-full h-full object-cover" />}
+        </div>
+      </div>
+    </div>
+  );
+}
+
 export function BannerManager({ scope, onNotify }: BannerManagerProps) {
+  const [placement, setPlacement] = useState<BannerPlacement>("HOME_HERO");
   const [banners, setBanners] = useState<Banner[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -77,14 +155,14 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
     setLoading(true);
     setError(null);
     try {
-      setBanners(await storefrontApi.listBanners(scope));
+      setBanners(await storefrontApi.listBanners(scope, placement));
     } catch (err) {
       setError(getErrorMessage(err, "Không tải được danh sách banner"));
       setBanners([]);
     } finally {
       setLoading(false);
     }
-  }, [scope]);
+  }, [scope, placement]);
 
   useEffect(() => {
     fetchBanners();
@@ -92,7 +170,7 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
 
   const openCreate = () => {
     setEditing(null);
-    setForm(EMPTY_FORM);
+    setForm({ ...EMPTY_FORM, placement });
     setFormError(null);
     setIsFormOpen(true);
   };
@@ -100,6 +178,7 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
   const openEdit = (banner: Banner) => {
     setEditing(banner);
     setForm({
+      placement: banner.placement || "HOME_HERO",
       title: banner.title || "",
       highlight: banner.highlight || "",
       badge: banner.badge || "",
@@ -149,6 +228,7 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
     }
 
     const payload: BannerInput = {
+      placement: form.placement,
       title: form.title.trim(),
       highlight: form.highlight.trim() || null,
       badge: form.badge.trim() || null,
@@ -218,10 +298,28 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
 
   return (
     <div className="space-y-4">
+      <div className="flex flex-wrap gap-2" role="tablist" aria-label="Vị trí banner">
+        {BANNER_PLACEMENTS.map((p) => (
+          <button
+            key={p}
+            type="button"
+            role="tab"
+            aria-selected={placement === p}
+            onClick={() => setPlacement(p)}
+            className={`px-3.5 py-2 rounded-xl text-xs font-semibold border transition-all ${
+              placement === p ? "bg-primary text-white border-primary shadow-sm" : "bg-surface text-foreground border-border hover:bg-primary-tint/50"
+            }`}
+            data-testid={`placement-${p}`}
+          >
+            {BANNER_PLACEMENT_META[p].label}
+          </button>
+        ))}
+      </div>
+
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-xs text-muted max-w-xl">
-          Banner hiển thị ở slider đầu trang chủ theo thứ tự bên dưới. Banner của chi nhánh luôn đứng trước banner toàn
-          chuỗi. Nếu chưa có banner nào đang hiển thị, trang chủ dùng banner mặc định.
+          {BANNER_PLACEMENT_META[placement].description} Banner của chi nhánh luôn đứng trước banner toàn chuỗi.
+          {placement === "HOME_HERO" && " Nếu chưa có banner nào đang hiển thị, trang chủ dùng banner mặc định."}
         </p>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={fetchBanners} disabled={loading} className="rounded-xl text-xs gap-1.5">
@@ -301,6 +399,10 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
                         {banner.link_url}
                       </span>
                     )}
+                    <span className="inline-flex items-center gap-1 font-semibold text-foreground" title="Số lượt khách bấm vào banner">
+                      <MousePointerClick className="w-3 h-3 text-primary" />
+                      {banner.click_count ?? 0} lượt bấm
+                    </span>
                     <span className="inline-flex items-center gap-1">
                       <Calendar className="w-3 h-3" />
                       {banner.start_at || banner.end_at
@@ -345,7 +447,7 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <form
             onSubmit={handleSubmit}
-            className="bg-surface rounded-3xl border border-border p-6 sm:p-7 max-w-2xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
+            className="bg-surface rounded-3xl border border-border p-6 sm:p-7 max-w-4xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto"
           >
             <div className="flex items-center justify-between pb-3 border-b border-border">
               <h3 className="font-bold text-base text-foreground">{editing ? "Sửa banner" : "Thêm banner mới"}</h3>
@@ -357,6 +459,23 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
             {formError && (
               <div className="p-3 rounded-xl bg-danger-pastel text-danger-dark border border-danger/20 text-xs font-medium">{formError}</div>
             )}
+
+            <div className="grid grid-cols-1 lg:grid-cols-5 gap-5">
+            <div className="lg:col-span-3 space-y-4">
+            <div className="space-y-1">
+              <label className="text-xs font-semibold text-foreground">Vị trí hiển thị</label>
+              <select
+                value={form.placement}
+                onChange={(e) => setForm({ ...form, placement: e.target.value as BannerPlacement })}
+                className="w-full h-10 px-3 rounded-xl text-sm bg-surface border border-border text-foreground focus:outline-none focus:ring-2 focus:ring-primary/20"
+              >
+                {BANNER_PLACEMENTS.map((p) => (
+                  <option key={p} value={p}>
+                    {BANNER_PLACEMENT_META[p].label}
+                  </option>
+                ))}
+              </select>
+            </div>
 
             <div className="space-y-2">
               <label className="text-xs font-semibold text-foreground">Ảnh banner *</label>
@@ -447,6 +566,16 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
               <input type="checkbox" checked={form.is_active} onChange={(e) => setForm({ ...form, is_active: e.target.checked })} className="w-4 h-4 accent-primary" />
               Bật hiển thị
             </label>
+            </div>
+
+            <div className="lg:col-span-2">
+              <div className="lg:sticky lg:top-0 space-y-2">
+                <p className="text-xs font-semibold text-foreground">Xem trước</p>
+                <p className="text-[11px] text-muted">{BANNER_PLACEMENT_META[form.placement].label}</p>
+                <BannerPreview form={form} />
+              </div>
+            </div>
+            </div>
 
             <div className="flex justify-end gap-2 pt-3 border-t border-border">
               <Button type="button" variant="outline" size="sm" onClick={() => setIsFormOpen(false)} className="rounded-xl text-xs">

@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Image as ImageIcon, LayoutGrid, Globe2, Building2, ExternalLink, Sparkles } from "lucide-react";
+import { Image as ImageIcon, LayoutGrid, Globe2, Building2, ExternalLink, Sparkles, Megaphone, Rows3 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuthStore } from "../../../store/useAuthStore";
 import { branchApi } from "../../../api/branchApi";
 import { GLOBAL_SCOPE } from "../../../api/storefrontApi";
 import { BannerManager } from "../components/BannerManager";
 import { SectionManager } from "../components/SectionManager";
+import { AnnouncementManager } from "../components/AnnouncementManager";
+import { LayoutManager } from "../components/LayoutManager";
 
-type Tab = "banners" | "sections";
+type Tab = "banners" | "sections" | "announcements" | "layout";
 
 export function AdminStorefrontPage() {
   const { user } = useAuthStore();
@@ -64,7 +66,7 @@ export function AdminStorefrontPage() {
             <span>Giao diện trang chủ</span>
           </h1>
           <p className="text-muted text-xs sm:text-sm mt-0.5">
-            Tùy chỉnh banner và các khối sản phẩm nổi bật khách nhìn thấy ở trang chủ.
+            Tùy chỉnh banner, thanh thông báo, sản phẩm nổi bật và bố cục trang chủ mà khách nhìn thấy.
           </p>
         </div>
         <Link
@@ -109,18 +111,20 @@ export function AdminStorefrontPage() {
         </p>
       </div>
 
-      <div className="flex gap-2 border-b border-border">
+      <div className="flex gap-1 sm:gap-2 border-b border-border overflow-x-auto">
         {(
           [
             { key: "banners", label: "Banner", icon: ImageIcon },
             { key: "sections", label: "Sản phẩm nổi bật", icon: LayoutGrid },
+            { key: "announcements", label: "Thanh thông báo", icon: Megaphone },
+            { key: "layout", label: "Bố cục trang chủ", icon: Rows3 },
           ] as const
         ).map(({ key, label, icon: Icon }) => (
           <button
             key={key}
             type="button"
             onClick={() => setTab(key)}
-            className={`px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px flex items-center gap-1.5 transition-colors ${
+            className={`px-3 sm:px-4 py-2.5 text-xs font-semibold border-b-2 -mb-px flex items-center gap-1.5 transition-colors whitespace-nowrap ${
               tab === key ? "border-primary text-primary-dark" : "border-transparent text-muted hover:text-foreground"
             }`}
           >
@@ -130,10 +134,13 @@ export function AdminStorefrontPage() {
         ))}
       </div>
 
-      {tab === "banners" ? (
-        <BannerManager key={`b-${scope}`} scope={scope} onNotify={setToast} />
-      ) : (
+      {tab === "banners" && <BannerManager key={`b-${scope}`} scope={scope} onNotify={setToast} />}
+      {tab === "sections" && (
         <SectionManager key={`s-${scope}`} scope={scope} isGlobalScope={scope === GLOBAL_SCOPE} onNotify={setToast} />
+      )}
+      {tab === "announcements" && <AnnouncementManager key={`a-${scope}`} scope={scope} onNotify={setToast} />}
+      {tab === "layout" && (
+        <LayoutManager key={`l-${scope}`} scope={scope} isGlobalScope={scope === GLOBAL_SCOPE} onNotify={setToast} />
       )}
     </div>
   );
