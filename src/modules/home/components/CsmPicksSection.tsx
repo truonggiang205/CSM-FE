@@ -37,8 +37,17 @@ export function CsmPicksSection({ products, stockMap }: CsmPicksSectionProps) {
     }).format(amount);
   };
 
-  const featuredProducts = products.filter((p) => p.isFeatured);
-  const pickedProducts = (featuredProducts.length > 0 ? featuredProducts : products).slice(0, 4);
+  const foodAndDrink = products.filter((p) => {
+    const catName = (p.category?.name || "").toLowerCase();
+    return (
+      !catName.includes("đồ dùng") &&
+      !catName.includes("tiện ích") &&
+      !catName.includes("cá nhân")
+    );
+  });
+  const pool = foodAndDrink.length > 0 ? foodAndDrink : products;
+  const featuredProducts = pool.filter((p) => p.isFeatured);
+  const pickedProducts = (featuredProducts.length > 0 ? featuredProducts : pool).slice(0, 4);
 
   if (pickedProducts.length === 0) return null;
 

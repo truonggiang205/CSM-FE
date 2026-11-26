@@ -79,7 +79,7 @@ export function NewArrivalsSection({
                 className="relative"
               >
                 {/* Custom Floating 'Mới' Badge over ProductCard */}
-                <div className="absolute top-3 left-3 z-20 pointer-events-none">
+                <div className="absolute top-3 right-3 z-20 pointer-events-none">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black shadow-md border border-white/20">
                     <Sparkles className="w-3 h-3 text-emerald-200 fill-emerald-200" />
                     <span>Mới</span>

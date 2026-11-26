@@ -288,24 +288,54 @@ export function HeroGreeting() {
               </div>
 
               {/* Tối đa 4 Thẻ sản phẩm nổi tại 4 góc riêng biệt (z-10, không chạm nhau) */}
-              {content.items.slice(0, 4).map((item, idx) => {
-                const layerTransformX =
-                  item.layer === 3 ? moveX3 : item.layer === 2 ? moveX2 : moveX1;
-                const layerTransformY =
-                  item.layer === 3 ? moveY3 : item.layer === 2 ? moveY2 : moveY1;
+              {(() => {
+                const foodPool = products.filter((p) => {
+                  const catName = (p.category?.name || "").toLowerCase();
+                  return (
+                    !catName.includes("đồ dùng") &&
+                    !catName.includes("tiện ích") &&
+                    !catName.includes("cá nhân")
+                  );
+                });
+                const candidatePool = foodPool.length > 0 ? foodPool : products;
+                const usedIds = new Set<string>();
 
-                const firstWord = item.label.toLowerCase().split(" ").slice(0, 2).join(" ");
-                const matchedProduct =
-                  products.find((p) => p.name.toLowerCase().includes(item.label.toLowerCase())) ||
-                  products.find((p) => p.name.toLowerCase().includes(firstWord));
-                const targetTo = matchedProduct
-                  ? `/products/${matchedProduct.id}`
-                  : `/products?q=${encodeURIComponent(item.label)}`;
-                const displayPrice = matchedProduct
-                  ? `${Number(matchedProduct.discountPrice || matchedProduct.price).toLocaleString("vi-VN")}₫`
-                  : item.price;
+                return content.items.slice(0, 4).map((item, idx) => {
+                  const layerTransformX =
+                    item.layer === 3 ? moveX3 : item.layer === 2 ? moveX2 : moveX1;
+                  const layerTransformY =
+                    item.layer === 3 ? moveY3 : item.layer === 2 ? moveY2 : moveY1;
 
-                return (
+                  const labelLower = item.label.toLowerCase();
+                  const firstWord = labelLower.split(" ").slice(0, 2).join(" ");
+                  const keywords = labelLower.split(" ").filter((w) => w.length >= 2);
+                  const availablePool = candidatePool.filter((p) => !usedIds.has(p.id));
+                  const searchPool = availablePool.length > 0 ? availablePool : candidatePool;
+
+                  const matchedProduct =
+                    searchPool.find((p) => p.name.toLowerCase().includes(labelLower)) ||
+                    searchPool.find((p) => p.name.toLowerCase().includes(firstWord)) ||
+                    searchPool.find((p) =>
+                      keywords.some(
+                        (kw) =>
+                          p.name.toLowerCase().includes(kw) ||
+                          (p.category?.name || "").toLowerCase().includes(kw)
+                      )
+                    ) ||
+                    searchPool[0];
+
+                  if (matchedProduct) {
+                    usedIds.add(matchedProduct.id);
+                  }
+
+                  const targetTo = matchedProduct
+                    ? `/products/${matchedProduct.id}`
+                    : `/products?q=${encodeURIComponent(item.label)}`;
+                  const displayPrice = matchedProduct
+                    ? `${Number(matchedProduct.discountPrice || matchedProduct.price).toLocaleString("vi-VN")}₫`
+                    : item.price;
+
+                  return (
                   <div
                     key={`${item.label}-${idx}`}
                     className={`absolute z-10 ${CORNER_POSITIONS[idx]}`}
@@ -356,8 +386,9 @@ export function HeroGreeting() {
                       </motion.div>
                     </Link>
                   </div>
-                );
-              })}
+                  );
+                });
+              })()}
             </div>
           </div>
         </div>
