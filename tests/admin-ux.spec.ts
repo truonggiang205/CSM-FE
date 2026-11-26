@@ -1,7 +1,10 @@
 import { test, expect } from "@playwright/test";
 
 // Mật khẩu lấy từ biến môi trường SEED_PASSWORD / E2E_ADMIN_PASSWORD, che giấu không in lộ
-const SEED_PASSWORD = process.env.SEED_PASSWORD || process.env.E2E_ADMIN_PASSWORD || "Demo@123456";
+const SEED_PASSWORD = process.env.SEED_PASSWORD || process.env.E2E_ADMIN_PASSWORD;
+if (!SEED_PASSWORD) {
+  throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD hoặc E2E_ADMIN_PASSWORD");
+}
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "admin@csm.vn";
 const MANAGER_EMAIL = process.env.E2E_MANAGER_EMAIL || "manager.q1@csm.vn";
 
