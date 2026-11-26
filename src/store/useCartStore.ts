@@ -1,16 +1,29 @@
 import { create } from "zustand";
 import { persist, createJSONStorage } from "zustand/middleware";
 import { Product } from "../types/product";
+import { Combo } from "../api/comboApi";
+
+export interface CartComboItemDetail {
+  productId: string;
+  productName: string;
+  productImage?: string | null;
+  quantity: number;
+  originalPrice: number;
+}
 
 export interface CartItem {
   product: Product;
   quantity: number;
+  itemType?: "PRODUCT" | "COMBO";
+  comboId?: string;
+  comboItems?: CartComboItemDetail[];
 }
 
 interface CartState {
   items: CartItem[];
   isOpen: boolean;
   addItem: (product: Product, quantity?: number) => void;
+  addCombo: (combo: Combo, maxStock?: number, quantity?: number) => void;
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
@@ -52,7 +65,6 @@ export const useCartStore = create<CartState>()(
       items: [],
       isOpen: false,
 
-      // Thêm sản phẩm vào giỏ (cập nhật số lượng ngay)
       addItem: (product, quantity = 1) => {
         set((state) => {
           const existingItem = state.items.find((i) => i.product.id === product.id);
@@ -60,13 +72,78 @@ export const useCartStore = create<CartState>()(
             return {
               items: state.items.map((i) =>
                 i.product.id === product.id
-                  ? { ...i, quantity: i.quantity + quantity }
+                  ? {
+                      ...i,
+                      product: {
+                        ...existingItem.product,
+                        discountPrice: product.discountPrice !== undefined ? product.discountPrice : existingItem.product.discountPrice,
+                      },
+                      quantity: i.quantity + quantity,
+                    }
                   : i
               ),
               isOpen: true,
             };
           }
-          return { items: [...state.items, { product, quantity }], isOpen: true };
+          return { items: [...state.items, { product, quantity, itemType: "PRODUCT" }], isOpen: true };
+        });
+      },
+
+      addCombo: (combo, maxStock = 99, quantity = 1) => {
+        const cartId = `combo-${combo.id}`;
+        const firstImg =
+          combo.image_url ||
+          combo.items?.find((i) => i.product_image)?.product_image ||
+          "";
+        const comboProduct: Product = {
+          id: cartId,
+          name: combo.name,
+          slug: `combo-${combo.id}`,
+          price: Number(combo.original_price) || Number(combo.combo_price),
+          discountPrice: Number(combo.combo_price),
+          description: combo.description || "Combo tiết kiệm CSM",
+          images: firstImg ? [firstImg] : [],
+          category: { id: "combo", name: "Combo Tiết Kiệm" },
+          stock: Math.max(1, maxStock),
+        };
+        const comboItems: CartComboItemDetail[] = (combo.items || []).map((ci) => ({
+          productId: ci.product_id,
+          productName: ci.product_name || ci.product_id,
+          productImage: ci.product_image || null,
+          quantity: Number(ci.quantity) || 1,
+          originalPrice: Number(ci.original_price) || 0,
+        }));
+
+        set((state) => {
+          const existingItem = state.items.find((i) => i.product.id === cartId);
+          if (existingItem) {
+            return {
+              items: state.items.map((i) =>
+                i.product.id === cartId
+                  ? {
+                      ...i,
+                      product: comboProduct,
+                      comboItems,
+                      quantity: i.quantity + quantity,
+                    }
+                  : i
+              ),
+              isOpen: true,
+            };
+          }
+          return {
+            items: [
+              ...state.items,
+              {
+                product: comboProduct,
+                quantity,
+                itemType: "COMBO",
+                comboId: combo.id,
+                comboItems,
+              },
+            ],
+            isOpen: true,
+          };
         });
       },
 

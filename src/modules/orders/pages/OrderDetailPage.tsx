@@ -14,8 +14,9 @@ import {
   Truck,
   PackageCheck,
   Tag,
+  Star,
 } from "lucide-react";
-import { orderApi, Order, OrderStatus } from "../../../api/orderApi";
+import { orderApi, Order, OrderStatus, OrderReview } from "../../../api/orderApi";
 import { OrderStatusBadge } from "../components/OrderStatusBadge";
 import { Button } from "../../../components/ui/Button";
 
@@ -40,6 +41,13 @@ export function OrderDetailPage() {
 
   // Nút thanh toán lại
   const [isPaying, setIsPaying] = useState(false);
+
+  // Đánh giá đơn hàng
+  const [existingReview, setExistingReview] = useState<OrderReview | null>(null);
+  const [reviewRating, setReviewRating] = useState(5);
+  const [reviewComment, setReviewComment] = useState("");
+  const [isSubmittingReview, setIsSubmittingReview] = useState(false);
+  const [reviewError, setReviewError] = useState("");
 
   const stopPolling = useCallback(() => {
     if (pollingTimeoutRef.current) {
@@ -108,6 +116,10 @@ export function OrderDetailPage() {
     try {
       const data = await orderApi.getOrderById(id);
       setOrder(data);
+      if (data.status === "SHIPPED" || data.status === "PAID") {
+        const rev = await orderApi.getOrderReview(id);
+        setExistingReview(rev);
+      }
       if (withPolling) {
         startPolling(data);
       }
@@ -412,11 +424,25 @@ export function OrderDetailPage() {
                 {order.items.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-soft/40 transition-colors">
                     <td className="px-5 py-4 font-semibold text-foreground">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-primary-tint/60 text-primary flex items-center justify-center text-xs">
-                          ☕
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-7 h-7 rounded-lg bg-primary-tint/60 text-primary flex items-center justify-center text-xs shrink-0">
+                          {item.item_type === "COMBO" ? "🎁" : "☕"}
                         </span>
-                        <span>{item.product_name_snapshot}</span>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {item.item_type === "COMBO" && (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-accent-tint text-accent-dark border border-accent/30 uppercase">
+                                Combo
+                              </span>
+                            )}
+                            <span>{item.product_name_snapshot}</span>
+                          </div>
+                          {item.item_type === "COMBO" && item.combo_items_snapshot && item.combo_items_snapshot.length > 0 && (
+                            <p className="text-[11px] font-normal text-muted mt-0.5">
+                              Gồm: {item.combo_items_snapshot.map((ci) => `${ci.quantity}x ${ci.productName}`).join(" + ")}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-center text-muted font-medium">
@@ -513,6 +539,84 @@ export function OrderDetailPage() {
           </div>
         )}
       </div>
+
+      {/* Đánh giá đơn hàng (khi đã thanh toán hoặc đã giao) */}
+      {(order.status === "SHIPPED" || order.status === "PAID") && (
+        <div className="bg-surface rounded-3xl border border-border p-6 shadow-card space-y-4">
+          <h3 className="font-bold text-base text-foreground flex items-center gap-2">
+            <Star className="w-4 h-4 text-amber-400 fill-amber-400" />
+            <span>Đánh giá trải nghiệm đơn hàng</span>
+          </h3>
+
+          {existingReview ? (
+            <div className="p-4 rounded-2xl bg-surface-soft border border-border/80 space-y-2">
+              <div className="flex items-center gap-1 text-amber-400">
+                {Array.from({ length: existingReview.rating }).map((_, idx) => (
+                  <Star key={idx} className="w-4 h-4 fill-current" />
+                ))}
+                <span className="text-xs font-bold text-foreground ml-2">
+                  Cảm ơn bạn đã đánh giá!
+                </span>
+              </div>
+              <p className="text-xs sm:text-sm text-foreground italic">&ldquo;{existingReview.comment}&rdquo;</p>
+            </div>
+          ) : (
+            <form
+              onSubmit={async (e) => {
+                e.preventDefault();
+                if (!id || !reviewComment.trim()) return;
+                setReviewError("");
+                setIsSubmittingReview(true);
+                try {
+                  const created = await orderApi.submitOrderReview(id, {
+                    rating: reviewRating,
+                    comment: reviewComment.trim(),
+                  });
+                  setExistingReview(created);
+                } catch (err: any) {
+                  const msg = err.response?.data?.message || err.message || "Không thể gửi đánh giá";
+                  setReviewError(Array.isArray(msg) ? msg.join(", ") : msg);
+                } finally {
+                  setIsSubmittingReview(false);
+                }
+              }}
+              className="space-y-3"
+            >
+              {reviewError && (
+                <div className="p-2.5 rounded-xl bg-danger-pastel text-danger-dark text-xs">{reviewError}</div>
+              )}
+              <div className="flex items-center gap-1.5">
+                {[1, 2, 3, 4, 5].map((star) => (
+                  <button
+                    key={star}
+                    type="button"
+                    onClick={() => setReviewRating(star)}
+                    className="p-1 cursor-pointer"
+                    aria-label={`${star} sao`}
+                  >
+                    <Star
+                      className={`w-6 h-6 ${
+                        star <= reviewRating ? "text-amber-400 fill-amber-400" : "text-border"
+                      }`}
+                    />
+                  </button>
+                ))}
+              </div>
+              <textarea
+                required
+                rows={3}
+                value={reviewComment}
+                onChange={(e) => setReviewComment(e.target.value)}
+                placeholder="Chia sẻ cảm nhận của bạn về món ăn và tốc độ giao hàng..."
+                className="w-full rounded-2xl border border-border bg-surface-soft p-3 text-xs sm:text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30"
+              />
+              <Button type="submit" disabled={isSubmittingReview} className="rounded-2xl text-xs font-semibold">
+                {isSubmittingReview ? "Đang gửi..." : "Gửi đánh giá"}
+              </Button>
+            </form>
+          )}
+        </div>
+      )}
 
       {/* Modal xác nhận huỷ đơn */}
       {isCancelModalOpen && (

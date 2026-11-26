@@ -103,4 +103,26 @@ export const discountApi = {
     const res = await apiClient.patch<VoucherItem>(`/vouchers/${id}/toggle`);
     return res.data;
   },
+
+  getSpinStatus: async (userId?: string): Promise<{ hasSpunToday: boolean; todayRecord: any }> => {
+    try {
+      const res = await apiClient.get<{ hasSpunToday: boolean; todayRecord: any }>(
+        "/spin-wheel/status",
+        { params: userId ? { userId } : undefined }
+      );
+      return res.data;
+    } catch {
+      return { hasSpunToday: false, todayRecord: null };
+    }
+  },
+
+  spinWheel: async (userId?: string): Promise<{
+    prizeIndex: number;
+    prizeId: string;
+    prizeLabel: string;
+    voucherCode: string | null;
+  }> => {
+    const res = await apiClient.post("/spin-wheel/spin", { userId });
+    return res.data;
+  },
 };

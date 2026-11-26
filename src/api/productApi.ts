@@ -1,7 +1,6 @@
 import apiClient from "./apiClient";
 import { Product, Category } from "../types/product";
 import { mapBackendProductToFrontend, mapBackendProductsToFrontend } from "./mappers";
-import { mockProducts, mockCategories } from "../mocks/products";
 
 export interface GetProductsOptions {
   page?: number;
@@ -10,11 +9,6 @@ export interface GetProductsOptions {
 }
 
 export const productApi = {
-  /**
-   * Lấy danh sách sản phẩm.
-   * Hỗ trợ cả BE trả mảng thô và BE trả đối tượng phân trang { items, total, totalPages }.
-   * Mặc định: Tải toàn bộ sản phẩm, tự động fallback về mockProducts nếu Backend offline.
-   */
   getProducts: async (optionsOrContext?: any): Promise<Product[]> => {
     try {
       const isExplicitOptions =
@@ -28,7 +22,6 @@ export const productApi = {
 
       const options: GetProductsOptions | undefined = isExplicitOptions ? optionsOrContext : undefined;
 
-      // Nếu người gọi yêu cầu cụ thể 1 trang đơn lẻ (all === false)
       if (options && options.all === false && (options.page || options.limit)) {
         const response = await apiClient.get<any>("/products", {
           params: {
@@ -36,8 +29,7 @@ export const productApi = {
             limit: options.limit || 10,
           },
         });
-        const mapped = mapBackendProductsToFrontend(response.data);
-        return mapped.length > 0 ? mapped : mockProducts;
+        return mapBackendProductsToFrontend(response.data);
       }
 
       const initialLimit = 100;
@@ -46,8 +38,8 @@ export const productApi = {
       });
 
       const firstPageProducts = mapBackendProductsToFrontend(firstRes.data);
-
       const rawData = firstRes.data;
+
       if (
         rawData &&
         typeof rawData === "object" &&
@@ -73,47 +65,61 @@ export const productApi = {
           allProducts.push(...nextProducts);
         }
 
-        return allProducts.length > 0 ? allProducts : mockProducts;
+        return allProducts;
       }
 
-      return firstPageProducts.length > 0 ? firstPageProducts : mockProducts;
-    } catch (err) {
-      console.warn("Backend /products chưa sẵn sàng, kích hoạt dữ liệu mẫu mockProducts:", err);
-      return mockProducts;
+      return firstPageProducts;
+    } catch {
+      return [];
     }
   },
 
   getProductById: async (id: string): Promise<Product> => {
-    try {
-      const response = await apiClient.get<any>(`/products/${id}`);
-      return mapBackendProductToFrontend(response.data);
-    } catch {
-      const found = mockProducts.find((p) => p.id === id);
-      if (found) return found;
-      return mockProducts[0];
-    }
+    const response = await apiClient.get<any>(`/products/${id}`);
+    return mapBackendProductToFrontend(response.data);
   },
 
   getProductBySlug: async (slugOrId: string): Promise<Product> => {
-    try {
-      const response = await apiClient.get<any>(`/products/${slugOrId}`);
-      return mapBackendProductToFrontend(response.data);
-    } catch {
-      const found = mockProducts.find((p) => p.slug === slugOrId || p.id === slugOrId);
-      if (found) return found;
-      return mockProducts[0];
-    }
+    const response = await apiClient.get<any>(`/products/${slugOrId}`);
+    return mapBackendProductToFrontend(response.data);
   },
 
   getCategories: async (): Promise<Category[]> => {
     try {
       const response = await apiClient.get<Category[]>("/categories");
       const list = Array.isArray(response.data) ? response.data : (response.data as any)?.items || [];
-      return list.length > 0 ? list : mockCategories;
-    } catch (err) {
-      console.warn("Backend /categories chưa sẵn sàng, kích hoạt danh mục mẫu mockCategories:", err);
-      return mockCategories;
+      return list;
+    } catch {
+      return [];
     }
+  },
+
+  getMyWishlist: async (): Promise<string[]> => {
+    try {
+      const response = await apiClient.get<string[]>("/products/wishlist/my");
+      return Array.isArray(response.data) ? response.data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  toggleWishlist: async (productId: string): Promise<{ wishlisted: boolean; productId: string }> => {
+    const response = await apiClient.post<{ wishlisted: boolean; productId: string }>(
+      `/products/${productId}/wishlist`
+    );
+    return response.data;
+  },
+
+  toggleFeatured: async (
+    productId: string,
+    isFeatured?: boolean,
+    curatorNote?: string
+  ): Promise<Product> => {
+    const response = await apiClient.patch<any>(`/products/${productId}/featured`, {
+      is_featured: isFeatured,
+      curator_note: curatorNote,
+    });
+    return mapBackendProductToFrontend(response.data);
   },
 
   createProduct: async (data: {
