@@ -8,6 +8,7 @@ import { useCartToastStore } from "../../../store/useCartToastStore";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { flashSaleApi } from "../../../api/flashSaleApi";
+import { resolveImageUrl } from "../../../api/mappers";
 
 interface FlashSaleSectionProps {
   products: Product[];
@@ -109,7 +110,7 @@ export function FlashSaleSection({ products, stockMap }: FlashSaleSectionProps) 
     return {
       id: item.product_id,
       name: item.product_name || matchingProduct?.name || "Sản phẩm ưu đãi",
-      image: item.product_image || (matchingProduct?.images && matchingProduct.images[0]) || "",
+      image: resolveImageUrl(item.product_image) || (matchingProduct?.images && matchingProduct.images[0]) || "",
       categoryName: matchingProduct?.category?.name || "Giờ Vàng",
       originalPrice,
       salePrice,
