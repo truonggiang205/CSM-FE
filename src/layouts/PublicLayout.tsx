@@ -30,6 +30,8 @@ import { CartDrawer } from "../modules/cart/components/CartDrawer";
 import { CartToast } from "../components/ui/CartToast";
 import { Button } from "../components/ui/Button";
 import { BranchSelector } from "../components/branch/BranchSelector";
+import { AnnouncementBar } from "../components/storefront/AnnouncementBar";
+import { PromoPopup } from "../components/storefront/PromoPopup";
 
 export default function PublicLayout() {
   const { toggleCart, getTotalItems } = useCartStore();
@@ -94,6 +96,9 @@ export default function PublicLayout() {
       >
         Chuyển đến nội dung chính
       </a>
+      {/* Thanh thông báo do Admin/Manager cấu hình */}
+      <AnnouncementBar />
+
       {/* Header Sticky */}
       <header className="sticky top-0 z-50 w-full border-b border-border/80 bg-surface/90 backdrop-blur-md shadow-[0_2px_12px_rgba(78,159,118,0.04)]">
         <div className="container mx-auto flex h-16 items-center justify-between px-3 sm:px-6 gap-2 sm:gap-3">
@@ -458,6 +463,9 @@ export default function PublicLayout() {
           </div>
         )}
       </AnimatePresence>
+
+      {/* Popup khuyến mãi (tối đa 1 lần/ngày) */}
+      <PromoPopup />
 
       {/* Main Outlet with Page Transition */}
       <main id="main-content" className="flex-1 overflow-x-hidden" tabIndex={-1}>

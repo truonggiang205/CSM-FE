@@ -24,6 +24,7 @@ import { productApi } from "../../../api/productApi";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { AnimatedNumber } from "../../../components/ui/AnimatedNumber";
+import { PromoBannerStrip } from "../../../components/storefront/PromoBannerStrip";
 import { getCartRecommendations } from "../utils/cartRecommendations";
 
 const FREESHIP_THRESHOLD = 150000;
@@ -120,6 +121,8 @@ export function CartPage() {
           </Button>
         )}
       </div>
+
+      <PromoBannerStrip placement="CART" />
 
       {items.length === 0 ? (
         /* Empty Cart State */

@@ -6,6 +6,7 @@ import { mockHeroBanners, HeroBannerItem } from "../homeData";
 import { Button } from "../../../components/ui/Button";
 import type { Banner } from "../../../api/storefrontApi";
 import { resolveAssetUrl } from "../../../lib/assetUrl";
+import { storefrontApi } from "../../../api/storefrontApi";
 
 const FALLBACK_HERO_IMAGE = "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=700&q=80";
 
@@ -40,8 +41,12 @@ export function HeroPromoSlider({ banners: remoteBanners }: HeroPromoSliderProps
   const shouldReduceMotion = useReducedMotion();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const banners: HeroBannerItem[] =
-    remoteBanners && remoteBanners.length > 0 ? remoteBanners.map(mapBannerToHeroItem) : mockHeroBanners;
+  const isRemote = !!remoteBanners && remoteBanners.length > 0;
+  const banners: HeroBannerItem[] = isRemote ? remoteBanners!.map(mapBannerToHeroItem) : mockHeroBanners;
+  // Chỉ đếm lượt bấm cho banner thật từ Backend (banner mẫu không có trong DB)
+  const trackClick = () => {
+    if (isRemote) storefrontApi.trackBannerClick(currentBanner.id);
+  };
   const total = banners.length;
 
   // Danh sách banner có thể thay đổi khi đổi chi nhánh: giữ chỉ số trong phạm vi
@@ -119,12 +124,12 @@ export function HeroPromoSlider({ banners: remoteBanners }: HeroPromoSliderProps
             <div className="pt-2">
               <Button size="lg" asChild className="rounded-2xl shadow-sm text-xs sm:text-sm font-semibold h-11 px-6">
                 {isExternalLink ? (
-                  <a href={currentBanner.ctaLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                  <a href={currentBanner.ctaLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2" onClick={trackClick}>
                     <span>{currentBanner.ctaText}</span>
                     <ArrowRight className="w-4 h-4" />
                   </a>
                 ) : (
-                  <Link to={currentBanner.ctaLink} className="flex items-center gap-2">
+                  <Link to={currentBanner.ctaLink} className="flex items-center gap-2" onClick={trackClick}>
                     <span>{currentBanner.ctaText}</span>
                     <ArrowRight className="w-4 h-4" />
                   </Link>
