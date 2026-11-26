@@ -15,7 +15,9 @@ import {
   Link2,
   MousePointerClick,
   ArrowRight,
+  MapPin,
 } from "lucide-react";
+import { BannerPlacementMap } from "./StorefrontPreviews";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import {
@@ -337,7 +339,8 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
         <div className="p-3 rounded-xl bg-danger-pastel text-danger-dark border border-danger/20 text-xs font-medium">{error}</div>
       )}
 
-      <div className="bg-surface rounded-3xl border border-border shadow-card divide-y divide-border/60">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+      <div className="lg:col-span-3 bg-surface rounded-3xl border border-border shadow-card divide-y divide-border/60">
         {loading && banners.length === 0 ? (
           <div className="px-5 py-12 text-center text-muted text-xs">
             <RefreshCw className="w-5 h-5 animate-spin mx-auto text-primary mb-2" />
@@ -441,6 +444,15 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
             );
           })
         )}
+      </div>
+
+      <div className="lg:col-span-2 lg:sticky lg:top-4 rounded-3xl border border-border bg-surface shadow-card p-4 space-y-2">
+        <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+          <MapPin className="w-4 h-4 text-primary" />
+          Banner này nằm ở đâu trên web?
+        </p>
+        <BannerPlacementMap placement={placement} banner={banners.find((b) => getLiveStatus(b) === "LIVE") || banners[0]} />
+      </div>
       </div>
 
       {isFormOpen && (
@@ -573,6 +585,8 @@ export function BannerManager({ scope, onNotify }: BannerManagerProps) {
                 <p className="text-xs font-semibold text-foreground">Xem trước</p>
                 <p className="text-[11px] text-muted">{BANNER_PLACEMENT_META[form.placement].label}</p>
                 <BannerPreview form={form} />
+                <p className="text-xs font-semibold text-foreground pt-2">Vị trí trên web</p>
+                <BannerPlacementMap placement={form.placement} banner={form} />
               </div>
             </div>
             </div>
