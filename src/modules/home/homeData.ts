@@ -31,7 +31,7 @@ export const mockHeroBanners: HeroBannerItem[] = [
     highlight: "Tiết Kiệm Đến 25%",
     description: "Bánh mì tươi kẹp thịt + Trà sữa trân châu hoặc Cà phê sữa đá. Nạp năng lượng tức thì trong vòng 5 phút.",
     ctaText: "Xem combo",
-    ctaLink: "/combos",
+    ctaLink: "/deals?tab=combo",
     image: "https://images.unsplash.com/photo-1509722747041-616f39b57569?auto=format&fit=crop&w=700&q=80",
     bgGradient: "from-pastel-peach/70 via-surface to-pastel-butter/50",
     tagColor: "bg-accent-tint text-accent-dark border-accent/30",

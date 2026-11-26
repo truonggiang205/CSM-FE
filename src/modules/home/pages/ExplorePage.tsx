@@ -182,7 +182,7 @@ export function ExplorePage() {
                 <Package className="w-5 h-5 text-primary" />
                 <span>Combo phù hợp ({filteredCombos.length})</span>
               </h2>
-              <Link to="/combos" className="text-xs font-bold text-primary hover:underline">
+              <Link to="/deals?tab=combo" className="text-xs font-bold text-primary hover:underline">
                 Xem tất cả combo &rarr;
               </Link>
             </div>
