@@ -41,6 +41,9 @@ const AdminProductListPage = lazy(() =>
 const AdminVoucherListPage = lazy(() =>
   import("../modules/discounts/pages/AdminVoucherListPage").then((m) => ({ default: m.AdminVoucherListPage }))
 );
+const AdminStorefrontPage = lazy(() =>
+  import("../modules/storefront/pages/AdminStorefrontPage").then((m) => ({ default: m.AdminStorefrontPage }))
+);
 const BranchesPage = lazy(() =>
   import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
 );
@@ -174,6 +177,10 @@ const router = createBrowserRouter([
               {
                 path: "inventory",
                 element: withSuspense(InventoryPage),
+              },
+              {
+                path: "storefront",
+                element: withSuspense(AdminStorefrontPage),
               },
             ],
           },

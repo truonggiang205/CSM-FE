@@ -6,12 +6,15 @@ import { Product } from "../../../types/product";
 import { ProductCard } from "../../products/components/ProductCard";
 import { Button } from "../../../components/ui/Button";
 import { mockProducts } from "../../../mocks/products";
+import type { HomeSection } from "../../../api/storefrontApi";
 
 interface NewArrivalsSectionProps {
   products: Product[];
   stockMap: Map<string, number>;
   branchName?: string;
   onQuickView?: (product: Product) => void;
+  /** Cấu hình từ trang "Giao diện trang chủ"; null/rỗng thì lấy 4 sản phẩm mới nhất */
+  section?: HomeSection | null;
 }
 
 export function NewArrivalsSection({
@@ -19,6 +22,7 @@ export function NewArrivalsSection({
   stockMap,
   branchName,
   onQuickView,
+  section,
 }: NewArrivalsSectionProps) {
   const shouldReduceMotion = useReducedMotion();
 
@@ -27,6 +31,7 @@ export function NewArrivalsSection({
 
   // Sắp xếp sản phẩm theo ngày tạo mới nhất (nếu có createdAt)
   const newProducts = useMemo(() => {
+    if (section?.products?.length) return section.products.slice(0, 4);
     const list = [...productSource];
     return list
       .sort((a, b) => {
@@ -37,7 +42,7 @@ export function NewArrivalsSection({
         return b.id.localeCompare(a.id);
       })
       .slice(0, 4);
-  }, [productSource]);
+  }, [productSource, section]);
 
   return (
     <section className="py-14 sm:py-20 bg-background border-b border-border/70 relative">
@@ -50,13 +55,14 @@ export function NewArrivalsSection({
               <span>Vừa Cập Nhật Tại Quầy</span>
             </div>
             <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight flex items-center gap-2">
-              <span>Mới Lên Kệ Tuần Này</span>
+              <span>{section?.title || "Mới Lên Kệ Tuần Này"}</span>
               <span className="text-xs px-2.5 py-0.5 rounded-full bg-accent text-white font-black tracking-wide align-middle">
                 Mới
               </span>
             </h2>
             <p className="text-xs sm:text-sm text-muted max-w-lg">
-              Khám phá các món ăn vặt, nước giải khát theo xu hướng mới nhất vừa cập bến các kệ hàng của CSM.
+              {section?.subtitle ||
+                "Khám phá các món ăn vặt, nước giải khát theo xu hướng mới nhất vừa cập bến các kệ hàng của CSM."}
             </p>
           </div>
 

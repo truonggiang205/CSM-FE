@@ -5,6 +5,7 @@ import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
 import { Button } from "../../../components/ui/Button";
 import { mockProducts } from "../../../mocks/products";
+import type { HomeSection } from "../../../api/storefrontApi";
 
 import { ProductImage } from "../../../components/ui/ProductImage";
 
@@ -12,9 +13,11 @@ interface FlashSaleSectionProps {
   products: Product[];
   stockMap: Map<string, number>;
   branchName?: string;
+  /** Cấu hình từ trang "Giao diện trang chủ"; null/rỗng thì lấy 8 sản phẩm đầu như mặc định */
+  section?: HomeSection | null;
 }
 
-export function FlashSaleSection({ products, stockMap, branchName }: FlashSaleSectionProps) {
+export function FlashSaleSection({ products, stockMap, branchName, section }: FlashSaleSectionProps) {
   const { addItem } = useCartStore();
 
   // Đồng hồ đếm ngược tới 23:59:59 của ngày hôm nay
@@ -62,7 +65,7 @@ export function FlashSaleSection({ products, stockMap, branchName }: FlashSaleSe
 
   // Đảm bảo luôn có sản phẩm để hiển thị, fallback mockProducts
   const productSource = products && products.length > 0 ? products : mockProducts;
-  const flashSaleProducts = productSource.slice(0, 8);
+  const flashSaleProducts = section?.products?.length ? section.products.slice(0, 8) : productSource.slice(0, 8);
 
   if (flashSaleProducts.length === 0) return null;
 
@@ -80,10 +83,10 @@ export function FlashSaleSection({ products, stockMap, branchName }: FlashSaleSe
                 <span className="text-[11px] font-extrabold px-2 py-0.5 rounded-full bg-danger-pastel text-danger-dark border border-danger/20 uppercase tracking-wider">
                   HOT DEAL
                 </span>
-                <span className="text-xs text-muted">Chỉ áp dụng trong ngày</span>
+                <span className="text-xs text-muted">{section?.subtitle || "Chỉ áp dụng trong ngày"}</span>
               </div>
               <h2 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2 mt-0.5">
-                <span>GIỜ VÀNG GIẢM GIÁ</span>
+                <span>{section?.title || "GIỜ VÀNG GIẢM GIÁ"}</span>
               </h2>
             </div>
           </div>
