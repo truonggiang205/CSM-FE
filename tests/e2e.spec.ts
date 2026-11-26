@@ -7,11 +7,14 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
 
-// Mật khẩu tài khoản seed lấy từ biến môi trường E2E_* hoặc SEED_PASSWORD (fallback dev seed)
-const SEED_PASSWORD = process.env.SEED_PASSWORD || "Demo@123456";
+// Mật khẩu tài khoản seed lấy từ biến môi trường E2E_* hoặc SEED_PASSWORD
+const SEED_PASSWORD = process.env.SEED_PASSWORD;
 const CUSTOMER_PASSWORD = process.env.E2E_CUSTOMER_PASSWORD || SEED_PASSWORD;
 const MANAGER_PASSWORD = process.env.E2E_MANAGER_PASSWORD || SEED_PASSWORD;
 const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || SEED_PASSWORD;
+if (!CUSTOMER_PASSWORD || !MANAGER_PASSWORD || !ADMIN_PASSWORD) {
+  throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD (hoặc E2E_*_PASSWORD)");
+}
 
 test.describe("CSM E2E Test Suite - Stack Thực", () => {
   test("1. Khách đăng ký, chọn chi nhánh, thêm giỏ, checkout COD, xem /orders, huỷ đơn", async ({ page }) => {

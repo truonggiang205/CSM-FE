@@ -32,14 +32,18 @@ const pagesToAudit = [
 ];
 
 async function getAuthTokens(role) {
+  const seedPassword = process.env.SEED_PASSWORD;
   let email = "customer@csm.vn";
-  let password = process.env.E2E_CUSTOMER_PASSWORD || "Customer@123456";
+  let password = process.env.E2E_CUSTOMER_PASSWORD || seedPassword;
   if (role === "ADMIN") {
     email = "admin@csm.vn";
-    password = process.env.E2E_ADMIN_PASSWORD || "Admin@123456";
+    password = process.env.E2E_ADMIN_PASSWORD || seedPassword;
   } else if (role === "BRANCH_MANAGER") {
     email = "manager.q1@csm.vn";
-    password = process.env.E2E_MANAGER_PASSWORD || "Manager@123456";
+    password = process.env.E2E_MANAGER_PASSWORD || seedPassword;
+  }
+  if (!password) {
+    throw new Error("❌ Thiếu biến môi trường bắt buộc: SEED_PASSWORD (hoặc E2E_*_PASSWORD)");
   }
 
   const res = await fetch(`${GATEWAY_URL}/auth/login`, {
