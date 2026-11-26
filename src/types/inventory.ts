@@ -34,3 +34,12 @@ export interface StockStats {
   outOfStockSkus: number;
   totalReserved: number;
 }
+
+export interface StockTransactionRecord {
+  id: string;
+  stock_id: string;
+  type: "IN" | "OUT" | "RESERVE" | "CONFIRM_DEDUCT" | "CANCEL_RESERVE";
+  quantity: number;
+  reference_id?: string;
+  created_at: string;
+}

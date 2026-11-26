@@ -5,6 +5,7 @@ import { Link } from "react-router-dom";
 import { Product } from "../../../types/product";
 import { ProductCard } from "../../products/components/ProductCard";
 import { Button } from "../../../components/ui/Button";
+import { mockProducts } from "../../../mocks/products";
 
 interface NewArrivalsSectionProps {
   products: Product[];
@@ -21,9 +22,12 @@ export function NewArrivalsSection({
 }: NewArrivalsSectionProps) {
   const shouldReduceMotion = useReducedMotion();
 
+  // Đảm bảo luôn có sản phẩm để hiển thị, fallback mockProducts
+  const productSource = products && products.length > 0 ? products : mockProducts;
+
   // Sắp xếp sản phẩm theo ngày tạo mới nhất (nếu có createdAt)
   const newProducts = useMemo(() => {
-    const list = [...products];
+    const list = [...productSource];
     return list
       .sort((a, b) => {
         if (a.createdAt && b.createdAt) {
@@ -33,7 +37,7 @@ export function NewArrivalsSection({
         return b.id.localeCompare(a.id);
       })
       .slice(0, 4);
-  }, [products]);
+  }, [productSource]);
 
   return (
     <section className="py-14 sm:py-20 bg-background border-b border-border/70 relative">

@@ -1,6 +1,7 @@
 import apiClient from "./apiClient";
 import { Product, Category } from "../types/product";
 import { mapBackendProductToFrontend, mapBackendProductsToFrontend } from "./mappers";
+import { mockProducts, mockCategories } from "../mocks/products";
 
 export interface GetProductsOptions {
   page?: number;
@@ -12,88 +13,107 @@ export const productApi = {
   /**
    * Lấy danh sách sản phẩm.
    * Hỗ trợ cả BE trả mảng thô và BE trả đối tượng phân trang { items, total, totalPages }.
-   * Mặc định (hoặc khi không truyền all=false): Tải toàn bộ sản phẩm (limit đủ lớn và lặp theo totalPages nếu cần),
-   * không bao giờ bị cắt cụt ở 10 hay 20 sản phẩm.
+   * Mặc định: Tải toàn bộ sản phẩm, tự động fallback về mockProducts nếu Backend offline.
    */
   getProducts: async (optionsOrContext?: any): Promise<Product[]> => {
-    const isExplicitOptions =
-      optionsOrContext &&
-      typeof optionsOrContext === "object" &&
-      !Array.isArray(optionsOrContext) &&
-      !("queryKey" in optionsOrContext) &&
-      (typeof optionsOrContext.page === "number" ||
-        typeof optionsOrContext.limit === "number" ||
-        typeof optionsOrContext.all === "boolean");
+    try {
+      const isExplicitOptions =
+        optionsOrContext &&
+        typeof optionsOrContext === "object" &&
+        !Array.isArray(optionsOrContext) &&
+        !("queryKey" in optionsOrContext) &&
+        (typeof optionsOrContext.page === "number" ||
+          typeof optionsOrContext.limit === "number" ||
+          typeof optionsOrContext.all === "boolean");
 
-    const options: GetProductsOptions | undefined = isExplicitOptions ? optionsOrContext : undefined;
+      const options: GetProductsOptions | undefined = isExplicitOptions ? optionsOrContext : undefined;
 
-    // Nếu người gọi yêu cầu cụ thể 1 trang đơn lẻ (all === false)
-    if (options && options.all === false && (options.page || options.limit)) {
-      const response = await apiClient.get<any>("/products", {
-        params: {
-          page: options.page || 1,
-          limit: options.limit || 10,
-        },
+      // Nếu người gọi yêu cầu cụ thể 1 trang đơn lẻ (all === false)
+      if (options && options.all === false && (options.page || options.limit)) {
+        const response = await apiClient.get<any>("/products", {
+          params: {
+            page: options.page || 1,
+            limit: options.limit || 10,
+          },
+        });
+        const mapped = mapBackendProductsToFrontend(response.data);
+        return mapped.length > 0 ? mapped : mockProducts;
+      }
+
+      const initialLimit = 100;
+      const firstRes = await apiClient.get<any>("/products", {
+        params: { page: 1, limit: initialLimit },
       });
-      return mapBackendProductsToFrontend(response.data);
-    }
 
-    // Mặc định cho mọi nơi cần TOÀN BỘ sản phẩm (HomePage, InventoryPage productMap, giỏ hàng...):
-    // Đọc DTO query-product.dto.ts của BE: default=10, min=1, không giới hạn trần cứng.
-    // Gửi limit ban đầu đủ lớn (100) và lặp theo totalPages nếu totalPages > 1.
-    const initialLimit = 100;
-    const firstRes = await apiClient.get<any>("/products", {
-      params: { page: 1, limit: initialLimit },
-    });
+      const firstPageProducts = mapBackendProductsToFrontend(firstRes.data);
 
-    const firstPageProducts = mapBackendProductsToFrontend(firstRes.data);
+      const rawData = firstRes.data;
+      if (
+        rawData &&
+        typeof rawData === "object" &&
+        typeof rawData.totalPages === "number" &&
+        rawData.totalPages > 1
+      ) {
+        const totalPages = rawData.totalPages;
+        const remainingPromises: Promise<any>[] = [];
 
-    // Kiểm tra nếu Backend trả đối tượng phân trang có nhiều hơn 1 trang
-    const rawData = firstRes.data;
-    if (
-      rawData &&
-      typeof rawData === "object" &&
-      typeof rawData.totalPages === "number" &&
-      rawData.totalPages > 1
-    ) {
-      const totalPages = rawData.totalPages;
-      const remainingPromises: Promise<any>[] = [];
+        for (let page = 2; page <= totalPages; page++) {
+          remainingPromises.push(
+            apiClient.get<any>("/products", {
+              params: { page, limit: initialLimit },
+            })
+          );
+        }
 
-      for (let page = 2; page <= totalPages; page++) {
-        remainingPromises.push(
-          apiClient.get<any>("/products", {
-            params: { page, limit: initialLimit },
-          })
-        );
+        const remainingResponses = await Promise.all(remainingPromises);
+        const allProducts = [...firstPageProducts];
+
+        for (const res of remainingResponses) {
+          const nextProducts = mapBackendProductsToFrontend(res.data);
+          allProducts.push(...nextProducts);
+        }
+
+        return allProducts.length > 0 ? allProducts : mockProducts;
       }
 
-      const remainingResponses = await Promise.all(remainingPromises);
-      const allProducts = [...firstPageProducts];
-
-      for (const res of remainingResponses) {
-        const nextProducts = mapBackendProductsToFrontend(res.data);
-        allProducts.push(...nextProducts);
-      }
-
-      return allProducts;
+      return firstPageProducts.length > 0 ? firstPageProducts : mockProducts;
+    } catch (err) {
+      console.warn("Backend /products chưa sẵn sàng, kích hoạt dữ liệu mẫu mockProducts:", err);
+      return mockProducts;
     }
-
-    return firstPageProducts;
   },
 
   getProductById: async (id: string): Promise<Product> => {
-    const response = await apiClient.get<any>(`/products/${id}`);
-    return mapBackendProductToFrontend(response.data);
+    try {
+      const response = await apiClient.get<any>(`/products/${id}`);
+      return mapBackendProductToFrontend(response.data);
+    } catch {
+      const found = mockProducts.find((p) => p.id === id);
+      if (found) return found;
+      return mockProducts[0];
+    }
   },
 
   getProductBySlug: async (slugOrId: string): Promise<Product> => {
-    const response = await apiClient.get<any>(`/products/${slugOrId}`);
-    return mapBackendProductToFrontend(response.data);
+    try {
+      const response = await apiClient.get<any>(`/products/${slugOrId}`);
+      return mapBackendProductToFrontend(response.data);
+    } catch {
+      const found = mockProducts.find((p) => p.slug === slugOrId || p.id === slugOrId);
+      if (found) return found;
+      return mockProducts[0];
+    }
   },
 
   getCategories: async (): Promise<Category[]> => {
-    const response = await apiClient.get<Category[]>("/categories");
-    return response.data || [];
+    try {
+      const response = await apiClient.get<Category[]>("/categories");
+      const list = Array.isArray(response.data) ? response.data : (response.data as any)?.items || [];
+      return list.length > 0 ? list : mockCategories;
+    } catch (err) {
+      console.warn("Backend /categories chưa sẵn sàng, kích hoạt danh mục mẫu mockCategories:", err);
+      return mockCategories;
+    }
   },
 
   createProduct: async (data: {

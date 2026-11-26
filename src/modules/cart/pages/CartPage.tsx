@@ -12,6 +12,7 @@ import {
   Sparkles,
   ShieldCheck,
   CheckCircle2,
+  Ticket,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { useCartStore } from "../../../store/useCartStore";
@@ -424,6 +425,24 @@ export function CartPage() {
                     formatFn={formatCurrency}
                     className="text-2xl font-black text-primary-dark"
                   />
+                </div>
+
+                {/* Voucher banner hint */}
+                <div
+                  onClick={handleCheckout}
+                  className="p-3 rounded-2xl bg-primary/5 hover:bg-primary/10 border border-primary/20 flex items-center justify-between gap-2 cursor-pointer transition-colors group"
+                >
+                  <div className="flex items-center gap-2">
+                    <div className="w-7 h-7 rounded-xl bg-primary text-white flex items-center justify-center shrink-0">
+                      <Ticket className="w-3.5 h-3.5" />
+                    </div>
+                    <span className="text-xs font-bold text-foreground group-hover:text-primary transition-colors">
+                      Mã giảm giá & Voucher CSM
+                    </span>
+                  </div>
+                  <span className="text-[11px] font-semibold text-primary flex items-center gap-0.5">
+                    Chọn mã <ArrowRight className="w-3 h-3 group-hover:translate-x-0.5 transition-transform" />
+                  </span>
                 </div>
               </div>
 

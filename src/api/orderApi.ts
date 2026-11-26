@@ -15,6 +15,9 @@ export interface Order {
   id: string;
   user_id: string;
   branch_id: string;
+  subtotal_amount?: number;
+  discount_amount?: number;
+  voucher_code?: string;
   total_amount: number;
   payment_method: PaymentMethod;
   status: OrderStatus;
@@ -41,6 +44,7 @@ export interface CreateOrderPayload {
   items: CreateOrderItemPayload[];
   shippingAddress?: string;
   paymentMethod: PaymentMethod;
+  voucherCode?: string;
 }
 
 export interface CreateOrderResponse {
@@ -95,6 +99,9 @@ export function mapBackendOrderToFrontend(raw: any): Order {
     id: raw.id,
     user_id: raw.user_id || raw.userId,
     branch_id: raw.branch_id || raw.branchId,
+    subtotal_amount: Number(raw.subtotal_amount ?? raw.subtotalAmount) || 0,
+    discount_amount: Number(raw.discount_amount ?? raw.discountAmount) || 0,
+    voucher_code: raw.voucher_code || raw.voucherCode || undefined,
     total_amount: Number(raw.total_amount || raw.totalAmount) || 0,
     payment_method: (raw.payment_method || raw.paymentMethod || "COD") as PaymentMethod,
     status: raw.status as OrderStatus,

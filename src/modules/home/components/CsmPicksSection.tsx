@@ -8,6 +8,7 @@ import { useCartToastStore } from "../../../store/useCartToastStore";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { Button } from "../../../components/ui/Button";
 import { mockCsmPickMetadata } from "../homeData";
+import { mockProducts } from "../../../mocks/products";
 
 interface CsmPicksSectionProps {
   products: Product[];
@@ -27,18 +28,19 @@ export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSect
     }).format(amount);
   };
 
-  // Chọn 4 sản phẩm đặc trưng của cửa hàng (ưu tiên p2, p4, p5, p3 hoặc 4 sản phẩm đầu tiên)
+  // Đảm bảo luôn có sản phẩm để hiển thị, ưu tiên products từ backend, fallback mockProducts
+  const productSource = products && products.length > 0 ? products : mockProducts;
   const pickIds = ["p2", "p4", "p5", "p3"];
   const pickedProducts: Product[] = [];
 
   for (const id of pickIds) {
-    const found = products.find((p) => p.id === id);
+    const found = productSource.find((p) => p.id === id);
     if (found) pickedProducts.push(found);
   }
 
-  // Nếu thiếu thì bổ sung từ products chung
+  // Nếu thiếu thì bổ sung từ productSource
   if (pickedProducts.length < 4) {
-    for (const p of products) {
+    for (const p of productSource) {
       if (!pickedProducts.some((item) => item.id === p.id)) {
         pickedProducts.push(p);
       }

@@ -38,6 +38,9 @@ const InventoryPage = lazy(() =>
 const AdminProductListPage = lazy(() =>
   import("../modules/products/pages/AdminProductListPage").then((m) => ({ default: m.AdminProductListPage }))
 );
+const AdminVoucherListPage = lazy(() =>
+  import("../modules/discounts/pages/AdminVoucherListPage").then((m) => ({ default: m.AdminVoucherListPage }))
+);
 const BranchesPage = lazy(() =>
   import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
 );
@@ -166,27 +169,41 @@ const router = createBrowserRouter([
             element: withSuspense(OrderListPage),
           },
           {
-            path: "branches",
-            element: withSuspense(BranchesPage),
-          },
-          {
-            path: "customers",
-            element: withSuspense(CustomersPage),
-          },
-          {
-            path: "settings",
-            element: withSuspense(SettingsPage),
-          },
-          {
             element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
             children: [
               {
                 path: "inventory",
                 element: withSuspense(InventoryPage),
               },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+            children: [
               {
                 path: "products",
                 element: withSuspense(AdminProductListPage),
+              },
+              {
+                path: "branches",
+                element: withSuspense(BranchesPage),
+              },
+              {
+                path: "customers",
+                element: withSuspense(CustomersPage),
+              },
+              {
+                path: "settings",
+                element: withSuspense(SettingsPage),
+              },
+            ],
+          },
+          {
+            element: <ProtectedRoute allowedRoles={["ADMIN"]} />,
+            children: [
+              {
+                path: "vouchers",
+                element: withSuspense(AdminVoucherListPage),
               },
             ],
           },
