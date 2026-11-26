@@ -219,7 +219,7 @@ export function HeroOrbitBanner() {
                 </span>
               </div>
               <Button size="sm" asChild className="mt-2.5 h-7 px-4 text-xs rounded-full shadow-sm">
-                <Link to="/combos" className="flex items-center justify-center gap-1.5">
+                <Link to="/deals?tab=combo" className="flex items-center justify-center gap-1.5">
                   <ShoppingBag className="w-3.5 h-3.5" />
                   <span>Xem combo</span>
                   <ArrowRight className="w-3 h-3" />

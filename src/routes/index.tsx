@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import PublicLayout from "../layouts/PublicLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import { ProtectedRoute } from "../modules/auth/components/ProtectedRoute";
@@ -52,9 +52,6 @@ const AdminGiftPromotionPage = lazy(() =>
 );
 const DealsPage = lazy(() =>
   import("../modules/discounts/pages/DealsPage").then((m) => ({ default: m.DealsPage }))
-);
-const CombosPage = lazy(() =>
-  import("../modules/discounts/pages/CombosPage").then((m) => ({ default: m.CombosPage }))
 );
 const ExplorePage = lazy(() =>
   import("../modules/home/pages/ExplorePage").then((m) => ({ default: m.ExplorePage }))
@@ -137,7 +134,7 @@ const router = createBrowserRouter([
       },
       {
         path: "combos",
-        element: withSuspense(CombosPage),
+        element: <Navigate to="/deals?tab=combo" replace />,
       },
       {
         path: "explore",

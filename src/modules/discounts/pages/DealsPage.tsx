@@ -285,7 +285,7 @@ export function DealsPage() {
                 </p>
               </div>
               <Button variant="outline" asChild className="rounded-2xl text-xs font-semibold shrink-0">
-                <Link to="/combos">Mở trang Combo đầy đủ &rarr;</Link>
+                <Link to="/products">Xem sản phẩm lẻ &rarr;</Link>
               </Button>
             </div>
           )}
