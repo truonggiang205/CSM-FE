@@ -18,6 +18,8 @@ export interface FlashSaleCampaign {
   id: string;
   name: string;
   apply_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   start_time: string;
   end_time: string;
   is_active: boolean;
@@ -29,7 +31,9 @@ export interface FlashSaleCampaign {
 
 export interface CreateFlashSalePayload {
   name: string;
-  apply_date?: string;
+  apply_date?: string | null;
+  start_date?: string | null;
+  end_date?: string | null;
   start_time: string;
   end_time: string;
   is_active?: boolean;
@@ -52,6 +56,9 @@ export interface ActiveOrUpcomingResponse {
   startTime?: string;
   endTime?: string;
   targetTime?: string;
+  startDateTime?: string;
+  endDateTime?: string;
+  targetDateTime?: string;
   items: FlashSaleItem[];
 }
 

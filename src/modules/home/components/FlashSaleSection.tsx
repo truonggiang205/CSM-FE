@@ -44,23 +44,28 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
 
   useEffect(() => {
     hasTriggeredExpireRefetch.current = false;
-  }, [flashSaleData.status, flashSaleData.targetTime, campaign?.id]);
+  }, [flashSaleData.status, flashSaleData.targetTime, flashSaleData.targetDateTime, campaign?.id]);
 
   useEffect(() => {
-    if (!isLiveCampaign || !flashSaleData.targetTime) {
+    const rawTarget = flashSaleData.targetDateTime || flashSaleData.targetTime;
+    if (!isLiveCampaign || !rawTarget) {
       setTimeLeft({ hours: "00", minutes: "00", seconds: "00" });
       return;
     }
 
     const calculateTimeRemaining = () => {
       const now = new Date();
-      const targetDate = new Date();
-      const parts = flashSaleData.targetTime!.split(":");
-      const th = parseInt(parts[0], 10) || 0;
-      const tm = parseInt(parts[1], 10) || 0;
-      const ts = parseInt(parts[2], 10) || 0;
-
-      targetDate.setHours(th, tm, ts, 0);
+      let targetDate: Date;
+      if (rawTarget.includes("T")) {
+        targetDate = new Date(rawTarget);
+      } else {
+        targetDate = new Date();
+        const parts = rawTarget.split(":");
+        const th = parseInt(parts[0], 10) || 0;
+        const tm = parseInt(parts[1], 10) || 0;
+        const ts = parseInt(parts[2], 10) || 0;
+        targetDate.setHours(th, tm, ts, 0);
+      }
 
       const diffMs = targetDate.getTime() - now.getTime();
       if (diffMs <= 0) {
@@ -87,7 +92,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
     calculateTimeRemaining();
     const interval = setInterval(calculateTimeRemaining, 1000);
     return () => clearInterval(interval);
-  }, [isLiveCampaign, flashSaleData.targetTime, refetch]);
+  }, [isLiveCampaign, flashSaleData.targetTime, flashSaleData.targetDateTime, refetch]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {

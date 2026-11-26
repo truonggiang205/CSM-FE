@@ -46,10 +46,27 @@ export function AdminFlashSaleListPage() {
   const [statusFilter, setStatusFilter] = useState("ALL");
   const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
 
+  const getTodayDateStr = () => {
+    const now = new Date();
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+  };
+
+  const getCampaignBounds = (c: FlashSaleCampaign) => {
+    const todayStr = getTodayDateStr();
+    const sDate = (c.start_date || c.apply_date || todayStr).slice(0, 10);
+    const eDate = (c.end_date || c.apply_date || sDate).slice(0, 10);
+    const sTime = c.start_time.length === 5 ? `${c.start_time}:00` : c.start_time;
+    const eTime = c.end_time.length === 5 ? `${c.end_time}:00` : c.end_time;
+    const startMs = new Date(`${sDate}T${sTime}`).getTime();
+    const endMs = new Date(`${eDate}T${eTime}`).getTime();
+    return { sDate, eDate, sTime, eTime, startMs, endMs };
+  };
+
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingCampaignId, setEditingCampaignId] = useState<string | null>(null);
   const [name, setName] = useState("");
-  const [applyDate, setApplyDate] = useState("");
+  const [startDate, setStartDate] = useState(getTodayDateStr());
+  const [endDate, setEndDate] = useState(getTodayDateStr());
   const [startTime, setStartTime] = useState("11:00");
   const [endTime, setEndTime] = useState("13:00");
   const [isActive, setIsActive] = useState(true);
@@ -94,9 +111,11 @@ export function AdminFlashSaleListPage() {
   }, []);
 
   const openCreateModal = () => {
+    const today = getTodayDateStr();
     setEditingCampaignId(null);
     setName("");
-    setApplyDate("");
+    setStartDate(today);
+    setEndDate(today);
     setStartTime("11:00");
     setEndTime("13:00");
     setIsActive(true);
@@ -106,9 +125,11 @@ export function AdminFlashSaleListPage() {
   };
 
   const openEditModal = (camp: FlashSaleCampaign) => {
+    const bounds = getCampaignBounds(camp);
     setEditingCampaignId(camp.id);
     setName(camp.name);
-    setApplyDate(camp.apply_date ? camp.apply_date.slice(0, 10) : "");
+    setStartDate(bounds.sDate);
+    setEndDate(bounds.eDate);
     setStartTime(camp.start_time.slice(0, 5));
     setEndTime(camp.end_time.slice(0, 5));
     setIsActive(camp.is_active);
@@ -200,30 +221,32 @@ export function AdminFlashSaleListPage() {
       setFormError("Vui lòng nhập tên chiến dịch");
       return;
     }
-    if (!startTime || !endTime) {
-      setFormError("Vui lòng chọn khung giờ bắt đầu và kết thúc");
-      return;
-    }
-    if (startTime >= endTime) {
-      setFormError("Giờ kết thúc phải lớn hơn giờ bắt đầu");
+    if (!startDate || !endDate || !startTime || !endTime) {
+      setFormError("Vui lòng chọn đầy đủ ngày và thời gian bắt đầu / kết thúc");
       return;
     }
 
     const s1 = startTime.length === 5 ? `${startTime}:00` : startTime;
     const e1 = endTime.length === 5 ? `${endTime}:00` : endTime;
+    const startMs1 = new Date(`${startDate}T${s1}`).getTime();
+    const endMs1 = new Date(`${endDate}T${e1}`).getTime();
+
+    if (endMs1 <= startMs1) {
+      setFormError("Thời điểm kết thúc (ngày & giờ kết thúc) phải lớn hơn thời điểm bắt đầu");
+      return;
+    }
+
     const conflict = campaigns.find((c) => {
       if (editingCampaignId && c.id === editingCampaignId) return false;
       if (!c.is_active) return false;
-      const dateOverlap = !applyDate || !c.apply_date || applyDate === c.apply_date.slice(0, 10);
-      if (!dateOverlap) return false;
-      const s2 = c.start_time.length === 5 ? `${c.start_time}:00` : c.start_time;
-      const e2 = c.end_time.length === 5 ? `${c.end_time}:00` : c.end_time;
-      return s1 < e2 && s2 < e1;
+      const b2 = getCampaignBounds(c);
+      return startMs1 < b2.endMs && b2.startMs < endMs1;
     });
 
     if (conflict) {
+      const b2 = getCampaignBounds(conflict);
       setFormError(
-        `Khung giờ ${startTime} - ${endTime} bị trùng với ca '${conflict.name}' (${conflict.start_time.slice(0, 5)} - ${conflict.end_time.slice(0, 5)}). Mỗi khung giờ chỉ được phép tồn tại duy nhất 1 ca Giờ Vàng.`
+        `Khoảng thời gian ${startDate} ${startTime} - ${endDate} ${endTime} bị trùng với ca '${conflict.name}' (${b2.sDate} ${b2.sTime.slice(0, 5)} - ${b2.eDate} ${b2.eTime.slice(0, 5)}).`
       );
       return;
     }
@@ -245,7 +268,9 @@ export function AdminFlashSaleListPage() {
     setSubmitting(true);
     const payload: CreateFlashSalePayload = {
       name: name.trim(),
-      apply_date: (applyDate ? applyDate : null) as any,
+      apply_date: startDate,
+      start_date: startDate,
+      end_date: endDate,
       start_time: startTime.length === 5 ? `${startTime}:00` : startTime,
       end_time: endTime.length === 5 ? `${endTime}:00` : endTime,
       is_active: isActive,
@@ -279,30 +304,13 @@ export function AdminFlashSaleListPage() {
   const getCampaignStatus = (c: FlashSaleCampaign) => {
     if (!c.is_active) return { label: "TẠM NGƯNG", color: "bg-muted/15 text-muted border-border" };
 
-    const now = new Date();
-    const curH = String(now.getHours()).padStart(2, "0");
-    const curM = String(now.getMinutes()).padStart(2, "0");
-    const curS = String(now.getSeconds()).padStart(2, "0");
-    const curTime = `${curH}:${curM}:${curS}`;
-    const todayStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
+    const nowMs = Date.now();
+    const { startMs, endMs } = getCampaignBounds(c);
 
-    if (c.apply_date) {
-      const campDateStr = c.apply_date.slice(0, 10);
-      if (campDateStr < todayStr) {
-        return { label: "ĐÃ KẾT THÚC", color: "bg-surface-soft text-muted border-border" };
-      }
-      if (campDateStr > todayStr) {
-        return { label: "SẮP DIỄN RA", color: "bg-amber-100 text-amber-800 border-amber-300" };
-      }
-    }
-
-    const s = c.start_time.length === 5 ? `${c.start_time}:00` : c.start_time;
-    const e = c.end_time.length === 5 ? `${c.end_time}:00` : c.end_time;
-
-    if (curTime >= s && curTime <= e) {
+    if (nowMs >= startMs && nowMs <= endMs) {
       return { label: "ĐANG DIỄN RA", color: "bg-emerald-100 text-emerald-800 border-emerald-300" };
     }
-    if (curTime < s) {
+    if (nowMs < startMs) {
       return { label: "SẮP DIỄN RA", color: "bg-amber-100 text-amber-800 border-amber-300" };
     }
     return { label: "ĐÃ KẾT THÚC", color: "bg-surface-soft text-muted border-border" };
@@ -504,15 +512,17 @@ export function AdminFlashSaleListPage() {
                         {statusInfo.label}
                       </span>
 
-                      <span className="text-xs text-muted flex items-center gap-1 font-semibold">
-                        <Clock className="w-3.5 h-3.5 text-accent" />
-                        {camp.start_time.slice(0, 5)} - {camp.end_time.slice(0, 5)}
-                      </span>
-
-                      <span className="text-xs text-muted flex items-center gap-1 font-medium">
-                        <Calendar className="w-3.5 h-3.5" />
-                        {camp.apply_date ? camp.apply_date.slice(0, 10) : "Lặp lại mỗi ngày"}
-                      </span>
+                      {(() => {
+                        const b = getCampaignBounds(camp);
+                        return (
+                          <span className="text-xs text-muted flex items-center gap-1.5 font-semibold">
+                            <Calendar className="w-3.5 h-3.5 text-accent" />
+                            <span>
+                              {b.sDate} {b.sTime.slice(0, 5)} → {b.eDate} {b.eTime.slice(0, 5)}
+                            </span>
+                          </span>
+                        );
+                      })()}
                     </div>
 
                     <h3 className="text-lg font-black text-foreground truncate">{camp.name}</h3>
@@ -685,7 +695,18 @@ export function AdminFlashSaleListPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Giờ Bắt Đầu * (HH:mm)</label>
+                    <label className="text-xs font-bold text-foreground">Ngày Bắt Đầu *</label>
+                    <Input
+                      type="date"
+                      value={startDate}
+                      onChange={(e) => setStartDate(e.target.value)}
+                      className="rounded-xl text-xs h-10"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-foreground">Thời Gian Bắt Đầu * (HH:mm)</label>
                     <Input
                       type="time"
                       value={startTime}
@@ -696,7 +717,19 @@ export function AdminFlashSaleListPage() {
                   </div>
 
                   <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Giờ Kết Thúc * (HH:mm)</label>
+                    <label className="text-xs font-bold text-foreground">Ngày Kết Thúc *</label>
+                    <Input
+                      type="date"
+                      value={endDate}
+                      min={startDate}
+                      onChange={(e) => setEndDate(e.target.value)}
+                      className="rounded-xl text-xs h-10"
+                      required
+                    />
+                  </div>
+
+                  <div className="space-y-1.5">
+                    <label className="text-xs font-bold text-foreground">Thời Gian Kết Thúc * (HH:mm)</label>
                     <Input
                       type="time"
                       value={endTime}
@@ -706,17 +739,7 @@ export function AdminFlashSaleListPage() {
                     />
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Ngày Áp Dụng (Để trống nếu lặp hàng ngày)</label>
-                    <Input
-                      type="date"
-                      value={applyDate}
-                      onChange={(e) => setApplyDate(e.target.value)}
-                      className="rounded-xl text-xs h-10"
-                    />
-                  </div>
-
-                  <div className="space-y-1.5 flex flex-col justify-end">
+                  <div className="sm:col-span-2 space-y-1.5">
                     <label className="text-xs font-bold text-foreground">Trạng Thái Mở Bán</label>
                     <div className="h-10 flex items-center gap-2 px-3 rounded-xl border border-border bg-surface-soft/40">
                       <input

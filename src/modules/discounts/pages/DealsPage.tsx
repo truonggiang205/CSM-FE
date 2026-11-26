@@ -75,23 +75,28 @@ export function DealsPage() {
 
   useEffect(() => {
     hasTriggeredExpireRefetch.current = false;
-  }, [data.flashSale.status, data.flashSale.targetTime, data.flashSale.campaign?.id]);
+  }, [data.flashSale.status, data.flashSale.targetTime, data.flashSale.targetDateTime, data.flashSale.campaign?.id]);
 
   useEffect(() => {
-    if (!isLiveCampaign || !data.flashSale.targetTime) {
+    const rawTarget = data.flashSale.targetDateTime || data.flashSale.targetTime;
+    if (!isLiveCampaign || !rawTarget) {
       setTimeLeft({ hours: "00", minutes: "00", seconds: "00" });
       return;
     }
 
     const calculateTimeRemaining = () => {
       const now = new Date();
-      const targetDate = new Date();
-      const parts = data.flashSale.targetTime!.split(":");
-      const th = parseInt(parts[0], 10) || 0;
-      const tm = parseInt(parts[1], 10) || 0;
-      const ts = parseInt(parts[2], 10) || 0;
-
-      targetDate.setHours(th, tm, ts, 0);
+      let targetDate: Date;
+      if (rawTarget.includes("T")) {
+        targetDate = new Date(rawTarget);
+      } else {
+        targetDate = new Date();
+        const parts = rawTarget.split(":");
+        const th = parseInt(parts[0], 10) || 0;
+        const tm = parseInt(parts[1], 10) || 0;
+        const ts = parseInt(parts[2], 10) || 0;
+        targetDate.setHours(th, tm, ts, 0);
+      }
 
       const diffMs = targetDate.getTime() - now.getTime();
       if (diffMs <= 0) {
