@@ -31,11 +31,16 @@ function useFlashSaleCountdown(endTimeStr?: string) {
 
     const updateTimer = () => {
       const now = new Date();
-      const parts = endTimeStr.split(":").map(Number);
-      if (parts.length < 2) return;
-
-      const target = new Date(now);
-      target.setHours(parts[0], parts[1], parts[2] || 0, 0);
+      let target: Date;
+      if (endTimeStr.includes("T")) {
+        target = new Date(endTimeStr);
+        if (isNaN(target.getTime())) return;
+      } else {
+        const parts = endTimeStr.split(":").map(Number);
+        if (parts.length < 2) return;
+        target = new Date(now);
+        target.setHours(parts[0], parts[1], parts[2] || 0, 0);
+      }
 
       const diff = target.getTime() - now.getTime();
       if (diff <= 0) {

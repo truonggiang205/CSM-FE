@@ -1,4 +1,4 @@
-﻿import React, { useMemo } from "react";
+import React, { useMemo } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Link } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
@@ -99,7 +99,7 @@ export function HomePage() {
             soldCount: sold,
             quantityLimit: limit,
             isSoldOut,
-            endTime: flashSaleData.endTime || flashSaleData.campaign?.end_time,
+            endTime: flashSaleData.endDateTime || flashSaleData.endTime || flashSaleData.campaign?.end_time,
           });
         }
       }
