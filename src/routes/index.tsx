@@ -44,6 +44,9 @@ const AdminVoucherListPage = lazy(() =>
 const AdminFlashSaleListPage = lazy(() =>
   import("../modules/discounts/pages/AdminFlashSaleListPage").then((m) => ({ default: m.AdminFlashSaleListPage }))
 );
+const AdminComboListPage = lazy(() =>
+  import("../modules/discounts/pages/AdminComboListPage").then((m) => ({ default: m.AdminComboListPage }))
+);
 const DealsPage = lazy(() =>
   import("../modules/discounts/pages/DealsPage").then((m) => ({ default: m.DealsPage }))
 );
@@ -222,6 +225,10 @@ const router = createBrowserRouter([
               {
                 path: "flash-sales",
                 element: withSuspense(AdminFlashSaleListPage),
+              },
+              {
+                path: "combos",
+                element: withSuspense(AdminComboListPage),
               },
             ],
           },

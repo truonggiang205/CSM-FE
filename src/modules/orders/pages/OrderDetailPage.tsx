@@ -412,11 +412,25 @@ export function OrderDetailPage() {
                 {order.items.map((item) => (
                   <tr key={item.id} className="hover:bg-surface-soft/40 transition-colors">
                     <td className="px-5 py-4 font-semibold text-foreground">
-                      <div className="flex items-center gap-2.5">
-                        <span className="w-7 h-7 rounded-lg bg-primary-tint/60 text-primary flex items-center justify-center text-xs">
-                          ☕
+                      <div className="flex items-start gap-2.5">
+                        <span className="w-7 h-7 rounded-lg bg-primary-tint/60 text-primary flex items-center justify-center text-xs shrink-0">
+                          {item.item_type === "COMBO" ? "🎁" : "☕"}
                         </span>
-                        <span>{item.product_name_snapshot}</span>
+                        <div>
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {item.item_type === "COMBO" && (
+                              <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-accent-tint text-accent-dark border border-accent/30 uppercase">
+                                Combo
+                              </span>
+                            )}
+                            <span>{item.product_name_snapshot}</span>
+                          </div>
+                          {item.item_type === "COMBO" && item.combo_items_snapshot && item.combo_items_snapshot.length > 0 && (
+                            <p className="text-[11px] font-normal text-muted mt-0.5">
+                              Gồm: {item.combo_items_snapshot.map((ci) => `${ci.quantity}x ${ci.productName}`).join(" + ")}
+                            </p>
+                          )}
+                        </div>
                       </div>
                     </td>
                     <td className="px-5 py-4 text-center text-muted font-medium">
