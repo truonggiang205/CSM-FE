@@ -1,12 +1,16 @@
 import { test, expect } from "@playwright/test";
 
-// Mật khẩu lấy từ biến môi trường SEED_PASSWORD / E2E_ADMIN_PASSWORD, che giấu không in lộ
-const SEED_PASSWORD = process.env.SEED_PASSWORD || process.env.E2E_ADMIN_PASSWORD;
-if (!SEED_PASSWORD) {
-  throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD hoặc E2E_ADMIN_PASSWORD");
+// Mật khẩu: E2E_<ROLE>_PASSWORD > SEED_<ROLE>_PASSWORD > SEED_PASSWORD (giống CSM-BE), không in ra log
+const ADMIN_PASSWORD =
+  process.env.E2E_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD || process.env.SEED_PASSWORD;
+const MANAGER_PASSWORD =
+  process.env.E2E_MANAGER_PASSWORD || process.env.SEED_MANAGER_PASSWORD || process.env.SEED_PASSWORD;
+if (!ADMIN_PASSWORD || !MANAGER_PASSWORD) {
+  throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD (hoặc SEED_*_PASSWORD / E2E_*_PASSWORD)");
 }
 const ADMIN_EMAIL = process.env.E2E_ADMIN_EMAIL || "admin@csm.vn";
 const MANAGER_EMAIL = process.env.E2E_MANAGER_EMAIL || "manager.q1@csm.vn";
+const passwordFor = (email: string) => (email === MANAGER_EMAIL ? MANAGER_PASSWORD : ADMIN_PASSWORD);
 
 test.describe("Admin & Manager UX Polish Verification", () => {
   test.beforeEach(async ({ page }) => {
@@ -17,7 +21,7 @@ test.describe("Admin & Manager UX Polish Verification", () => {
     await page.goto("/login");
     await page.waitForLoadState("networkidle");
     await page.fill('input[type="email"]', email);
-    await page.fill('input[type="password"]', SEED_PASSWORD);
+    await page.fill('input[type="password"]', passwordFor(email));
     await page.click('button[type="submit"]');
     await page.waitForLoadState("networkidle");
     await page.waitForTimeout(1000);
