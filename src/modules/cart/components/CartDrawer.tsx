@@ -16,8 +16,7 @@ import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { inventoryApi } from "../../../api/inventoryApi";
-import { giftPromotionApi } from "../../../api/giftPromotionApi";
-import { AlertTriangle, Gift } from "lucide-react";
+import { AlertTriangle } from "lucide-react";
 import { productApi } from "../../../api/productApi";
 import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
@@ -87,20 +86,6 @@ export function CartDrawer() {
   const remainingForFreeship = Math.max(0, FREESHIP_THRESHOLD - totalPrice);
   const freeshipProgress = Math.min(100, Math.round((totalPrice / FREESHIP_THRESHOLD) * 100));
   const isFreeshipEligible = totalPrice >= FREESHIP_THRESHOLD;
-
-  const regularCartItems = useMemo(
-    () =>
-      items
-        .filter((i) => i.itemType !== "COMBO")
-        .map((i) => ({ productId: i.product.id, quantity: i.quantity })),
-    [items]
-  );
-
-  const { data: qualifiedGifts = [] } = useQuery({
-    queryKey: ["evaluate-gifts", regularCartItems, totalPrice],
-    queryFn: () => giftPromotionApi.evaluate(regularCartItems, totalPrice),
-    enabled: items.length > 0,
-  });
 
   // Gợi ý mua kèm theo rule-based (tối đa 3 sản phẩm chưa có trong giỏ)
   const upsellProducts = useMemo(
@@ -331,25 +316,6 @@ export function CartDrawer() {
                       </motion.div>
                     ))}
                   </AnimatePresence>
-
-                  {/* Qualified Free Gifts (Buy X Get Y / Min Order Gift) */}
-                  {qualifiedGifts.length > 0 && (
-                    <div className="p-3 rounded-2xl bg-emerald-50/80 border border-emerald-200/80 space-y-2">
-                      <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-emerald-700 uppercase tracking-wider">
-                        <Gift className="w-3.5 h-3.5" />
-                        <span>Quà tặng kèm miễn phí (0₫)</span>
-                      </div>
-                      {qualifiedGifts.map((g) => (
-                        <div key={g.promotionId} className="flex items-center justify-between text-xs bg-white/80 rounded-xl px-2.5 py-2 border border-emerald-100">
-                          <div className="min-w-0">
-                            <div className="font-bold text-foreground truncate">🎁 {g.productName}</div>
-                            <div className="text-[10px] text-emerald-700 truncate">{g.promotionName}</div>
-                          </div>
-                          <span className="font-black text-emerald-700 shrink-0 ml-2">x{g.quantity} · 0₫</span>
-                        </div>
-                      ))}
-                    </div>
-                  )}
 
                   {/* Upsell / Gợi ý mua kèm tiện lợi (Rule-based) */}
                   {upsellProducts.length > 0 && (
