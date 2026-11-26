@@ -8,7 +8,11 @@ const __dirname = path.dirname(__filename);
 
 const BASE_URL = process.env.FRONTEND_URL || "http://localhost:3000";
 const OUTPUT_DIR = path.resolve(__dirname, "../docs/admin-ux-before-after");
-const SEED_PASSWORD = process.env.SEED_PASSWORD || "Demo@123456";
+const SEED_PASSWORD = process.env.SEED_PASSWORD;
+if (!SEED_PASSWORD) {
+  console.error("❌ Thiếu biến môi trường bắt buộc: SEED_PASSWORD");
+  process.exit(1);
+}
 
 // Prefix passed via cli, e.g.: node scripts/capture-admin-screenshots.mjs --prefix=before
 const prefixArg = process.argv.find((a) => a.startsWith("--prefix="));

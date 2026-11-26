@@ -19,6 +19,7 @@ dist-ssr
 .env.local
 .env.*.local
 !.env.example
+!*.example
 uploads/
 
 # Editor directories and files
