@@ -164,10 +164,10 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
-      {/* Sidebar Desktop */}
+    <div className="min-h-screen flex bg-background text-foreground overflow-x-clip">
+      {/* Sidebar Desktop: cố định theo viewport, menu tự cuộn riêng khi dài */}
       <aside
-        className="w-64 bg-surface border-r border-border hidden md:flex flex-col shadow-[2px_0_12px_rgba(78,159,118,0.03)] shrink-0 h-screen sticky top-0 z-30"
+        className="w-64 bg-surface border-r border-border hidden md:flex flex-col shadow-[2px_0_12px_rgba(78,159,118,0.03)] h-dvh fixed inset-y-0 left-0 z-30"
         aria-label="Thanh điều hướng quản trị"
       >
         <div className="h-16 flex items-center justify-between px-6 border-b border-border shrink-0">
@@ -271,7 +271,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Vùng nội dung chính */}
-      <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+      <main className="flex-1 min-w-0 md:pl-64 flex flex-col min-h-screen overflow-x-clip">
         {/* Header Mobile */}
         <header className="h-16 bg-surface/90 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:hidden sticky top-0 z-40">
           <div className="flex items-center gap-2">
