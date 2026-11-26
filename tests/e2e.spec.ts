@@ -7,11 +7,14 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
 
-// Mật khẩu tài khoản seed lấy từ biến môi trường E2E_* hoặc SEED_PASSWORD
+// Mật khẩu tài khoản seed: E2E_<ROLE>_PASSWORD > SEED_<ROLE>_PASSWORD > SEED_PASSWORD (giống CSM-BE)
 const SEED_PASSWORD = process.env.SEED_PASSWORD;
-const CUSTOMER_PASSWORD = process.env.E2E_CUSTOMER_PASSWORD || SEED_PASSWORD;
-const MANAGER_PASSWORD = process.env.E2E_MANAGER_PASSWORD || SEED_PASSWORD;
-const ADMIN_PASSWORD = process.env.E2E_ADMIN_PASSWORD || SEED_PASSWORD;
+const CUSTOMER_PASSWORD =
+  process.env.E2E_CUSTOMER_PASSWORD || process.env.SEED_CUSTOMER_PASSWORD || SEED_PASSWORD;
+const MANAGER_PASSWORD =
+  process.env.E2E_MANAGER_PASSWORD || process.env.SEED_MANAGER_PASSWORD || SEED_PASSWORD;
+const ADMIN_PASSWORD =
+  process.env.E2E_ADMIN_PASSWORD || process.env.SEED_ADMIN_PASSWORD || SEED_PASSWORD;
 if (!CUSTOMER_PASSWORD || !MANAGER_PASSWORD || !ADMIN_PASSWORD) {
   throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD (hoặc E2E_*_PASSWORD)");
 }
