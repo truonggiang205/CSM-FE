@@ -17,6 +17,7 @@ import {
   Home,
   ShieldCheck,
   UserCheck,
+  LayoutTemplate,
 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 
@@ -57,6 +58,12 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Quản lý tồn kho",
         href: "/admin/inventory",
         icon: Store,
+        allowedRoles: ["BRANCH_MANAGER", "ADMIN"],
+      },
+      {
+        name: "Giao diện trang chủ",
+        href: "/admin/storefront",
+        icon: LayoutTemplate,
         allowedRoles: ["BRANCH_MANAGER", "ADMIN"],
       },
     ],
@@ -103,6 +110,7 @@ const BREADCRUMB_MAP: Record<string, { parent?: { title: string; href: string };
   "/admin": { title: "Tổng quan hệ thống" },
   "/admin/orders": { parent: { title: "Vận hành", href: "/admin/orders" }, title: "Quản lý đơn hàng" },
   "/admin/inventory": { parent: { title: "Vận hành", href: "/admin/inventory" }, title: "Quản lý tồn kho" },
+  "/admin/storefront": { parent: { title: "Vận hành", href: "/admin/storefront" }, title: "Giao diện trang chủ" },
   "/admin/products": { parent: { title: "Hệ thống", href: "/admin/products" }, title: "Quản lý sản phẩm" },
   "/admin/vouchers": { parent: { title: "Hệ thống", href: "/admin/vouchers" }, title: "Quản lý voucher" },
   "/admin/branches": { parent: { title: "Hệ thống", href: "/admin/branches" }, title: "Quản lý chi nhánh" },

@@ -4,17 +4,50 @@ import { motion, AnimatePresence, useReducedMotion } from "framer-motion";
 import { ChevronLeft, ChevronRight, ArrowRight, Sparkles, Pause, Play } from "lucide-react";
 import { mockHeroBanners, HeroBannerItem } from "../homeData";
 import { Button } from "../../../components/ui/Button";
+import type { Banner } from "../../../api/storefrontApi";
+import { resolveAssetUrl } from "../../../lib/assetUrl";
 
 const FALLBACK_HERO_IMAGE = "https://images.unsplash.com/photo-1566478989037-eec170784d0b?auto=format&fit=crop&w=700&q=80";
 
-export function HeroPromoSlider() {
+// Bảng màu xoay vòng cho banner do Admin/Manager tạo (lấy theo banner mặc định để giữ đúng phong cách)
+const BANNER_THEMES = mockHeroBanners.map((b) => ({ bgGradient: b.bgGradient, tagColor: b.tagColor }));
+
+/** Chuyển banner từ Backend sang định dạng slider đang dùng. */
+export function mapBannerToHeroItem(banner: Banner, index: number): HeroBannerItem {
+  const theme = BANNER_THEMES[index % BANNER_THEMES.length];
+  return {
+    id: banner.id,
+    badge: banner.badge || "✨ CSM ƯU ĐÃI",
+    title: banner.title,
+    highlight: banner.highlight || "",
+    description: banner.description || "",
+    ctaText: banner.cta_text || "Khám phá ngay",
+    ctaLink: banner.link_url || "/products",
+    image: resolveAssetUrl(banner.image_url) || FALLBACK_HERO_IMAGE,
+    bgGradient: theme.bgGradient,
+    tagColor: theme.tagColor,
+  };
+}
+
+interface HeroPromoSliderProps {
+  /** Banner đang hiệu lực từ API /storefront/home; rỗng hoặc không truyền thì dùng banner mặc định */
+  banners?: Banner[] | null;
+}
+
+export function HeroPromoSlider({ banners: remoteBanners }: HeroPromoSliderProps = {}) {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isHovered, setIsHovered] = useState(false);
   const shouldReduceMotion = useReducedMotion();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  const banners = mockHeroBanners;
+  const banners: HeroBannerItem[] =
+    remoteBanners && remoteBanners.length > 0 ? remoteBanners.map(mapBannerToHeroItem) : mockHeroBanners;
   const total = banners.length;
+
+  // Danh sách banner có thể thay đổi khi đổi chi nhánh: giữ chỉ số trong phạm vi
+  useEffect(() => {
+    if (currentIndex >= total) setCurrentIndex(0);
+  }, [currentIndex, total]);
 
   useEffect(() => {
     if (isHovered || total <= 1) return;
@@ -32,7 +65,8 @@ export function HeroPromoSlider() {
   const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + total) % total);
   const handleDotClick = (index: number) => setCurrentIndex(index);
 
-  const currentBanner: HeroBannerItem = banners[currentIndex];
+  const currentBanner: HeroBannerItem = banners[currentIndex] || banners[0];
+  const isExternalLink = /^https?:\/\//i.test(currentBanner.ctaLink);
 
   return (
     <div
@@ -67,10 +101,15 @@ export function HeroPromoSlider() {
 
             <div className="space-y-1.5">
               <h2 className="text-xl sm:text-2xl lg:text-3xl font-extrabold text-foreground tracking-tight leading-tight">
-                {currentBanner.title} <br />
-                <span className="bg-primary-tint/90 text-primary-dark px-2.5 py-0.5 rounded-xl border border-primary/20 inline-block mt-1">
-                  {currentBanner.highlight}
-                </span>
+                {currentBanner.title}
+                {currentBanner.highlight && (
+                  <>
+                    <br />
+                    <span className="bg-primary-tint/90 text-primary-dark px-2.5 py-0.5 rounded-xl border border-primary/20 inline-block mt-1">
+                      {currentBanner.highlight}
+                    </span>
+                  </>
+                )}
               </h2>
               <p className="text-xs sm:text-sm text-muted leading-relaxed max-w-md pt-1">
                 {currentBanner.description}
@@ -79,10 +118,17 @@ export function HeroPromoSlider() {
 
             <div className="pt-2">
               <Button size="lg" asChild className="rounded-2xl shadow-sm text-xs sm:text-sm font-semibold h-11 px-6">
-                <Link to={currentBanner.ctaLink} className="flex items-center gap-2">
-                  <span>{currentBanner.ctaText}</span>
-                  <ArrowRight className="w-4 h-4" />
-                </Link>
+                {isExternalLink ? (
+                  <a href={currentBanner.ctaLink} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2">
+                    <span>{currentBanner.ctaText}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </a>
+                ) : (
+                  <Link to={currentBanner.ctaLink} className="flex items-center gap-2">
+                    <span>{currentBanner.ctaText}</span>
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                )}
               </Button>
             </div>
           </div>

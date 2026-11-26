@@ -17,6 +17,7 @@ import { WhyChooseUsSection } from "../components/WhyChooseUsSection";
 import { TestimonialsSection } from "../components/TestimonialsSection";
 import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
+import { storefrontApi } from "../../../api/storefrontApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { ProductCard } from "../../products/components/ProductCard";
 import { Skeleton } from "../../../components/ui/Skeleton";
@@ -60,6 +61,15 @@ export function HomePage() {
     enabled: !!activeBranchId,
   });
 
+  // 4. Nội dung trang chủ do Admin/Manager tùy chỉnh (banner + khối sản phẩm nổi bật).
+  //    Trả về null nếu Backend chưa sẵn sàng => các khối tự dùng nội dung mặc định.
+  const storefrontBranchId = selectedBranch?.id || null;
+  const { data: storefront } = useQuery({
+    queryKey: ["storefront", "home", storefrontBranchId],
+    queryFn: () => storefrontApi.getHome(storefrontBranchId),
+    staleTime: 60_000,
+  });
+
   // Map product_id & sku -> available stock
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
@@ -86,7 +96,7 @@ export function HomePage() {
       {/* Hero Promo Banner Slider (khoảng cách 24px) */}
       <section className="pt-2 pb-3 sm:pt-3 sm:pb-4 bg-background">
         <div className="container mx-auto px-4 md:px-6">
-          <HeroPromoSlider />
+          <HeroPromoSlider banners={storefront?.banners} />
         </div>
       </section>
 
@@ -161,6 +171,7 @@ export function HomePage() {
 
       {/* Flash Sale Section (Giờ vàng giảm giá với countdown & sold progress) */}
       <FlashSaleSection
+        section={storefront?.sections.FLASH_SALE}
         products={products}
         stockMap={stockMap}
         branchName={selectedBranch?.name}
@@ -168,6 +179,7 @@ export function HomePage() {
 
       {/* CSM Picks Section (4 món do cửa hàng chọn, badge CSM Pick, tiêu đề editorial) */}
       <CsmPicksSection
+        section={storefront?.sections.CSM_PICKS}
         products={products}
         stockMap={stockMap}
         branchName={selectedBranch?.name}
@@ -175,6 +187,7 @@ export function HomePage() {
 
       {/* New Arrivals Section (Mới lên kệ, badge Mới, scroll reveal whileInView) */}
       <NewArrivalsSection
+        section={storefront?.sections.NEW_ARRIVALS}
         products={products}
         stockMap={stockMap}
         branchName={selectedBranch?.name}
