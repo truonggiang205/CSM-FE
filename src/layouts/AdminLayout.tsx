@@ -18,6 +18,7 @@ import {
   ShieldCheck,
   UserCheck,
   Zap,
+  Layers,
 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 
@@ -84,6 +85,12 @@ const NAV_GROUPS: NavGroup[] = [
         allowedRoles: ["ADMIN"],
       },
       {
+        name: "Quản lý Combo",
+        href: "/admin/combos",
+        icon: Layers,
+        allowedRoles: ["ADMIN"],
+      },
+      {
         name: "Quản lý chi nhánh",
         href: "/admin/branches",
         icon: Building2,
@@ -113,6 +120,7 @@ const BREADCRUMB_MAP: Record<string, { parent?: { title: string; href: string };
   "/admin/products": { parent: { title: "Hệ thống", href: "/admin/products" }, title: "Quản lý sản phẩm" },
   "/admin/vouchers": { parent: { title: "Hệ thống", href: "/admin/vouchers" }, title: "Quản lý voucher" },
   "/admin/flash-sales": { parent: { title: "Hệ thống", href: "/admin/flash-sales" }, title: "Quản lý Giờ Vàng" },
+  "/admin/combos": { parent: { title: "Hệ thống", href: "/admin/combos" }, title: "Quản lý Combo" },
   "/admin/branches": { parent: { title: "Hệ thống", href: "/admin/branches" }, title: "Quản lý chi nhánh" },
   "/admin/customers": { parent: { title: "Hệ thống", href: "/admin/customers" }, title: "Quản lý người dùng" },
   "/admin/settings": { parent: { title: "Hệ thống", href: "/admin/settings" }, title: "Cài đặt cấu hình" },

@@ -176,12 +176,24 @@ export function CheckoutPage() {
       const branchId = selectedBranch?.id || "br-01";
       const fullAddress = shippingAddress.trim() + (orderNotes.trim() ? ` (Ghi chú: ${orderNotes.trim()})` : "");
 
-      const orderPayload: CreateOrderPayload = {
-        branchId,
-        items: items.map((i) => ({
+      const regularItems = items
+        .filter((i) => i.itemType !== "COMBO")
+        .map((i) => ({
           productId: i.product.id,
           quantity: i.quantity,
-        })),
+        }));
+
+      const comboItems = items
+        .filter((i) => i.itemType === "COMBO" && i.comboId)
+        .map((i) => ({
+          comboId: i.comboId!,
+          quantity: i.quantity,
+        }));
+
+      const orderPayload: CreateOrderPayload = {
+        branchId,
+        items: regularItems,
+        combos: comboItems.length > 0 ? comboItems : undefined,
         shippingAddress: fullAddress || "Tại quầy / Địa chỉ khách cung cấp",
         paymentMethod,
         voucherCode: appliedDiscount > 0 ? voucherCode.trim().toUpperCase() : undefined,
@@ -659,9 +671,21 @@ function OrderSummaryBox({
               />
             </div>
             <div className="flex-1 min-w-0">
-              <h4 className="font-semibold text-xs text-foreground truncate">
-                {item.product.name}
-              </h4>
+              <div className="flex items-center gap-1.5">
+                {item.itemType === "COMBO" && (
+                  <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-accent-tint text-accent-dark border border-accent/30 uppercase shrink-0">
+                    Combo
+                  </span>
+                )}
+                <h4 className="font-semibold text-xs text-foreground truncate">
+                  {item.product.name}
+                </h4>
+              </div>
+              {item.itemType === "COMBO" && item.comboItems && item.comboItems.length > 0 && (
+                <p className="text-[10px] text-muted truncate">
+                  {item.comboItems.map((ci: any) => `${ci.quantity}x ${ci.productName}`).join(" + ")}
+                </p>
+              )}
               <span className="text-[11px] text-muted font-mono">SL: x{item.quantity}</span>
             </div>
             <span className="font-bold text-xs text-primary-dark shrink-0">
