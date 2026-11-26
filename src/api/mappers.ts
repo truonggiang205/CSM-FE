@@ -1,6 +1,21 @@
 import { Product, Category } from "../types/product";
 
 /**
+ * Chuẩn hóa đường dẫn ảnh (/uploads/... -> http://localhost:8000/uploads/...)
+ */
+export function resolveImageUrl(url?: string | null): string {
+  if (!url) return "";
+  const trimmed = url.trim();
+  if (!trimmed) return "";
+  if (trimmed.startsWith("/uploads/")) {
+    const rawApiUrl = import.meta.env.VITE_API_URL || "http://localhost:8000/api/v1";
+    const origin = rawApiUrl.replace(/\/api\/v1\/?$/, "");
+    return `${origin}${trimmed}`;
+  }
+  return trimmed;
+}
+
+/**
  * Chuyển đổi chuỗi tiếng Việt có dấu sang slug URL an toàn
  */
 export function slugify(text: string): string {
@@ -59,9 +74,10 @@ export function mapBackendProductToFrontend(raw: any): Product {
   // Xử lý hình ảnh (Backend trả image_url, mock trả images: string[])
   let images: string[] = [];
   if (Array.isArray(raw.images) && raw.images.length > 0) {
-    images = raw.images.filter(Boolean);
+    images = raw.images.map((img: string) => resolveImageUrl(img)).filter(Boolean);
   } else if (raw.image_url && typeof raw.image_url === "string" && raw.image_url.trim() !== "") {
-    images = [raw.image_url.trim()];
+    const resolved = resolveImageUrl(raw.image_url);
+    if (resolved) images = [resolved];
   }
 
   // Xử lý Category
@@ -96,6 +112,8 @@ export function mapBackendProductToFrontend(raw: any): Product {
     rating: typeof raw.rating === "number" ? raw.rating : undefined,
     reviewsCount: typeof raw.reviewsCount === "number" ? raw.reviewsCount : undefined,
     createdAt: raw.created_at || raw.createdAt || undefined,
+    isFeatured: Boolean(raw.is_featured ?? raw.isFeatured),
+    curatorNote: raw.curator_note || raw.curatorNote || undefined,
   };
 }
 

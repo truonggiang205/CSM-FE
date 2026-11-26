@@ -3,12 +3,21 @@ import apiClient from "./apiClient";
 export type OrderStatus = "PENDING" | "CONFIRMED" | "PAID" | "SHIPPED" | "CANCELLED";
 export type PaymentMethod = "COD" | "MOMO" | "ZALOPAY" | "ATM";
 
+export interface OrderItemComboChild {
+  productId: string;
+  productName: string;
+  quantity: number;
+}
+
 export interface OrderItem {
   id: string;
   product_id: string;
   product_name_snapshot: string;
   price_snapshot: number;
   quantity: number;
+  item_type?: "PRODUCT" | "COMBO";
+  combo_id?: string | null;
+  combo_items_snapshot?: OrderItemComboChild[] | null;
 }
 
 export interface Order {
@@ -39,9 +48,15 @@ export interface CreateOrderItemPayload {
   quantity: number;
 }
 
+export interface CreateOrderComboPayload {
+  comboId: string;
+  quantity: number;
+}
+
 export interface CreateOrderPayload {
   branchId: string;
   items: CreateOrderItemPayload[];
+  combos?: CreateOrderComboPayload[];
   shippingAddress?: string;
   paymentMethod: PaymentMethod;
   voucherCode?: string;
@@ -84,6 +99,17 @@ export interface CreatePaymentResponse {
   message?: string;
 }
 
+export interface OrderReview {
+  id: string;
+  order_id: string;
+  user_id: string;
+  customer_name: string;
+  rating: number;
+  comment: string;
+  purchased_item?: string | null;
+  created_at: string;
+}
+
 export function mapBackendOrderItemToFrontend(raw: any): OrderItem {
   return {
     id: raw.id,
@@ -91,6 +117,9 @@ export function mapBackendOrderItemToFrontend(raw: any): OrderItem {
     product_name_snapshot: raw.product_name_snapshot || raw.productName || "Sản phẩm",
     price_snapshot: Number(raw.price_snapshot || raw.price) || 0,
     quantity: Number(raw.quantity) || 1,
+    item_type: raw.item_type || "PRODUCT",
+    combo_id: raw.combo_id || null,
+    combo_items_snapshot: Array.isArray(raw.combo_items_snapshot) ? raw.combo_items_snapshot : null,
   };
 }
 
@@ -150,6 +179,32 @@ export const orderApi = {
 
   createPayment: async (payload: CreatePaymentPayload): Promise<CreatePaymentResponse> => {
     const res = await apiClient.post<CreatePaymentResponse>("/payments/create", payload);
+    return res.data;
+  },
+
+  getPublicReviews: async (): Promise<OrderReview[]> => {
+    try {
+      const res = await apiClient.get<OrderReview[]>("/orders/reviews/public");
+      return Array.isArray(res.data) ? res.data : [];
+    } catch {
+      return [];
+    }
+  },
+
+  getOrderReview: async (orderId: string): Promise<OrderReview | null> => {
+    try {
+      const res = await apiClient.get<OrderReview | null>(`/orders/${orderId}/review`);
+      return res.data || null;
+    } catch {
+      return null;
+    }
+  },
+
+  submitOrderReview: async (
+    orderId: string,
+    payload: { rating: number; comment: string; customerName?: string }
+  ): Promise<OrderReview> => {
+    const res = await apiClient.post<OrderReview>(`/orders/${orderId}/review`, payload);
     return res.data;
   },
 };

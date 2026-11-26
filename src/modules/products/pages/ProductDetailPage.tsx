@@ -21,10 +21,12 @@ import {
   Zap,
   Info,
   HeartHandshake,
+  Flame,
 } from "lucide-react";
 import { useQuery } from "@tanstack/react-query";
 import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
+import { flashSaleApi } from "../../../api/flashSaleApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
@@ -116,7 +118,86 @@ export function ProductDetailPage() {
     enabled: !!productIdentifier,
   });
 
-  // 2. Fetch tồn kho sản phẩm ở tất cả các chi nhánh
+  const { data: flashSaleData } = useQuery({
+    queryKey: ["active-flash-sale"],
+    queryFn: flashSaleApi.getActiveOrUpcoming,
+    refetchInterval: 30000,
+  });
+
+  const flashSaleItem = useMemo(() => {
+    if (!product || flashSaleData?.status !== "ACTIVE" || !flashSaleData.items) return null;
+    return flashSaleData.items.find((i) => String(i.product_id) === String(product.id)) || null;
+  }, [product, flashSaleData]);
+
+  const isSoldOut = useMemo(() => {
+    if (!flashSaleItem) return false;
+    const limit = Number(flashSaleItem.quantity_limit) || 0;
+    const sold = Number(flashSaleItem.sold_count) || 0;
+    return limit > 0 && sold >= limit;
+  }, [flashSaleItem]);
+
+  const [timeLeft, setTimeLeft] = useState<string>("");
+  const [isExpired, setIsExpired] = useState<boolean>(false);
+  const rawEndTimeStr = flashSaleData?.endTime || flashSaleData?.campaign?.end_time;
+
+  useEffect(() => {
+    if (!rawEndTimeStr) {
+      setTimeLeft("");
+      setIsExpired(false);
+      return;
+    }
+
+    const updateTimer = () => {
+      const now = new Date();
+      const parts = rawEndTimeStr.split(":").map(Number);
+      if (parts.length < 2) return;
+
+      const target = new Date(now);
+      target.setHours(parts[0], parts[1], parts[2] || 0, 0);
+
+      const diff = target.getTime() - now.getTime();
+      if (diff <= 0) {
+        setTimeLeft("");
+        setIsExpired(true);
+        return;
+      }
+
+      const hours = Math.floor(diff / (1000 * 60 * 60));
+      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
+      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
+
+      const pad = (n: number) => String(n).padStart(2, "0");
+      setTimeLeft(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
+      setIsExpired(false);
+    };
+
+    updateTimer();
+    const interval = setInterval(updateTimer, 1000);
+    return () => clearInterval(interval);
+  }, [rawEndTimeStr]);
+
+  const isFlashSaleActive = useMemo(() => {
+    if (!flashSaleItem || isSoldOut || isExpired) return false;
+    return Number(flashSaleItem.sale_price) > 0 && Number(flashSaleItem.sale_price) < (product?.price || 0);
+  }, [flashSaleItem, isSoldOut, isExpired, product]);
+
+  const effectiveProduct = useMemo(() => {
+    if (!product) return null;
+    if (isFlashSaleActive && flashSaleItem) {
+      return {
+        ...product,
+        discountPrice: Number(flashSaleItem.sale_price),
+        flashSaleMeta: {
+          soldCount: Number(flashSaleItem.sold_count) || 0,
+          quantityLimit: Number(flashSaleItem.quantity_limit) || 0,
+          endTime: rawEndTimeStr,
+          isSoldOut: false,
+        },
+      };
+    }
+    return product;
+  }, [product, flashSaleItem, isFlashSaleActive, rawEndTimeStr]);
+
   const productId = product?.id;
   const {
     data: branchStocks = [],
@@ -127,14 +208,12 @@ export function ProductDetailPage() {
     enabled: !!productId,
   });
 
-  // 3. Fetch toàn bộ sản phẩm để lấy danh sách "Sản phẩm liên quan" cùng danh mục
   const { data: allProducts = [] } = useQuery({
     queryKey: ["products"],
     queryFn: productApi.getProducts,
     enabled: !!product?.category?.id,
   });
 
-  // Sắp xếp chi nhánh đang chọn lên đầu danh sách
   const sortedBranchStocks = useMemo(() => {
     if (!selectedBranch || branchStocks.length === 0) return branchStocks;
     return [...branchStocks].sort((a, b) => {
@@ -144,27 +223,37 @@ export function ProductDetailPage() {
     });
   }, [branchStocks, selectedBranch]);
 
-  // Tồn kho khả dụng tại chi nhánh đang chọn
   const currentBranchStock = useMemo(() => {
     if (!selectedBranch || branchStocks.length === 0) return null;
     return branchStocks.find((s) => s.branch_id === selectedBranch.id);
   }, [branchStocks, selectedBranch]);
 
-  // Số lượng khả dụng hiệu lực
   const availableQty =
     currentBranchStock !== null && currentBranchStock !== undefined
       ? currentBranchStock.available
       : product?.stock ?? 0;
 
-  // Lọc sản phẩm liên quan cùng danh mục (tối đa 4 món khác món hiện tại)
   const relatedProducts = useMemo(() => {
-    if (!product) return [];
+    if (!effectiveProduct) return [];
+    const activeFlashMap = new Map<string, number>();
+    if (flashSaleData?.status === "ACTIVE" && flashSaleData.items) {
+      for (const item of flashSaleData.items) {
+        const sale = Number(item.sale_price);
+        if (sale > 0) activeFlashMap.set(String(item.product_id), sale);
+      }
+    }
     return allProducts
-      .filter((p) => p.category?.id === product.category?.id && p.id !== product.id)
-      .slice(0, 4);
-  }, [allProducts, product]);
+      .filter((p) => p.category?.id === effectiveProduct.category?.id && p.id !== effectiveProduct.id)
+      .slice(0, 4)
+      .map((p) => {
+        const sale = activeFlashMap.get(String(p.id));
+        if (sale && sale < p.price) {
+          return { ...p, discountPrice: sale };
+        }
+        return p;
+      });
+  }, [allProducts, effectiveProduct, flashSaleData]);
 
-  // Điều chỉnh lại số lượng đặt nếu vượt quá tồn kho khả dụng mới khi đổi chi nhánh
   useEffect(() => {
     if (availableQty <= 0) {
       setQuantity(1);
@@ -173,7 +262,6 @@ export function ProductDetailPage() {
     }
   }, [availableQty, quantity]);
 
-  // Reset selected image khi đổi sản phẩm
   useEffect(() => {
     setSelectedImageIndex(0);
   }, [productId]);
@@ -189,16 +277,18 @@ export function ProductDetailPage() {
   const handleIncrease = () => setQuantity((q) => Math.min(availableQty, q + 1));
 
   const handleAddToCart = () => {
-    if (!product || availableQty <= 0) return;
-    addItem(product, quantity);
-    useCartToastStore.getState().showToast(product.name);
+    const targetProduct = effectiveProduct || product;
+    if (!targetProduct || availableQty <= 0) return;
+    addItem(targetProduct, quantity);
+    useCartToastStore.getState().showToast(targetProduct.name);
     setAddSuccessNotice(true);
     setTimeout(() => setAddSuccessNotice(false), 2500);
   };
 
   const handleBuyNow = () => {
-    if (!product || availableQty <= 0) return;
-    addItem(product, quantity);
+    const targetProduct = effectiveProduct || product;
+    if (!targetProduct || availableQty <= 0) return;
+    addItem(targetProduct, quantity);
     setCartOpen(true);
     navigate("/checkout");
   };
@@ -266,9 +356,9 @@ export function ProductDetailPage() {
 
   const currentDisplayImage = galleryImages[selectedImageIndex] || galleryImages[0] || "";
 
-  const originalPrice = product.price;
-  const salePrice = product.discountPrice || originalPrice;
-  const hasDiscount = !!product.discountPrice && product.discountPrice < originalPrice;
+  const originalPrice = (effectiveProduct || product).price;
+  const salePrice = (effectiveProduct || product).discountPrice || originalPrice;
+  const hasDiscount = !!(effectiveProduct || product).discountPrice && (effectiveProduct || product).discountPrice! < originalPrice;
   const percentOff = hasDiscount
     ? Math.round(((originalPrice - salePrice) / originalPrice) * 100)
     : 0;
@@ -408,14 +498,53 @@ export function ProductDetailPage() {
             </div>
 
             {/* Price Box */}
-            <div className="p-4 sm:p-5 rounded-2xl bg-surface-soft border border-border/70 mb-6 flex items-baseline gap-3">
-              <span className="text-3xl font-black text-primary-dark">
-                {formatCurrency(salePrice)}
-              </span>
-              {hasDiscount && (
-                <span className="text-base text-muted line-through font-medium">
-                  {formatCurrency(originalPrice)}
-                </span>
+            <div className="p-4 sm:p-5 rounded-2xl bg-surface-soft border border-border/70 mb-6 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-baseline justify-between gap-3">
+                <div className="flex items-baseline gap-3">
+                  <span className="text-3xl font-black text-primary-dark">
+                    {formatCurrency(salePrice)}
+                  </span>
+                  {hasDiscount && (
+                    <span className="text-base text-muted line-through font-medium">
+                      {formatCurrency(originalPrice)}
+                    </span>
+                  )}
+                </div>
+                {isFlashSaleActive && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-danger/10 text-danger border border-danger/30 text-xs font-black uppercase tracking-wider self-start sm:self-auto">
+                    ⚡ Giờ Vàng Giá Sốc
+                  </span>
+                )}
+                {isSoldOut && (
+                  <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-muted/20 text-muted border border-border text-xs font-bold uppercase tracking-wider self-start sm:self-auto">
+                    Đã hết suất Giờ Vàng
+                  </span>
+                )}
+              </div>
+
+              {isFlashSaleActive && effectiveProduct?.flashSaleMeta && (
+                <div className="pt-3 border-t border-border/50 space-y-2">
+                  <div className="flex items-center justify-between text-xs font-bold text-danger">
+                    <div className="flex items-center gap-1.5">
+                      <Flame className="w-4 h-4 text-danger animate-pulse" />
+                      <span>Đã bán: {effectiveProduct.flashSaleMeta.soldCount}/{effectiveProduct.flashSaleMeta.quantityLimit} suất</span>
+                    </div>
+                    {timeLeft && (
+                      <div className="flex items-center gap-1 font-mono text-xs">
+                        <Clock className="w-3.5 h-3.5" />
+                        <span>Kết thúc sau: {timeLeft}</span>
+                      </div>
+                    )}
+                  </div>
+                  <div className="w-full h-2 bg-danger-pastel/60 rounded-full overflow-hidden">
+                    <div
+                      className="h-full bg-gradient-to-r from-amber-500 to-danger rounded-full transition-all duration-300"
+                      style={{
+                        width: `${Math.min(100, Math.max(5, Math.round(((effectiveProduct.flashSaleMeta.soldCount || 0) / (effectiveProduct.flashSaleMeta.quantityLimit || 1)) * 100)))}%`,
+                      }}
+                    />
+                  </div>
+                </div>
               )}
             </div>
 

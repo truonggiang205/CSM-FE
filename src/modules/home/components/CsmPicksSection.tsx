@@ -1,10 +1,12 @@
-import React from "react";
+import React, { useEffect } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { Star, ShoppingBag, Sparkles, Heart, Award } from "lucide-react";
+import { ShoppingBag, Sparkles, Heart, Award } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
+import { useWishlistStore } from "../../../store/useWishlistStore";
+import { useAuthStore } from "../../../store/useAuthStore";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { Button } from "../../../components/ui/Button";
 import { mockCsmPickMetadata } from "../homeData";
@@ -22,7 +24,15 @@ interface CsmPicksSectionProps {
 export function CsmPicksSection({ products, stockMap, branchName, section }: CsmPicksSectionProps) {
   const { addItem } = useCartStore();
   const { showToast } = useCartToastStore();
+  const { productIds: wishlistIds, toggle: toggleWishlist, syncFromServer, synced } = useWishlistStore();
+  const { isAuthenticated } = useAuthStore();
   const shouldReduceMotion = useReducedMotion();
+
+  useEffect(() => {
+    if (isAuthenticated && !synced) {
+      syncFromServer();
+    }
+  }, [isAuthenticated, synced, syncFromServer]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -31,8 +41,17 @@ export function CsmPicksSection({ products, stockMap, branchName, section }: Csm
     }).format(amount);
   };
 
-  // Đảm bảo luôn có sản phẩm để hiển thị, ưu tiên products từ backend, fallback mockProducts
-  const productSource = products && products.length > 0 ? products : mockProducts;
+  // Đảm bảo luôn có sản phẩm để hiển thị, ưu tiên products từ backend (lọc bỏ đồ dùng tiện ích), fallback mockProducts
+  const rawSource = products && products.length > 0 ? products : mockProducts;
+  const foodAndDrink = rawSource.filter((p) => {
+    const catName = (p.category?.name || "").toLowerCase();
+    return (
+      !catName.includes("đồ dùng") &&
+      !catName.includes("tiện ích") &&
+      !catName.includes("cá nhân")
+    );
+  });
+  const productSource = foodAndDrink.length > 0 ? foodAndDrink : rawSource;
   const curated = section?.products?.length ? section.products.slice(0, 4) : null;
   const curatedNotes = new Map((curated || []).map((p) => [p.id, p.note || ""]));
   const pickIds = curated ? [] : ["p2", "p4", "p5", "p3"];
@@ -52,6 +71,8 @@ export function CsmPicksSection({ products, stockMap, branchName, section }: Csm
       if (pickedProducts.length === 4) break;
     }
   }
+
+  if (pickedProducts.length === 0) return null;
 
   const handleAddToCart = (product: Product, e: React.MouseEvent) => {
     e.preventDefault();
@@ -100,13 +121,16 @@ export function CsmPicksSection({ products, stockMap, branchName, section }: Csm
             const isOutOfStock = availableStock <= 0;
             const baseMeta = mockCsmPickMetadata[product.id] || {
               tagline: "Hương vị tinh hoa",
-              curatorNote: "Sản phẩm chọn lọc với chất lượng hảo hạng và độ tươi mới mỗi ngày.",
+              curatorNote:
+                product.curatorNote ||
+                "Sản phẩm chọn lọc với chất lượng hảo hạng và độ tươi mới mỗi ngày.",
               pairingNote: "Phù hợp cho mọi bữa ăn nhẹ tiện lợi.",
             };
             const customNote = curatedNotes.get(product.id);
             const meta = customNote
               ? { ...baseMeta, tagline: product.category?.name || baseMeta.tagline, curatorNote: customNote }
               : baseMeta;
+            const isLiked = wishlistIds.includes(product.id);
 
             const price = product.discountPrice || product.price;
 
@@ -125,11 +149,29 @@ export function CsmPicksSection({ products, stockMap, branchName, section }: Csm
                   <span>CSM Pick</span>
                 </div>
 
-                {/* Wishlist subtle indicator */}
+                {/* Wishlist interactive button */}
                 <div className="absolute top-4 right-4 z-10">
-                  <span className="w-8 h-8 rounded-full bg-surface/90 backdrop-blur-xs border border-border flex items-center justify-center text-rose-500 shadow-2xs">
-                    <Heart className="w-3.5 h-3.5 fill-current" />
-                  </span>
+                  <button
+                    type="button"
+                    onClick={async (e) => {
+                      e.preventDefault();
+                      e.stopPropagation();
+                      const added = await toggleWishlist(product.id, isAuthenticated);
+                      showToast(
+                        added
+                          ? `Đã lưu ${product.name} vào yêu thích`
+                          : `Đã bỏ ${product.name} khỏi yêu thích`
+                      );
+                    }}
+                    aria-label={isLiked ? `Bỏ yêu thích ${product.name}` : `Yêu thích ${product.name}`}
+                    className={`w-8 h-8 rounded-full bg-surface/90 backdrop-blur-xs border flex items-center justify-center shadow-2xs transition-all cursor-pointer ${
+                      isLiked
+                        ? "border-rose-300 text-rose-500 scale-105"
+                        : "border-border text-muted hover:text-rose-500 hover:border-rose-200"
+                    }`}
+                  >
+                    <Heart className={`w-3.5 h-3.5 ${isLiked ? "fill-current" : ""}`} />
+                  </button>
                 </div>
 
                 <div>
