@@ -86,7 +86,7 @@ export default function PublicLayout() {
   };
 
   return (
-    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-hidden">
+    <div className="min-h-screen flex flex-col bg-background text-foreground overflow-x-clip">
       {/* Skip to Main Content Link for Keyboard Accessibility (WCAG 2.4.1) */}
       <a
         href="#main-content"
