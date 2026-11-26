@@ -162,7 +162,7 @@ export default function PublicLayout() {
                 }
               >
                 <Zap className="w-3.5 h-3.5 fill-current text-accent" />
-                <span>Giờ Vàng Ưu Đãi</span>
+                <span>Ưu Đãi</span>
               </NavLink>
               {isAuthenticated && (
                 <NavLink
@@ -393,7 +393,7 @@ export default function PublicLayout() {
                   }
                 >
                   <Zap className="w-4 h-4 fill-current text-accent" />
-                  Giờ Vàng Ưu Đãi
+                  Ưu Đãi
                 </NavLink>
 
                 {isAuthenticated && (
