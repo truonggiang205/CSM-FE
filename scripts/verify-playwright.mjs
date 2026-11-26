@@ -95,8 +95,12 @@ async function runVerification() {
   try {
     // Đăng nhập tài khoản Admin qua trang login
     await page.goto(`${BASE_URL}/login`, { waitUntil: "networkidle", timeout: 15000 });
+    const seedPassword = process.env.SEED_PASSWORD;
+    if (!seedPassword) {
+      throw new Error("❌ Thiếu biến môi trường bắt buộc: SEED_PASSWORD");
+    }
     await page.fill('input[type="email"]', "admin@csm.vn");
-    await page.fill('input[type="password"]', process.env.SEED_PASSWORD || "Demo@123456");
+    await page.fill('input[type="password"]', seedPassword);
     await page.click('button[type="submit"]');
 
     // Chờ chuyển hướng sau đăng nhập

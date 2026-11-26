@@ -7,7 +7,10 @@ if (!fs.existsSync(ARTIFACTS_DIR)) {
   fs.mkdirSync(ARTIFACTS_DIR, { recursive: true });
 }
 
-const SEED_PASSWORD = process.env.E2E_PASSWORD || process.env.SEED_PASSWORD || "Demo@123456";
+const SEED_PASSWORD = process.env.E2E_PASSWORD || process.env.SEED_PASSWORD;
+if (!SEED_PASSWORD) {
+  throw new Error("Thiếu biến môi trường bắt buộc: SEED_PASSWORD hoặc E2E_PASSWORD");
+}
 
 test.describe("CSM Voucher E2E Suite - Playwright Real Stack", () => {
   const timestamp = Date.now();
