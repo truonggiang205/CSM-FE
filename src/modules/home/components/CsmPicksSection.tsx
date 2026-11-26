@@ -9,14 +9,17 @@ import { ProductImage } from "../../../components/ui/ProductImage";
 import { Button } from "../../../components/ui/Button";
 import { mockCsmPickMetadata } from "../homeData";
 import { mockProducts } from "../../../mocks/products";
+import type { HomeSection } from "../../../api/storefrontApi";
 
 interface CsmPicksSectionProps {
   products: Product[];
   stockMap: Map<string, number>;
   branchName?: string;
+  /** Cấu hình từ trang "Giao diện trang chủ"; null/rỗng thì tự chọn như mặc định */
+  section?: HomeSection | null;
 }
 
-export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSectionProps) {
+export function CsmPicksSection({ products, stockMap, branchName, section }: CsmPicksSectionProps) {
   const { addItem } = useCartStore();
   const { showToast } = useCartToastStore();
   const shouldReduceMotion = useReducedMotion();
@@ -30,16 +33,18 @@ export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSect
 
   // Đảm bảo luôn có sản phẩm để hiển thị, ưu tiên products từ backend, fallback mockProducts
   const productSource = products && products.length > 0 ? products : mockProducts;
-  const pickIds = ["p2", "p4", "p5", "p3"];
-  const pickedProducts: Product[] = [];
+  const curated = section?.products?.length ? section.products.slice(0, 4) : null;
+  const curatedNotes = new Map((curated || []).map((p) => [p.id, p.note || ""]));
+  const pickIds = curated ? [] : ["p2", "p4", "p5", "p3"];
+  const pickedProducts: Product[] = curated ? [...curated] : [];
 
   for (const id of pickIds) {
     const found = productSource.find((p) => p.id === id);
     if (found) pickedProducts.push(found);
   }
 
-  // Nếu thiếu thì bổ sung từ productSource
-  if (pickedProducts.length < 4) {
+  // Nếu thiếu thì bổ sung từ productSource (chỉ khi chưa được cấu hình)
+  if (!curated && pickedProducts.length < 4) {
     for (const p of productSource) {
       if (!pickedProducts.some((item) => item.id === p.id)) {
         pickedProducts.push(p);
@@ -71,15 +76,20 @@ export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSect
             </span>
           </div>
 
-          <h2 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight font-serif italic">
-            CSM Picks
-            <span className="not-italic font-sans text-2xl sm:text-3xl font-extrabold text-foreground ml-2">
-              — Món Ngon Chọn Lọc
-            </span>
-          </h2>
+          {section?.title ? (
+            <h2 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight">{section.title}</h2>
+          ) : (
+            <h2 className="text-3xl sm:text-4xl font-black text-foreground tracking-tight font-serif italic">
+              CSM Picks
+              <span className="not-italic font-sans text-2xl sm:text-3xl font-extrabold text-foreground ml-2">
+                — Món Ngon Chọn Lọc
+              </span>
+            </h2>
+          )}
 
           <p className="text-xs sm:text-sm text-muted leading-relaxed font-sans max-w-lg mx-auto">
-            Những hương vị được đội ngũ CSM đặc biệt yêu thích và giới thiệu trong tuần. Tuyển chọn khắt khe từ nguồn gốc nguyên liệu đến độ tươi mới để gửi gắm trọn vẹn đến bạn.
+            {section?.subtitle ||
+              "Những hương vị được đội ngũ CSM đặc biệt yêu thích và giới thiệu trong tuần. Tuyển chọn khắt khe từ nguồn gốc nguyên liệu đến độ tươi mới để gửi gắm trọn vẹn đến bạn."}
           </p>
         </div>
 
@@ -88,11 +98,15 @@ export function CsmPicksSection({ products, stockMap, branchName }: CsmPicksSect
           {pickedProducts.map((product, idx) => {
             const availableStock = stockMap.get(product.id) ?? product.stock;
             const isOutOfStock = availableStock <= 0;
-            const meta = mockCsmPickMetadata[product.id] || {
+            const baseMeta = mockCsmPickMetadata[product.id] || {
               tagline: "Hương vị tinh hoa",
               curatorNote: "Sản phẩm chọn lọc với chất lượng hảo hạng và độ tươi mới mỗi ngày.",
               pairingNote: "Phù hợp cho mọi bữa ăn nhẹ tiện lợi.",
             };
+            const customNote = curatedNotes.get(product.id);
+            const meta = customNote
+              ? { ...baseMeta, tagline: product.category?.name || baseMeta.tagline, curatorNote: customNote }
+              : baseMeta;
 
             const price = product.discountPrice || product.price;
 

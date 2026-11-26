@@ -17,6 +17,7 @@ import {
   Home,
   ShieldCheck,
   UserCheck,
+  LayoutTemplate,
 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
 
@@ -57,6 +58,12 @@ const NAV_GROUPS: NavGroup[] = [
         name: "Quản lý tồn kho",
         href: "/admin/inventory",
         icon: Store,
+        allowedRoles: ["BRANCH_MANAGER", "ADMIN"],
+      },
+      {
+        name: "Giao diện trang chủ",
+        href: "/admin/storefront",
+        icon: LayoutTemplate,
         allowedRoles: ["BRANCH_MANAGER", "ADMIN"],
       },
     ],
@@ -103,6 +110,7 @@ const BREADCRUMB_MAP: Record<string, { parent?: { title: string; href: string };
   "/admin": { title: "Tổng quan hệ thống" },
   "/admin/orders": { parent: { title: "Vận hành", href: "/admin/orders" }, title: "Quản lý đơn hàng" },
   "/admin/inventory": { parent: { title: "Vận hành", href: "/admin/inventory" }, title: "Quản lý tồn kho" },
+  "/admin/storefront": { parent: { title: "Vận hành", href: "/admin/storefront" }, title: "Giao diện trang chủ" },
   "/admin/products": { parent: { title: "Hệ thống", href: "/admin/products" }, title: "Quản lý sản phẩm" },
   "/admin/vouchers": { parent: { title: "Hệ thống", href: "/admin/vouchers" }, title: "Quản lý voucher" },
   "/admin/branches": { parent: { title: "Hệ thống", href: "/admin/branches" }, title: "Quản lý chi nhánh" },
@@ -164,10 +172,10 @@ export default function AdminLayout() {
   };
 
   return (
-    <div className="min-h-screen flex bg-background text-foreground overflow-x-hidden">
-      {/* Sidebar Desktop */}
+    <div className="min-h-screen flex bg-background text-foreground overflow-x-clip">
+      {/* Sidebar Desktop: cố định theo viewport, menu tự cuộn riêng khi dài */}
       <aside
-        className="w-64 bg-surface border-r border-border hidden md:flex flex-col shadow-[2px_0_12px_rgba(78,159,118,0.03)] shrink-0 h-screen sticky top-0 z-30"
+        className="w-64 bg-surface border-r border-border hidden md:flex flex-col shadow-[2px_0_12px_rgba(78,159,118,0.03)] h-dvh fixed inset-y-0 left-0 z-30"
         aria-label="Thanh điều hướng quản trị"
       >
         <div className="h-16 flex items-center justify-between px-6 border-b border-border shrink-0">
@@ -271,7 +279,7 @@ export default function AdminLayout() {
       </aside>
 
       {/* Vùng nội dung chính */}
-      <main className="flex-1 flex flex-col min-h-screen overflow-x-hidden">
+      <main className="flex-1 min-w-0 md:pl-64 flex flex-col min-h-screen overflow-x-clip">
         {/* Header Mobile */}
         <header className="h-16 bg-surface/90 backdrop-blur-md border-b border-border flex items-center justify-between px-4 md:hidden sticky top-0 z-40">
           <div className="flex items-center gap-2">

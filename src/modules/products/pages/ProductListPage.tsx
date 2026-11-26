@@ -23,6 +23,7 @@ import { useBranchStore } from "../../../store/useBranchStore";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
 import { Skeleton } from "../../../components/ui/Skeleton";
+import { PromoBannerStrip } from "../../../components/storefront/PromoBannerStrip";
 import { Product } from "../../../types/product";
 
 type SortOption = "default" | "price-asc" | "price-desc" | "name-asc";
@@ -378,6 +379,7 @@ export function ProductListPage() {
 
         {/* ================= MAIN PRODUCT AREA ================= */}
         <main className="flex-1 min-w-0">
+          <PromoBannerStrip placement="PRODUCTS_TOP" className="mb-6" />
           {/* Top Controls: Title, Mobile filter button, View toggle & Sort */}
           <div className="mb-6 flex flex-col sm:flex-row sm:items-center justify-between gap-4 pb-4 border-b border-border/80">
             <div>
