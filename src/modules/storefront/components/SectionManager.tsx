@@ -14,6 +14,7 @@ import {
   HOME_SECTION_TYPES,
 } from "../../../api/storefrontApi";
 import { resolveAssetUrl } from "../../../lib/assetUrl";
+import { SectionLivePreview } from "./StorefrontPreviews";
 import { getErrorMessage, toLocalInput, fromLocalInput, getLiveStatus, LIVE_STATUS_STYLE } from "../utils";
 
 interface SectionManagerProps {
@@ -219,6 +220,8 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
           <div className="p-3 rounded-xl bg-danger-pastel text-danger-dark border border-danger/20 text-xs font-medium">{error}</div>
         )}
 
+        <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 items-start">
+        <div className="xl:col-span-3 space-y-5 min-w-0">
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-foreground">Tiêu đề khối (để trống dùng tiêu đề mặc định)</label>
@@ -334,6 +337,20 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
               ))
             )}
           </div>
+        </div>
+
+        </div>
+
+        <div className="xl:col-span-2 xl:sticky xl:top-4 space-y-1.5">
+          <p className="text-xs font-semibold text-foreground">Xem trước trên trang chủ</p>
+          <SectionLivePreview
+            type={activeType}
+            title={draft.title}
+            subtitle={draft.subtitle}
+            items={draft.items}
+            enabled={draft.is_active}
+          />
+        </div>
         </div>
 
         <div className="flex flex-col-reverse sm:flex-row justify-between gap-2 pt-3 border-t border-border">

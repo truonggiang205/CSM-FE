@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useState } from "react";
-import { Plus, RefreshCw, Pencil, Trash2, Eye, EyeOff, X, Megaphone, ChevronRight, Calendar } from "lucide-react";
+import { Plus, RefreshCw, Pencil, Trash2, Eye, EyeOff, X, Megaphone, Calendar, MonitorSmartphone } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import {
@@ -9,6 +9,7 @@ import {
   AnnouncementTone,
   ANNOUNCEMENT_TONE_META,
 } from "../../../api/storefrontApi";
+import { AnnouncementLivePreview } from "./StorefrontPreviews";
 import { getErrorMessage, toLocalInput, fromLocalInput, getLiveStatus, LIVE_STATUS_STYLE, formatDateTime } from "../utils";
 
 interface AnnouncementManagerProps {
@@ -37,22 +38,6 @@ const EMPTY_FORM: AnnouncementForm = {
 };
 
 const TONES = Object.keys(ANNOUNCEMENT_TONE_META) as AnnouncementTone[];
-
-function BarPreview({ form }: { form: AnnouncementForm }) {
-  const tone = ANNOUNCEMENT_TONE_META[form.tone];
-  return (
-    <div className={`${tone.className} rounded-xl text-xs font-semibold px-4 py-2 flex items-center justify-center gap-2`}>
-      <Megaphone className="w-3.5 h-3.5 shrink-0" />
-      <span className="truncate">{form.message || "Nội dung thông báo"}</span>
-      {form.link_url && (
-        <span className="underline underline-offset-2 inline-flex items-center shrink-0">
-          {form.link_text || "Xem ngay"}
-          <ChevronRight className="w-3.5 h-3.5" />
-        </span>
-      )}
-    </div>
-  );
-}
 
 export function AnnouncementManager({ scope, onNotify }: AnnouncementManagerProps) {
   const [items, setItems] = useState<Announcement[]>([]);
@@ -102,6 +87,8 @@ export function AnnouncementManager({ scope, onNotify }: AnnouncementManagerProp
     setFormError(null);
     setIsFormOpen(true);
   };
+
+  const liveItems = items.filter((a) => getLiveStatus(a) === "LIVE");
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -164,8 +151,8 @@ export function AnnouncementManager({ scope, onNotify }: AnnouncementManagerProp
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <p className="text-xs text-muted max-w-xl">
-          Thanh chữ nhỏ ở trên cùng mọi trang của khách. Có nhiều thông báo thì tự chuyển mỗi 5 giây, thông báo của chi
-          nhánh hiện trước thông báo toàn chuỗi.
+          Thanh chữ nhỏ ở trên cùng mọi trang của khách. Các thông báo chạy lần lượt từ phải sang trái, chạy hết một vòng
+          thì nghỉ 1 phút rồi chạy lại. Thông báo của chi nhánh chạy trước thông báo toàn chuỗi.
         </p>
         <div className="flex items-center gap-2 shrink-0">
           <Button variant="outline" size="sm" onClick={fetchItems} disabled={loading} className="rounded-xl text-xs gap-1.5">
@@ -183,7 +170,8 @@ export function AnnouncementManager({ scope, onNotify }: AnnouncementManagerProp
         <div className="p-3 rounded-xl bg-danger-pastel text-danger-dark border border-danger/20 text-xs font-medium">{error}</div>
       )}
 
-      <div className="bg-surface rounded-3xl border border-border shadow-card divide-y divide-border/60">
+      <div className="grid grid-cols-1 lg:grid-cols-5 gap-4 items-start">
+      <div className="lg:col-span-3 bg-surface rounded-3xl border border-border shadow-card divide-y divide-border/60">
         {loading && items.length === 0 ? (
           <div className="px-5 py-12 text-center text-muted text-xs">
             <RefreshCw className="w-5 h-5 animate-spin mx-auto text-primary mb-2" />
@@ -236,6 +224,19 @@ export function AnnouncementManager({ scope, onNotify }: AnnouncementManagerProp
         )}
       </div>
 
+      <div className="lg:col-span-2 lg:sticky lg:top-4 rounded-3xl border border-border bg-surface shadow-card p-4 space-y-2">
+        <p className="text-xs font-bold text-foreground flex items-center gap-1.5">
+          <MonitorSmartphone className="w-4 h-4 text-primary" />
+          Khách đang thấy
+        </p>
+        <AnnouncementLivePreview
+          items={liveItems}
+          caption={liveItems.length > 0 ? `${liveItems.length} thông báo đang chạy, đúng thứ tự trên web` : undefined}
+          emptyText="Chưa có thông báo nào đang hiển thị"
+        />
+      </div>
+      </div>
+
       {isFormOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
           <form onSubmit={handleSubmit} className="bg-surface rounded-3xl border border-border p-6 sm:p-7 max-w-xl w-full shadow-2xl space-y-4 max-h-[90vh] overflow-y-auto">
@@ -251,8 +252,8 @@ export function AnnouncementManager({ scope, onNotify }: AnnouncementManagerProp
             )}
 
             <div className="space-y-1.5">
-              <p className="text-xs font-semibold text-foreground">Xem trước</p>
-              <BarPreview form={form} />
+              <p className="text-xs font-semibold text-foreground">Xem trước trên web</p>
+              <AnnouncementLivePreview compact items={[form]} caption="Chữ chạy đúng tốc độ và màu như khách sẽ thấy" />
             </div>
 
             <div className="space-y-1">
