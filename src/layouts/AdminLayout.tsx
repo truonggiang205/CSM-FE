@@ -15,14 +15,13 @@ import {
   Tag,
   ChevronRight,
   Home,
-  ShieldCheck,
-  UserCheck,
   UserCog,
   LayoutTemplate,
   Zap,
   Layers,
 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
+import { UserAvatar } from "../components/ui/UserAvatar";
 
 interface NavItem {
   name: string;
@@ -272,13 +271,12 @@ export default function AdminLayout() {
             }`}
           >
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                {user?.role === "ADMIN" ? (
-                  <ShieldCheck className="w-4 h-4" />
-                ) : (
-                  <UserCheck className="w-4 h-4" />
-                )}
-              </div>
+              <UserAvatar
+                avatarUrl={user?.avatarUrl}
+                name={user?.fullName}
+                email={user?.email}
+                className="w-8 h-8 rounded-xl text-[11px]"
+              />
               <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-xs font-bold truncate text-foreground">
                   {user?.fullName || user?.email || "Người vận hành"}
@@ -467,13 +465,12 @@ export default function AdminLayout() {
                     className="block p-3 rounded-2xl bg-surface border border-border/60 hover:border-primary/30 transition-all"
                   >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-primary-tint text-primary-dark font-bold flex items-center justify-center text-xs border border-primary/20 shrink-0">
-                        {user?.role === "ADMIN" ? (
-                          <ShieldCheck className="w-4 h-4" />
-                        ) : (
-                          <UserCheck className="w-4 h-4" />
-                        )}
-                      </div>
+                      <UserAvatar
+                        avatarUrl={user?.avatarUrl}
+                        name={user?.fullName}
+                        email={user?.email}
+                        className="w-8 h-8 rounded-xl text-[11px]"
+                      />
                       <div className="min-w-0 flex-1">
                         <p className="text-xs font-bold truncate text-foreground">
                           {user?.fullName || user?.email}

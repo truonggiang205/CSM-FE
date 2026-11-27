@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type ChangeEvent, type FormEvent, type ReactNode } from "react";
 import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAuthStore } from "../../../store/useAuthStore";
@@ -11,6 +11,7 @@ import { ErrorState } from "../../../components/ui/ErrorState";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Label } from "../../../components/ui/Label";
+import { UserAvatar } from "../../../components/ui/UserAvatar";
 import {
   User as UserIcon,
   ShoppingBag,
@@ -32,6 +33,8 @@ import {
   Package,
   Wallet,
   Clock,
+  Camera,
+  Trash2,
 } from "lucide-react";
 
 const PHONE_REGEX = /^(\+84|0)\d{9,10}$/;
@@ -74,16 +77,6 @@ const getRoleInfo = (role?: string) => {
     default:
       return { label: "Khách hàng thân thiết", color: "bg-primary-tint text-primary-dark border-primary/30" };
   }
-};
-
-const getInitials = (profile: UserProfile) => {
-  const source = (profile.fullName || profile.email || "U").trim();
-  // Chỉ lấy các từ bắt đầu bằng chữ cái (bỏ số như "Quận 1" → "QQ" thay vì "Q1")
-  const words = source.split(/\s+/).filter((w) => /^\p{L}/u.test(w));
-  if (words.length >= 2) {
-    return (words[0][0] + words[words.length - 1][0]).toUpperCase();
-  }
-  return source[0].toUpperCase();
 };
 
 /** Đánh giá độ mạnh mật khẩu đơn giản: 0 (yếu) → 3 (mạnh) */
@@ -140,6 +133,145 @@ function InfoRow({
         {label}
       </span>
       <span className="text-xs font-semibold text-foreground text-right min-w-0 break-words">{children}</span>
+    </div>
+  );
+}
+
+/* ------------------------------------------------------------------ */
+/* Ảnh đại diện: bấm để đổi, có xem trước và xoá                         */
+/* ------------------------------------------------------------------ */
+const AVATAR_TYPES = ["image/jpeg", "image/png", "image/webp"];
+const AVATAR_MAX_BYTES = 2 * 1024 * 1024;
+
+function AvatarPicker({ profile }: { profile: UserProfile }) {
+  const queryClient = useQueryClient();
+  const updateUser = useAuthStore((s) => s.updateUser);
+  const inputRef = useRef<HTMLInputElement>(null);
+  const [preview, setPreview] = useState<string | null>(null);
+  const [error, setError] = useState("");
+  const [notice, setNotice] = useState("");
+
+  // Giải phóng URL xem trước khi đổi ảnh khác / rời trang
+  useEffect(() => {
+    if (!preview) return;
+    return () => URL.revokeObjectURL(preview);
+  }, [preview]);
+
+  useEffect(() => {
+    if (!notice) return;
+    const t = setTimeout(() => setNotice(""), 3500);
+    return () => clearTimeout(t);
+  }, [notice]);
+
+  const applyUser = (user: UserProfile) => {
+    queryClient.setQueryData(["auth-profile"], user);
+    updateUser({ avatarUrl: user.avatarUrl ?? null });
+  };
+
+  const uploadMutation = useMutation({
+    mutationFn: authApi.uploadAvatar,
+    onSuccess: (res) => {
+      applyUser(res.user);
+      setPreview(null);
+      setNotice("Đã cập nhật ảnh đại diện ✨");
+    },
+    onError: (err) => {
+      setPreview(null);
+      setError(getErrorMessage(err, "Không thể tải ảnh lên. Vui lòng thử lại."));
+    },
+  });
+
+  const removeMutation = useMutation({
+    mutationFn: authApi.removeAvatar,
+    onSuccess: (res) => {
+      applyUser(res.user);
+      setNotice("Đã xoá ảnh đại diện");
+    },
+    onError: (err) => setError(getErrorMessage(err, "Không thể xoá ảnh. Vui lòng thử lại.")),
+  });
+
+  const busy = uploadMutation.isPending || removeMutation.isPending;
+
+  const handleFile = (e: ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    e.target.value = ""; // cho phép chọn lại cùng một ảnh
+    if (!file) return;
+    setError("");
+    setNotice("");
+    if (!AVATAR_TYPES.includes(file.type)) return setError("Chỉ nhận ảnh JPG, PNG hoặc WEBP.");
+    if (file.size > AVATAR_MAX_BYTES) return setError("Ảnh vượt quá 2MB, bạn chọn ảnh nhỏ hơn nhé.");
+    setPreview(URL.createObjectURL(file));
+    uploadMutation.mutate(file);
+  };
+
+  return (
+    <div className="flex flex-col items-center gap-2 shrink-0 relative">
+      <div className="relative">
+        {preview ? (
+          <span className="w-24 h-24 rounded-3xl overflow-hidden border-2 border-primary/25 shadow-sm block">
+            <img src={preview} alt="Ảnh đại diện mới (đang tải lên)" className="w-full h-full object-cover opacity-70" />
+          </span>
+        ) : (
+          <UserAvatar
+            avatarUrl={profile.avatarUrl}
+            name={profile.fullName}
+            email={profile.email}
+            className="w-24 h-24 rounded-3xl border-2 shadow-sm"
+            textClassName="text-3xl font-extrabold"
+          />
+        )}
+        {uploadMutation.isPending && (
+          <span className="absolute inset-0 flex items-center justify-center rounded-3xl bg-surface/40">
+            <Loader2 className="w-6 h-6 animate-spin text-primary-dark" />
+          </span>
+        )}
+        <button
+          type="button"
+          onClick={() => inputRef.current?.click()}
+          disabled={busy}
+          className="absolute -bottom-1.5 -right-1.5 w-9 h-9 rounded-2xl bg-primary text-white flex items-center justify-center shadow-md ring-4 ring-surface hover:bg-primary-dark transition-colors cursor-pointer disabled:opacity-60 disabled:cursor-not-allowed focus-visible:outline-none focus-visible:ring-primary/40"
+          aria-label={profile.avatarUrl ? "Đổi ảnh đại diện" : "Tải ảnh đại diện"}
+          title={profile.avatarUrl ? "Đổi ảnh đại diện" : "Tải ảnh đại diện"}
+        >
+          <Camera className="w-4 h-4" />
+        </button>
+        <input
+          ref={inputRef}
+          type="file"
+          accept="image/jpeg,image/png,image/webp"
+          className="hidden"
+          onChange={handleFile}
+          data-testid="avatar-input"
+        />
+      </div>
+
+      {profile.avatarUrl && !preview && (
+        <button
+          type="button"
+          onClick={() => {
+            setError("");
+            removeMutation.mutate();
+          }}
+          disabled={busy}
+          className="mt-1 text-[11px] font-semibold text-muted hover:text-danger-dark inline-flex items-center gap-1 cursor-pointer disabled:opacity-60"
+        >
+          <Trash2 className="w-3 h-3" />
+          Xoá ảnh
+        </button>
+      )}
+      {!profile.avatarUrl && !preview && !error && (
+        <span className="mt-1 text-[11px] text-muted">JPG, PNG, WEBP · ≤ 2MB</span>
+      )}
+      {error && (
+        <p role="alert" className="max-w-[160px] text-center text-[11px] font-medium text-danger-dark">
+          {error}
+        </p>
+      )}
+      {notice && (
+        <p role="status" className="max-w-[160px] text-center text-[11px] font-medium text-primary-dark">
+          {notice}
+        </p>
+      )}
     </div>
   );
 }
@@ -701,7 +833,12 @@ export function ProfilePage() {
 
   // Đồng bộ họ tên/SĐT mới nhất vào store (header, checkout dùng lại)
   useEffect(() => {
-    if (profile) updateUser({ fullName: profile.fullName, phone: profile.phone ?? null });
+    if (profile)
+      updateUser({
+        fullName: profile.fullName,
+        phone: profile.phone ?? null,
+        avatarUrl: profile.avatarUrl ?? null,
+      });
   }, [profile, updateUser]);
 
   const handleLogout = () => {
@@ -749,12 +886,7 @@ export function ProfilePage() {
       <div className="bg-surface border border-border rounded-3xl p-6 sm:p-8 shadow-card flex flex-col sm:flex-row items-center sm:items-start gap-6 relative overflow-hidden">
         <div className="absolute -right-8 -bottom-8 w-44 h-44 rounded-full bg-primary-tint/30 pointer-events-none blur-2xl" />
 
-        <div
-          className="w-20 h-20 rounded-3xl bg-primary-tint border-2 border-primary/25 flex items-center justify-center text-primary-dark font-extrabold text-2xl shadow-sm shrink-0"
-          aria-hidden="true"
-        >
-          {getInitials(profile)}
-        </div>
+        <AvatarPicker profile={profile} />
 
         <div className="flex-1 text-center sm:text-left space-y-2 min-w-0 relative">
           <p className="text-xs font-semibold text-muted">Xin chào 👋</p>

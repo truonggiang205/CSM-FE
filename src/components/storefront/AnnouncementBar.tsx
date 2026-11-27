@@ -1,5 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { AnimatePresence, motion, useReducedMotion } from "framer-motion";
+import { useLocation } from "react-router-dom";
 import { ChevronRight, Megaphone, X } from "lucide-react";
 import { useStorefront } from "../../hooks/useStorefront";
 import { ANNOUNCEMENT_TONE_META } from "../../api/storefrontApi";
@@ -16,6 +17,7 @@ const STATIC_DURATION_MS = 6_000;
 /**
  * Thanh thông báo chạy chữ trên cùng.
  * Các thông báo chạy lần lượt từ phải sang trái; chạy hết một vòng thì thanh thu gọn, nghỉ 1 phút rồi chạy lại.
+ * Nếu khách chuyển sang trang khác trong lúc thanh đang nghỉ thì chạy lại ngay, không chờ hết 1 phút.
  * Rê chuột vào thanh để dừng chữ (dễ bấm link). Khách có thể ẩn thanh trong phiên hiện tại.
  */
 export function AnnouncementBar() {
@@ -35,6 +37,9 @@ export function AnnouncementBar() {
       return null;
     }
   });
+
+  const { pathname } = useLocation();
+  const [lastPath, setLastPath] = useState(pathname);
 
   const trackRef = useRef<HTMLDivElement>(null);
   const textRef = useRef<HTMLDivElement>(null);
@@ -56,6 +61,18 @@ export function AnnouncementBar() {
     }, MARQUEE_PAUSE_MS);
     return () => clearTimeout(t);
   }, [resting]);
+
+  // Chuyển trang (VD: từ Giỏ hàng quay về Trang chủ) khi thanh đang nghỉ => chạy lại ngay từ đầu.
+  // Đang chạy dở thì giữ nguyên để chữ không bị giật lại từ đầu mỗi lần bấm link.
+  // (Điều chỉnh state ngay trong lúc render theo khuyến nghị của React, không cần effect.)
+  if (lastPath !== pathname) {
+    setLastPath(pathname);
+    if (resting) {
+      setIndex(0);
+      setCycle((c) => c + 1);
+      setResting(false);
+    }
+  }
 
   const goNext = () => {
     if (index < items.length - 1) {
