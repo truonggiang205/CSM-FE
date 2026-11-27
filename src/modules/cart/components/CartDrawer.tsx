@@ -245,14 +245,34 @@ export function CartDrawer() {
                         {/* Details */}
                         <div className="flex-1 flex flex-col justify-between min-w-0">
                           <div>
-                            <span className="text-[10px] font-bold text-primary-dark uppercase tracking-wider block truncate">
-                              {item.product.category?.name || "Tiện lợi"}
-                            </span>
+                            <div className="flex items-center gap-1.5">
+                              {item.itemType === "COMBO" ? (
+                                <span className="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-accent-tint text-accent-dark border border-accent/30 uppercase tracking-wider">
+                                  🎁 Combo Tiết Kiệm
+                                </span>
+                              ) : (
+                                <span className="text-[10px] font-bold text-primary-dark uppercase tracking-wider block truncate">
+                                  {item.product.category?.name || "Tiện lợi"}
+                                </span>
+                              )}
+                            </div>
                             <h4 className="font-bold text-xs sm:text-sm text-foreground line-clamp-1 mt-0.5">
                               {item.product.name}
                             </h4>
-                            <div className="text-primary-dark font-black text-xs sm:text-sm mt-1">
-                              {formatCurrency(item.product.discountPrice || item.product.price)}
+                            {item.itemType === "COMBO" && item.comboItems && item.comboItems.length > 0 && (
+                              <p className="text-[10px] text-muted line-clamp-2 mt-0.5">
+                                Gồm: {item.comboItems.map((ci) => `${ci.quantity}x ${ci.productName}`).join(" + ")}
+                              </p>
+                            )}
+                            <div className="flex items-center gap-2 mt-1">
+                              <span className="text-primary-dark font-black text-xs sm:text-sm">
+                                {formatCurrency(item.product.discountPrice || item.product.price)}
+                              </span>
+                              {item.itemType === "COMBO" && item.product.price > (item.product.discountPrice || item.product.price) && (
+                                <span className="text-[10px] text-muted line-through">
+                                  {formatCurrency(item.product.price)}
+                                </span>
+                              )}
                             </div>
                           </div>
 

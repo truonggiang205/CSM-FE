@@ -19,6 +19,7 @@ import { ProductCard } from "../components/ProductCard";
 import { QuickViewModal } from "../components/QuickViewModal";
 import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
+import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
@@ -26,7 +27,7 @@ import { Skeleton } from "../../../components/ui/Skeleton";
 import { PromoBannerStrip } from "../../../components/storefront/PromoBannerStrip";
 import { Product } from "../../../types/product";
 
-type SortOption = "default" | "price-asc" | "price-desc" | "name-asc";
+type SortOption = "default" | "newest" | "price-asc" | "price-desc" | "name-asc";
 type PriceRangeOption = "all" | "under-50k" | "50k-100k" | "100k-200k" | "above-200k";
 
 const ITEMS_PER_PAGE = 50;
@@ -42,6 +43,8 @@ const PRICE_RANGES: { id: PriceRangeOption; label: string }[] = [
 export function ProductListPage() {
   const [searchParams, setSearchParams] = useSearchParams();
   const urlCategory = searchParams.get("category");
+  const urlFilter = searchParams.get("filter");
+  const urlSort = searchParams.get("sort") as SortOption | null;
   const urlQuery = searchParams.get("q") || "";
 
   const [searchInput, setSearchInput] = useState(urlQuery);
@@ -49,7 +52,11 @@ export function ProductListPage() {
   const [selectedCategory, setSelectedCategory] = useState<string | null>(urlCategory);
   const [priceRange, setPriceRange] = useState<PriceRangeOption>("all");
   const [onlyInStock, setOnlyInStock] = useState(false);
-  const [sortBy, setSortBy] = useState<SortOption>("default");
+  const [sortBy, setSortBy] = useState<SortOption>(
+    urlSort && ["default", "newest", "price-asc", "price-desc", "name-asc"].includes(urlSort)
+      ? urlSort
+      : "default"
+  );
   const [viewMode, setViewMode] = useState<"grid" | "list">("grid");
   const [visibleCount, setVisibleCount] = useState(ITEMS_PER_PAGE);
 
@@ -62,11 +69,17 @@ export function ProductListPage() {
   const { selectedBranch, openModal } = useBranchStore();
   const shouldReduceMotion = useReducedMotion();
 
-  // Đồng bộ search input khi param `q` trên URL thay đổi từ Header
+  // Đồng bộ search input & sort khi param trên URL thay đổi
   useEffect(() => {
     const q = searchParams.get("q") || "";
     setSearchInput(q);
     setDebouncedSearch(q);
+    const s = searchParams.get("sort") as SortOption | null;
+    if (s && ["default", "newest", "price-asc", "price-desc", "name-asc"].includes(s)) {
+      setSortBy(s);
+    } else if (!s) {
+      setSortBy("default");
+    }
   }, [searchParams]);
 
   // Debounce search query 300ms và đồng bộ lên URL searchParams
@@ -93,22 +106,32 @@ export function ProductListPage() {
     return () => clearTimeout(timer);
   }, [searchInput, setSearchParams]);
 
-  // Đồng bộ category từ URL param
-  useEffect(() => {
-    if (urlCategory) {
-      setSelectedCategory(urlCategory);
-    } else {
-      setSelectedCategory(null);
-    }
-  }, [urlCategory]);
-
   // 1. Fetch categories
   const { data: categories = [], isLoading: isLoadingCategories } = useQuery({
     queryKey: ["categories"],
     queryFn: productApi.getCategories,
   });
 
-  // 2. Fetch products
+  // Đồng bộ category từ URL param (hỗ trợ cả ID hoặc tên danh mục, vd: ?category=Đồ uống)
+  useEffect(() => {
+    if (!urlCategory) {
+      setSelectedCategory(null);
+      return;
+    }
+    const matchedById = categories.find((c) => c.id === urlCategory);
+    if (matchedById) {
+      setSelectedCategory(matchedById.id);
+      return;
+    }
+    const normalized = urlCategory.trim().toLowerCase();
+    const matchedByName = categories.find((c) => c.name.toLowerCase().includes(normalized));
+    if (matchedByName) {
+      setSelectedCategory(matchedByName.id);
+    } else {
+      setSelectedCategory(urlCategory);
+    }
+  }, [urlCategory, categories]);
+
   const {
     data: products = [],
     isLoading: isLoadingProducts,
@@ -119,7 +142,12 @@ export function ProductListPage() {
     queryFn: () => productApi.getProducts(),
   });
 
-  // 3. Fetch inventory for selected branch (fallback br-01 để luôn có dữ liệu tồn kho)
+  const { data: flashSaleData } = useQuery({
+    queryKey: ["active-flash-sale"],
+    queryFn: flashSaleApi.getActiveOrUpcoming,
+    refetchInterval: 30000,
+  });
+
   const activeBranchId = selectedBranch?.id || "br-01";
   const { data: branchInventory = [] } = useQuery({
     queryKey: ["inventory", "branch", activeBranchId],
@@ -127,7 +155,6 @@ export function ProductListPage() {
     enabled: !!activeBranchId,
   });
 
-  // Tạo Map product_id & sku -> availableStock để tra cứu O(1)
   const stockMap = useMemo(() => {
     const map = new Map<string, number>();
     branchInventory.forEach((item) => {
@@ -138,18 +165,103 @@ export function ProductListPage() {
     return map;
   }, [branchInventory]);
 
-  // Lọc và sắp xếp sản phẩm đa tiêu chí
+  const activeFlashSaleMap = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        salePrice: number;
+        soldCount: number;
+        quantityLimit: number;
+        isSoldOut: boolean;
+        endTime?: string;
+        discountLabel: string;
+      }
+    >();
+    if (flashSaleData?.status === "ACTIVE" && flashSaleData.items) {
+      for (const item of flashSaleData.items) {
+        const sale = Number(item.sale_price);
+        const sold = Number(item.sold_count) || 0;
+        const limit = Number(item.quantity_limit) || 0;
+        const isSoldOut = limit > 0 && sold >= limit;
+        if (sale > 0) {
+          map.set(String(item.product_id), {
+            salePrice: sale,
+            soldCount: sold,
+            quantityLimit: limit,
+            isSoldOut,
+            discountLabel: formatFlashSaleDiscount(item),
+            endTime: flashSaleData.endTime || flashSaleData.campaign?.end_time,
+          });
+        }
+      }
+    }
+    return map;
+  }, [flashSaleData]);
+
+  const productsWithFlashSale = useMemo(() => {
+    if (activeFlashSaleMap.size === 0) return products;
+    return products.map((product) => {
+      const fs = activeFlashSaleMap.get(String(product.id));
+      if (fs) {
+        if (!fs.isSoldOut && fs.salePrice > 0 && fs.salePrice < product.price) {
+          return {
+            ...product,
+            discountPrice: fs.salePrice,
+            flashSaleMeta: {
+              soldCount: fs.soldCount,
+              quantityLimit: fs.quantityLimit,
+              endTime: fs.endTime,
+              isSoldOut: false,
+              discountLabel: fs.discountLabel,
+            },
+          };
+        }
+        return {
+          ...product,
+          discountPrice: undefined,
+          flashSaleMeta: {
+            soldCount: fs.soldCount,
+            quantityLimit: fs.quantityLimit,
+            endTime: fs.endTime,
+            isSoldOut: true,
+          },
+        };
+      }
+      return product;
+    });
+  }, [products, activeFlashSaleMap]);
+
   const filteredProducts = useMemo(() => {
-    let result = products.filter((product) => {
-      // 1. Search text
+    let result = productsWithFlashSale.filter((product) => {
       const matchesSearch =
         product.name.toLowerCase().includes(debouncedSearch.toLowerCase()) ||
         (product.sku && product.sku.toLowerCase().includes(debouncedSearch.toLowerCase()));
 
-      // 2. Category
       const matchesCategory = selectedCategory ? product.category.id === selectedCategory : true;
 
-      // 3. Price range
+      let matchesSpecialFilter = true;
+      if (urlFilter === "late-night") {
+        const catName = (product.category?.name || "").toLowerCase();
+        const prodName = product.name.toLowerCase();
+        const lateNightKeywords = [
+          "mì",
+          "xúc xích",
+          "bánh bao",
+          "cơm nắm",
+          "onigiri",
+          "snack",
+          "khoai tây",
+          "bắp rang",
+          "tăng lực",
+          "cà phê",
+          "bánh mì",
+        ];
+        matchesSpecialFilter =
+          catName.includes("thức ăn nhanh") ||
+          catName.includes("snack") ||
+          lateNightKeywords.some((kw) => prodName.includes(kw));
+      }
+
       const effectivePrice = product.discountPrice || product.price;
       let matchesPrice = true;
       if (priceRange === "under-50k") {
@@ -162,15 +274,20 @@ export function ProductListPage() {
         matchesPrice = effectivePrice > 200000;
       }
 
-      // 4. In stock
       const available = stockMap.get(String(product.id)) ?? (product.sku ? stockMap.get(String(product.sku)) : undefined) ?? product.stock;
       const matchesInStock = onlyInStock ? available > 0 : true;
 
-      return matchesSearch && matchesCategory && matchesPrice && matchesInStock;
+      return matchesSearch && matchesCategory && matchesSpecialFilter && matchesPrice && matchesInStock;
     });
 
-    // Sắp xếp
-    if (sortBy === "price-asc") {
+    if (sortBy === "newest") {
+      result = [...result].sort((a, b) => {
+        if (a.createdAt && b.createdAt) {
+          return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
+        }
+        return b.id.localeCompare(a.id);
+      });
+    } else if (sortBy === "price-asc") {
       result = [...result].sort((a, b) => (a.discountPrice || a.price) - (b.discountPrice || b.price));
     } else if (sortBy === "price-desc") {
       result = [...result].sort((a, b) => (b.discountPrice || b.price) - (a.discountPrice || a.price));
@@ -179,7 +296,7 @@ export function ProductListPage() {
     }
 
     return result;
-  }, [products, debouncedSearch, selectedCategory, priceRange, onlyInStock, stockMap, sortBy]);
+  }, [productsWithFlashSale, debouncedSearch, selectedCategory, urlFilter, priceRange, onlyInStock, stockMap, sortBy]);
 
   // Phân trang
   const displayedProducts = filteredProducts.slice(0, visibleCount);
@@ -188,9 +305,18 @@ export function ProductListPage() {
   // Tính số bộ lọc đang áp dụng
   const activeFilterCount =
     (selectedCategory ? 1 : 0) +
+    (urlFilter ? 1 : 0) +
     (priceRange !== "all" ? 1 : 0) +
     (onlyInStock ? 1 : 0) +
     (debouncedSearch ? 1 : 0);
+
+  const handleClearSpecialFilter = () => {
+    setSearchParams((prev) => {
+      const next = new URLSearchParams(prev);
+      next.delete("filter");
+      return next;
+    });
+  };
 
   const handleCategorySelect = (catId: string | null) => {
     setSelectedCategory(catId);
@@ -448,6 +574,7 @@ export function ProductListPage() {
                   className="appearance-none pl-3.5 pr-8 py-2 rounded-2xl border border-border bg-surface text-xs font-semibold text-foreground focus:outline-none focus:ring-2 focus:ring-primary/30 cursor-pointer shadow-xs"
                 >
                   <option value="default">Sắp xếp: Mặc định</option>
+                  <option value="newest">Sắp xếp: Mới nhất</option>
                   <option value="price-asc">Giá: Thấp đến Cao</option>
                   <option value="price-desc">Giá: Cao đến Thấp</option>
                   <option value="name-asc">Tên: A-Z</option>
@@ -465,6 +592,14 @@ export function ProductListPage() {
                 <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-surface border border-border text-xs text-foreground shadow-xs">
                   Từ khoá: &ldquo;{debouncedSearch}&rdquo;
                   <button onClick={() => setSearchInput("")} className="hover:text-danger">
+                    <X className="w-3 h-3" />
+                  </button>
+                </span>
+              )}
+              {urlFilter === "late-night" && (
+                <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-xl bg-indigo-50 border border-indigo-200 text-xs font-semibold text-indigo-700 shadow-xs">
+                  🌙 Món ăn khuya tiện lợi
+                  <button onClick={handleClearSpecialFilter} className="hover:text-danger">
                     <X className="w-3 h-3" />
                   </button>
                 </span>
@@ -502,7 +637,6 @@ export function ProductListPage() {
             </div>
           )}
 
-          {/* Loading Skeleton */}
           {isLoading ? (
             <div
               className={

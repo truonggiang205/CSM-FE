@@ -26,23 +26,20 @@ export function NewArrivalsSection({
 }: NewArrivalsSectionProps) {
   const shouldReduceMotion = useReducedMotion();
 
-  // Đảm bảo luôn có sản phẩm để hiển thị, fallback mockProducts
-  const productSource = products && products.length > 0 ? products : mockProducts;
-
-  // Sắp xếp sản phẩm theo ngày tạo mới nhất (nếu có createdAt)
   const newProducts = useMemo(() => {
     if (section?.products?.length) return section.products.slice(0, 4);
-    const list = [...productSource];
+    const list = [...(products && products.length > 0 ? products : mockProducts)];
     return list
       .sort((a, b) => {
         if (a.createdAt && b.createdAt) {
           return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime();
         }
-        // Fallback: ưu tiên các id mới hoặc đảo ngược danh sách ban đầu
         return b.id.localeCompare(a.id);
       })
       .slice(0, 4);
-  }, [productSource, section]);
+  }, [products, section]);
+
+  if (newProducts.length === 0) return null;
 
   return (
     <section className="py-14 sm:py-20 bg-background border-b border-border/70 relative">
@@ -89,7 +86,7 @@ export function NewArrivalsSection({
                 className="relative"
               >
                 {/* Custom Floating 'Mới' Badge over ProductCard */}
-                <div className="absolute top-3 left-3 z-20 pointer-events-none">
+                <div className="absolute top-3 right-3 z-20 pointer-events-none">
                   <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full bg-emerald-600 text-white text-[11px] font-black shadow-md border border-white/20">
                     <Sparkles className="w-3 h-3 text-emerald-200 fill-emerald-200" />
                     <span>Mới</span>

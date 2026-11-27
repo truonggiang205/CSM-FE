@@ -215,7 +215,9 @@ export function HomeWireframe({ blocks, activeKey, onHover, onSelect, showAnnoun
     box.scrollTo({ top, behavior: "smooth" });
   }, [activeKey]);
 
-  let visibleNo = 0;
+  // Số thứ tự hiển thị của từng khối đang bật (tính trước, không đổi biến trong lúc render JSX)
+  const visibleNoByKey = new Map<string, number>();
+  blocks.filter((b) => b.visible).forEach((b, i) => visibleNoByKey.set(b.key, i + 1));
 
   return (
     <div className="rounded-2xl border border-border bg-surface shadow-card overflow-hidden" data-testid="home-wireframe">
@@ -284,7 +286,7 @@ export function HomeWireframe({ blocks, activeKey, onHover, onSelect, showAnnoun
             );
           }
 
-          visibleNo += 1;
+          const visibleNo = visibleNoByKey.get(block.key) ?? 0;
           return (
             <div
               key={block.key}

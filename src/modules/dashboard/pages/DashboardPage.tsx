@@ -61,6 +61,25 @@ export interface LowStockItem {
   status: "OUT_OF_STOCK" | "LOW_STOCK";
 }
 
+// Custom Tooltip cho biểu đồ Recharts (khai báo ngoài component để không tạo lại mỗi lần render)
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+function RevenueTooltip({ active, payload }: any) {
+  if (active && payload && payload.length) {
+    const data = payload[0].payload;
+    return (
+      <div className="bg-surface p-3.5 rounded-2xl border border-border shadow-lg space-y-1.5 text-xs">
+        <p className="font-bold text-foreground">{data.label}</p>
+        <p className="font-extrabold text-primary-dark">
+          Doanh thu PAID:{" "}
+          {new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(data.revenue)}
+        </p>
+        <p className="font-semibold text-muted">Tổng đơn: {data.orders} đơn</p>
+      </div>
+    );
+  }
+  return null;
+}
+
 export function DashboardPage() {
   const { user } = useAuthStore();
   const isAdmin = user?.role === "ADMIN";
@@ -546,25 +565,6 @@ export function DashboardPage() {
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "start" });
     }
-  };
-
-  // Custom Tooltip cho biểu đồ Recharts
-  const CustomTooltip = ({ active, payload }: any) => {
-    if (active && payload && payload.length) {
-      const data = payload[0].payload;
-      return (
-        <div className="bg-surface p-3.5 rounded-2xl border border-border shadow-lg space-y-1.5 text-xs">
-          <p className="font-bold text-foreground">{data.label}</p>
-          <p className="font-extrabold text-primary-dark">
-            Doanh thu PAID: {formatCurrency(data.revenue)}
-          </p>
-          <p className="font-semibold text-muted">
-            Tổng đơn: {data.orders} đơn
-          </p>
-        </div>
-      );
-    }
-    return null;
   };
 
   return (
@@ -1114,7 +1114,7 @@ export function DashboardPage() {
                     : `${val}`
                 }
               />
-              <Tooltip content={<CustomTooltip />} />
+              <Tooltip content={<RevenueTooltip />} />
               <Area
                 type="monotone"
                 dataKey={metricView}

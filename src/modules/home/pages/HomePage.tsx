@@ -19,10 +19,10 @@ import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
 import { DEFAULT_HOME_LAYOUT, HomeBlockKey } from "../../../api/storefrontApi";
 import { useStorefront } from "../../../hooks/useStorefront";
+import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { ProductCard } from "../../products/components/ProductCard";
 import { Skeleton } from "../../../components/ui/Skeleton";
-import { mockProducts, mockCategories } from "../../../mocks/products";
 
 const CATEGORY_STYLES = [
   { emoji: "🧃", color: "bg-pastel-sky/60", border: "border-info/20" },
@@ -37,24 +37,22 @@ export function HomePage() {
   const { selectedBranch } = useBranchStore();
   const shouldReduceMotion = useReducedMotion();
 
-  // 1. Lấy danh mục từ API (kèm fallback mockCategories)
-  const { data: categories = mockCategories, isLoading: isLoadingCats } = useQuery({
+  const { data: categories = [], isLoading: isLoadingCats } = useQuery({
     queryKey: ["categories"],
     queryFn: productApi.getCategories,
-    initialData: mockCategories,
   });
 
-  // 2. Lấy sản phẩm nổi bật từ API (kèm fallback mockProducts)
-  const { data: rawProducts = mockProducts, isLoading: isLoadingProducts } = useQuery({
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
     queryKey: ["products"],
     queryFn: productApi.getProducts,
-    initialData: mockProducts,
   });
 
-  // Đảm bảo products không bao giờ rỗng
-  const products = rawProducts && rawProducts.length > 0 ? rawProducts : mockProducts;
+  const { data: flashSaleData } = useQuery({
+    queryKey: ["active-flash-sale"],
+    queryFn: flashSaleApi.getActiveOrUpcoming,
+    refetchInterval: 30000,
+  });
 
-  // 3. Lấy tồn kho của chi nhánh đang chọn một lần (fallback br-01 để luôn có dữ liệu tồn kho)
   const activeBranchId = selectedBranch?.id || "br-01";
   const { data: branchInventory = [] } = useQuery({
     queryKey: ["inventory", "branch", activeBranchId],
@@ -77,6 +75,72 @@ export function HomePage() {
     });
     return map;
   }, [branchInventory]);
+
+  const activeFlashSaleMap = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        salePrice: number;
+        soldCount: number;
+        quantityLimit: number;
+        isSoldOut: boolean;
+        endTime?: string;
+        discountLabel: string;
+      }
+    >();
+    if (flashSaleData?.status === "ACTIVE" && flashSaleData.items) {
+      for (const item of flashSaleData.items) {
+        const sale = Number(item.sale_price);
+        const sold = Number(item.sold_count) || 0;
+        const limit = Number(item.quantity_limit) || 0;
+        const isSoldOut = limit > 0 && sold >= limit;
+        if (sale > 0) {
+          map.set(String(item.product_id), {
+            salePrice: sale,
+            soldCount: sold,
+            quantityLimit: limit,
+            isSoldOut,
+            discountLabel: formatFlashSaleDiscount(item),
+            endTime: flashSaleData.endDateTime || flashSaleData.endTime || flashSaleData.campaign?.end_time,
+          });
+        }
+      }
+    }
+    return map;
+  }, [flashSaleData]);
+
+  const displayProducts = useMemo(() => {
+    if (activeFlashSaleMap.size === 0) return products;
+    return products.map((product) => {
+      const fs = activeFlashSaleMap.get(String(product.id));
+      if (fs) {
+        if (!fs.isSoldOut && fs.salePrice > 0 && fs.salePrice < product.price) {
+          return {
+            ...product,
+            discountPrice: fs.salePrice,
+            flashSaleMeta: {
+              soldCount: fs.soldCount,
+              quantityLimit: fs.quantityLimit,
+              endTime: fs.endTime,
+              isSoldOut: false,
+              discountLabel: fs.discountLabel,
+            },
+          };
+        }
+        return {
+          ...product,
+          discountPrice: undefined,
+          flashSaleMeta: {
+            soldCount: fs.soldCount,
+            quantityLimit: fs.quantityLimit,
+            endTime: fs.endTime,
+            isSoldOut: true,
+          },
+        };
+      }
+      return product;
+    });
+  }, [products, activeFlashSaleMap]);
 
   // Các khối trang chủ; thứ tự và bật/tắt theo bố cục do Admin/Manager cấu hình
   const blockNodes: Record<HomeBlockKey, React.ReactNode> = {

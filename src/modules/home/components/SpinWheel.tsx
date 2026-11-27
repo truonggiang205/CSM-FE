@@ -3,6 +3,8 @@ import { motion, AnimatePresence, useReducedMotion, useMotionValue, animate } fr
 import { Sparkles, Trophy, X, Gift, RotateCcw, AlertCircle } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
 import { SPIN_PRIZES, SpinPrize } from "../homeData";
+import { discountApi } from "../../../api/discountApi";
+import { useAuthStore } from "../../../store/useAuthStore";
 
 const TODAY_STORAGE_KEY = "csm_spin_wheel_date";
 const TODAY_PRIZE_KEY = "csm_spin_wheel_prize";
@@ -102,9 +104,21 @@ export function SpinWheel() {
   const shouldReduceMotion = useReducedMotion();
   const rotationValue = useMotionValue(0);
   const currentRotationRef = useRef(0);
+  const { user, isAuthenticated } = useAuthStore();
 
-  // Kiểm tra lượt quay trong ngày từ localStorage
+  // Kiểm tra lượt quay trong ngày từ server (nếu đã đăng nhập) hoặc localStorage
   useEffect(() => {
+    if (isAuthenticated && user?.id) {
+      discountApi.getSpinStatus(user.id).then((res) => {
+        if (res.hasSpunToday && res.todayRecord) {
+          setHasSpunToday(true);
+          const prevWon = SPIN_PRIZES.find((p) => p.id === res.todayRecord.prize_id);
+          if (prevWon) setWonPrize(prevWon);
+        }
+      });
+      return;
+    }
+
     const today = getTodayString();
     const savedDate = localStorage.getItem(TODAY_STORAGE_KEY);
     if (savedDate === today) {
@@ -113,7 +127,7 @@ export function SpinWheel() {
       const prevWon = SPIN_PRIZES.find((p) => p.id === savedPrizeId);
       if (prevWon) setWonPrize(prevWon);
     }
-  }, []);
+  }, [isAuthenticated, user?.id]);
 
   // Đóng modal phần thưởng khi nhấn phím Escape
   useEffect(() => {
@@ -140,10 +154,29 @@ export function SpinWheel() {
     return { prize: SPIN_PRIZES[0], index: 0 };
   };
 
-  const handleSpin = () => {
+  const handleSpin = async () => {
     if (isSpinning || hasSpunToday) return;
 
-    const { prize, index } = pickWeightedPrize();
+    let prize: SpinPrize;
+    let index: number;
+
+    if (isAuthenticated && user?.id) {
+      try {
+        const res = await discountApi.spinWheel(user.id);
+        index = typeof res.prizeIndex === "number" ? res.prizeIndex : 0;
+        prize = SPIN_PRIZES[index] || SPIN_PRIZES.find((p) => p.id === res.prizeId) || SPIN_PRIZES[0];
+      } catch (err: any) {
+        if (err?.response?.status === 409) {
+          setHasSpunToday(true);
+        }
+        return;
+      }
+    } else {
+      const picked = pickWeightedPrize();
+      prize = picked.prize;
+      index = picked.index;
+    }
+
     setWonPrize(prize);
     setIsSpinning(true);
 

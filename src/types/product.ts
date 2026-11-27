@@ -17,6 +17,15 @@ export interface BackendProduct {
   updated_at?: string;
 }
 
+export interface ProductFlashSaleMeta {
+  soldCount: number;
+  quantityLimit: number;
+  endTime?: string;
+  isSoldOut?: boolean;
+  /** Nhãn giảm giá theo kiểu Admin chọn: "-20%" hoặc "-5.000đ" */
+  discountLabel?: string;
+}
+
 export interface Product {
   id: string;
   sku?: string;
@@ -31,4 +40,7 @@ export interface Product {
   rating?: number;
   reviewsCount?: number;
   createdAt?: string;
+  flashSaleMeta?: ProductFlashSaleMeta;
+  isFeatured?: boolean;
+  curatorNote?: string;
 }

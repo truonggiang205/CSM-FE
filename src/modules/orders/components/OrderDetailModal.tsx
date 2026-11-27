@@ -192,7 +192,19 @@ export function OrderDetailModal({
                       items.map((item, idx) => (
                         <tr key={item.id || idx} className="hover:bg-surface-soft/40 transition-colors">
                           <td className="px-4 py-3 font-medium text-foreground">
-                            <div className="font-bold text-xs">{item.product_name_snapshot}</div>
+                            <div className="flex items-center gap-1.5 flex-wrap">
+                              {item.item_type === "COMBO" && (
+                                <span className="text-[9px] font-extrabold px-1.5 py-0.5 rounded-md bg-accent-tint text-accent-dark border border-accent/30 uppercase">
+                                  Combo
+                                </span>
+                              )}
+                              <span className="font-bold text-xs">{item.product_name_snapshot}</span>
+                            </div>
+                            {item.item_type === "COMBO" && item.combo_items_snapshot && item.combo_items_snapshot.length > 0 && (
+                              <div className="text-[10px] text-muted mt-0.5">
+                                Gồm: {item.combo_items_snapshot.map((ci) => `${ci.quantity}x ${ci.productName}`).join(" + ")}
+                              </div>
+                            )}
                             <div className="font-mono text-[10px] text-muted">Mã: {item.product_id}</div>
                           </td>
                           <td className="px-4 py-3 text-center text-muted font-mono">
