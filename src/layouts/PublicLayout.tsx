@@ -32,6 +32,7 @@ import { CartToast } from "../components/ui/CartToast";
 import { Button } from "../components/ui/Button";
 import { BranchSelector } from "../components/branch/BranchSelector";
 import { AnnouncementBar } from "../components/storefront/AnnouncementBar";
+import { UserAvatar } from "../components/ui/UserAvatar";
 import { PromoPopup } from "../components/storefront/PromoPopup";
 import apiClient from "../api/apiClient";
 import { useCartFlashSaleSync } from "../hooks/useCartFlashSaleSync";
@@ -267,8 +268,13 @@ export default function PublicLayout() {
                   title="Hồ sơ tài khoản"
                   aria-label="Xem thông tin tài khoản"
                 >
-                  <User className="w-3.5 h-3.5 text-primary" />
-                  <span className="truncate max-w-[100px]">{user?.name || user?.email?.split("@")[0] || "Tôi"}</span>
+                  <UserAvatar
+                    avatarUrl={user?.avatarUrl}
+                    name={user?.fullName}
+                    email={user?.email}
+                    className="w-5 h-5 rounded-md text-[9px] border-primary/20"
+                  />
+                  <span className="truncate max-w-[100px]">{user?.fullName || user?.name || user?.email?.split("@")[0] || "Tôi"}</span>
                 </Link>
                 <button
                   onClick={logout}

@@ -200,6 +200,10 @@ const router = createBrowserRouter([
             element: withSuspense(OrderListPage),
           },
           {
+            path: "profile",
+            element: withSuspense(ProfilePage),
+          },
+          {
             element: <ProtectedRoute allowedRoles={["BRANCH_MANAGER", "ADMIN"]} />,
             children: [
               {
