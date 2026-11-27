@@ -1,0 +1,15 @@
+﻿====================================================
+🧪 CHẠY KIỂM THỬ TỰ ĐỘNG MAPPER SẢN PHẨM (CSM-FE)
+====================================================
+
+
+Running 4 tests using 1 worker
+
+  ok 1 [chromium] › tests\mapper.spec.ts:6:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 1. Đầu vào là MẢNG SẢN PHẨM CŨ (Array) (21ms)
+  ok 2 [chromium] › tests\mapper.spec.ts:45:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 2. Đầu vào là ĐỐI TƯỢNG PHÂN TRANG MỚI ({ items, total, page, limit, totalPages }) (5ms)
+  ok 3 [chromium] › tests\mapper.spec.ts:88:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 3. Đầu vào là DỮ LIỆU RỖNG / HỎNG / SAI CẤU TRÚC (14ms)
+  ok 4 [chromium] › tests\mapper.spec.ts:115:3 › Unit Test: mapBackendProductsToFrontend contract compatibility › 4. Kiểm tra mockPaginatedProducts khớp với mockProducts (7ms)
+
+  4 passed (811ms)
+
+✅ TẤT CẢ CÁC TRƯỜNG HỢP KIỂM THỬ MAPPER ĐÃ ĐẠT!

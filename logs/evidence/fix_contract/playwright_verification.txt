@@ -1,0 +1,25 @@
+====================================================
+🚀 BẮT ĐẦU KIỂM CHỨNG PLAYWRIGHT VỚI STACK THẬT
+🌐 URL Frontend: http://localhost:3000
+====================================================
+
+1️⃣ Kiểm tra Trang Chủ (/)...
+   📸 Đã chụp ảnh trang chủ: E:\TLCN\CSM-FE\logs\evidence\fix_contract\screenshot_home.png
+   📦 Số sản phẩm xuất hiện trên trang chủ: 8
+   ✅ Trang chủ tải thành công.
+
+2️⃣ Kiểm tra Trang Danh Sách Sản Phẩm (/products)...
+   📸 Đã chụp ảnh trang /products: E:\TLCN\CSM-FE\logs\evidence\fix_contract\screenshot_products.png
+   📦 Tổng số sản phẩm hiển thị: 26/26
+   📝 Danh sách sản phẩm thực tế: Bật Lửa Tiện Dụng Cricket, Bàn Chải Đánh Răng Than Hoạt Tính Colgate, Khẩu Trang Y Tế 4 Lớp Kháng Khuẩn (Gói 10 cái), Gel Rửa Tay Khô Lifebuoy 50ml, Khăn Giấy Ướt Kháng Khuẩn CSM Gói 20 tờ...
+   ✅ ĐẠT: Toàn bộ 26/26 sản phẩm demo hiển thị đầy đủ (không bị cắt ở 20).
+
+3️⃣ Kiểm tra Trang Quản Trị Kho (/admin/inventory)...
+   📸 Đã chụp ảnh trang /admin/inventory: E:\TLCN\CSM-FE\logs\evidence\fix_contract\screenshot_admin_inventory.png
+   🔍 Kiểm tra 'Sản phẩm #id': ĐÃ SỬA (Không còn)
+   🔍 Kiểm tra tên sản phẩm thật: ĐÃ CÓ (Hiển thị tên thật)
+   ✅ ĐẠT: Quản lý kho hiển thị 100% tên sản phẩm thật.
+
+====================================================
+🎉 HOÀN THÀNH KIỂM CHỨNG PLAYWRIGHT VỚI STACK THẬT!
+====================================================

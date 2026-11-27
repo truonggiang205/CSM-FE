@@ -1,0 +1,416 @@
+import React, { useMemo } from "react";
+import { motion, useReducedMotion } from "framer-motion";
+import { Link } from "react-router-dom";
+import { useQuery } from "@tanstack/react-query";
+import { Button } from "../../../components/ui/Button";
+import { ArrowRight, Sparkles, Store, Utensils } from "lucide-react";
+import { HeroGreeting } from "../components/HeroGreeting";
+import { HeroOrbitBanner } from "../components/HeroOrbitBanner";
+import { HeroPromoSlider } from "../components/HeroPromoSlider";
+import { FlashSaleSection } from "../components/FlashSaleSection";
+import { CsmPicksSection } from "../components/CsmPicksSection";
+import { NewArrivalsSection } from "../components/NewArrivalsSection";
+import { ComboSection } from "../components/ComboSection";
+import { SpinWheel } from "../components/SpinWheel";
+import { AmbientBackground } from "../components/AmbientBackground";
+import { WhyChooseUsSection } from "../components/WhyChooseUsSection";
+import { TestimonialsSection } from "../components/TestimonialsSection";
+import { productApi } from "../../../api/productApi";
+import { inventoryApi } from "../../../api/inventoryApi";
+import { DEFAULT_HOME_LAYOUT, HomeBlockKey } from "../../../api/storefrontApi";
+import { useStorefront } from "../../../hooks/useStorefront";
+import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
+import { useBranchStore } from "../../../store/useBranchStore";
+import { ProductCard } from "../../products/components/ProductCard";
+import { Skeleton } from "../../../components/ui/Skeleton";
+
+const CATEGORY_STYLES = [
+  { emoji: "🧃", color: "bg-pastel-sky/60", border: "border-info/20" },
+  { emoji: "🍙", color: "bg-pastel-peach/60", border: "border-accent/20" },
+  { emoji: "🍪", color: "bg-pastel-butter/60", border: "border-warning/20" },
+  { emoji: "🧴", color: "bg-pastel-lavender/60", border: "border-primary/20" },
+  { emoji: "🍜", color: "bg-pastel-rose/60", border: "border-rose-200" },
+  { emoji: "☕", color: "bg-pastel-mint/60", border: "border-primary/20" },
+];
+
+export function HomePage() {
+  const { selectedBranch } = useBranchStore();
+  const shouldReduceMotion = useReducedMotion();
+
+  const { data: categories = [], isLoading: isLoadingCats } = useQuery({
+    queryKey: ["categories"],
+    queryFn: productApi.getCategories,
+  });
+
+  const { data: products = [], isLoading: isLoadingProducts } = useQuery({
+    queryKey: ["products"],
+    queryFn: productApi.getProducts,
+  });
+
+  const { data: flashSaleData } = useQuery({
+    queryKey: ["active-flash-sale"],
+    queryFn: flashSaleApi.getActiveOrUpcoming,
+    refetchInterval: 30000,
+  });
+
+  const activeBranchId = selectedBranch?.id || "br-01";
+  const { data: branchInventory = [] } = useQuery({
+    queryKey: ["inventory", "branch", activeBranchId],
+    queryFn: () => inventoryApi.getInventoryByBranch(activeBranchId),
+    enabled: !!activeBranchId,
+  });
+
+  // 4. Nội dung trang chủ do Admin/Manager tùy chỉnh (banner + khối sản phẩm nổi bật).
+  //    Trả về null nếu Backend chưa sẵn sàng => các khối tự dùng nội dung mặc định.
+  const { data: storefront } = useStorefront();
+  const orderedBlocks = (storefront?.layout || DEFAULT_HOME_LAYOUT).filter((b) => b.visible);
+
+  // Map product_id & sku -> available stock
+  const stockMap = useMemo(() => {
+    const map = new Map<string, number>();
+    branchInventory.forEach((item) => {
+      const avail = item.available ?? Math.max(0, (Number(item.quantity) || 0) - (Number(item.reserved_quantity) || 0));
+      if (item.product_id) map.set(String(item.product_id), avail);
+      if (item.sku) map.set(String(item.sku), avail);
+    });
+    return map;
+  }, [branchInventory]);
+
+  const activeFlashSaleMap = useMemo(() => {
+    const map = new Map<
+      string,
+      {
+        salePrice: number;
+        soldCount: number;
+        quantityLimit: number;
+        isSoldOut: boolean;
+        endTime?: string;
+        discountLabel: string;
+      }
+    >();
+    if (flashSaleData?.status === "ACTIVE" && flashSaleData.items) {
+      for (const item of flashSaleData.items) {
+        const sale = Number(item.sale_price);
+        const sold = Number(item.sold_count) || 0;
+        const limit = Number(item.quantity_limit) || 0;
+        const isSoldOut = limit > 0 && sold >= limit;
+        if (sale > 0) {
+          map.set(String(item.product_id), {
+            salePrice: sale,
+            soldCount: sold,
+            quantityLimit: limit,
+            isSoldOut,
+            discountLabel: formatFlashSaleDiscount(item),
+            endTime: flashSaleData.endDateTime || flashSaleData.endTime || flashSaleData.campaign?.end_time,
+          });
+        }
+      }
+    }
+    return map;
+  }, [flashSaleData]);
+
+  const displayProducts = useMemo(() => {
+    if (activeFlashSaleMap.size === 0) return products;
+    return products.map((product) => {
+      const fs = activeFlashSaleMap.get(String(product.id));
+      if (fs) {
+        if (!fs.isSoldOut && fs.salePrice > 0 && fs.salePrice < product.price) {
+          return {
+            ...product,
+            discountPrice: fs.salePrice,
+            flashSaleMeta: {
+              soldCount: fs.soldCount,
+              quantityLimit: fs.quantityLimit,
+              endTime: fs.endTime,
+              isSoldOut: false,
+              discountLabel: fs.discountLabel,
+            },
+          };
+        }
+        return {
+          ...product,
+          discountPrice: undefined,
+          flashSaleMeta: {
+            soldCount: fs.soldCount,
+            quantityLimit: fs.quantityLimit,
+            endTime: fs.endTime,
+            isSoldOut: true,
+          },
+        };
+      }
+      return product;
+    });
+  }, [products, activeFlashSaleMap]);
+
+  // Các khối trang chủ; thứ tự và bật/tắt theo bố cục do Admin/Manager cấu hình
+  const blockNodes: Record<HomeBlockKey, React.ReactNode> = {
+    QUICK_MEAL: (
+      <>
+          {/* Quick Meal & Combo Interactive Station */}
+          <section className="py-8 sm:py-10 bg-gradient-to-b from-background via-primary-tint/25 to-surface-soft/50 border-b border-border/80">
+            <div className="container mx-auto px-4 md:px-6">
+              <div className="grid gap-10 lg:grid-cols-12 items-center">
+                <motion.div
+                  initial={shouldReduceMotion ? { opacity: 0 } : { opacity: 0, x: -20 }}
+                  whileInView={{ opacity: 1, x: 0 }}
+                  viewport={{ once: true }}
+                  transition={{ duration: 0.5 }}
+                  className="lg:col-span-6 space-y-5 text-left"
+                >
+                  <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-surface border border-primary/25 shadow-xs w-fit">
+                    <Utensils className="w-3.5 h-3.5 text-accent" />
+                    <span className="text-xs font-bold text-primary-dark uppercase tracking-wider">
+                      Gợi ý combo tiện lợi
+                    </span>
+                  </div>
+
+                  <div className="space-y-3">
+                    <h2 className="text-2xl sm:text-3xl lg:text-4xl font-extrabold text-foreground tracking-tight leading-tight">
+                      Bữa Ăn Nhanh Tiện Lợi <br />
+                      <span className="text-primary underline decoration-pastel-peach decoration-wavy decoration-2">
+                        Nạp Năng Lượng Tức Thì
+                      </span>
+                    </h2>
+                    <p className="text-muted text-xs sm:text-sm leading-relaxed max-w-lg">
+                      Không cần chờ đợi lâu! Chỉ với vài thao tác đơn giản, chọn ngay combo bữa sáng, trưa hoặc ăn nhẹ kèm thức uống mát lạnh sẵn sàng phục vụ 24/7.
+                    </p>
+                  </div>
+
+                  <div className="flex flex-col sm:flex-row gap-3 pt-2">
+                    <Button size="lg" asChild className="w-full sm:w-auto rounded-2xl shadow-sm text-xs sm:text-sm font-semibold">
+                      <Link to="/products" className="flex items-center gap-2">
+                        <span>Khám phá toàn bộ thực đơn</span>
+                        <ArrowRight className="w-4 h-4" />
+                      </Link>
+                    </Button>
+                    <Button size="lg" variant="outline" asChild className="w-full sm:w-auto rounded-2xl text-xs sm:text-sm font-semibold">
+                      <Link to="/products?q=combo">
+                        Xem combo ưu đãi
+                      </Link>
+                    </Button>
+                  </div>
+
+                  {/* Mini highlights */}
+                  <div className="grid grid-cols-3 gap-3 pt-4 border-t border-border/80 text-[11px] font-medium text-muted">
+                    <div>
+                      <span className="block font-bold text-foreground text-xs sm:text-sm">24/7</span>
+                      <span>Phục vụ liên tục</span>
+                    </div>
+                    <div>
+                      <span className="block font-bold text-foreground text-xs sm:text-sm">30 Phút</span>
+                      <span>Giao siêu tốc</span>
+                    </div>
+                    <div>
+                      <span className="block font-bold text-foreground text-xs sm:text-sm">100%</span>
+                      <span>Tươi ngon mỗi ngày</span>
+                    </div>
+                  </div>
+                </motion.div>
+
+                {/* Dynamic Orbiting Combo Banner */}
+                <div className="lg:col-span-6 flex justify-center items-center">
+                  <HeroOrbitBanner />
+                </div>
+              </div>
+            </div>
+          </section>
+      </>
+    ),
+    FLASH_SALE: (
+      <>
+          {/* Flash Sale Section (Giờ vàng giảm giá với countdown & sold progress) */}
+          <FlashSaleSection
+            section={storefront?.sections.FLASH_SALE}
+            products={products}
+            stockMap={stockMap}
+            branchName={selectedBranch?.name}
+          />
+      </>
+    ),
+    CSM_PICKS: (
+      <>
+          {/* CSM Picks Section (4 món do cửa hàng chọn, badge CSM Pick, tiêu đề editorial) */}
+          <CsmPicksSection
+            section={storefront?.sections.CSM_PICKS}
+            products={products}
+            stockMap={stockMap}
+            branchName={selectedBranch?.name}
+          />
+      </>
+    ),
+    NEW_ARRIVALS: (
+      <>
+          {/* New Arrivals Section (Mới lên kệ, badge Mới, scroll reveal whileInView) */}
+          <NewArrivalsSection
+            section={storefront?.sections.NEW_ARRIVALS}
+            products={products}
+            stockMap={stockMap}
+            branchName={selectedBranch?.name}
+          />
+      </>
+    ),
+    COMBO: (
+      <>
+          {/* Combo Section (3 món quanh một hộp, giá gốc vs giá combo, mua combo kiểm tra tồn kho) */}
+          <ComboSection
+            products={products}
+            stockMap={stockMap}
+            branchName={selectedBranch?.name}
+          />
+      </>
+    ),
+    SPIN_WHEEL: (
+      <>
+          {/* Spin Wheel (Bánh xe SVG 6 ô, 4-5s animate, modal phần thưởng minh hoạ, 1 lượt/ngày) */}
+          <SpinWheel />
+      </>
+    ),
+    CATEGORIES: (
+      <>
+          {/* Featured Categories (Từ GET /categories với hiệu ứng Pastel Motion) */}
+          <section className="py-14 sm:py-18 bg-surface-soft/60 border-b border-border/60">
+            <div className="container mx-auto px-4 md:px-6">
+              <div className="mb-10 text-center space-y-2">
+                <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-dark uppercase tracking-wider bg-surface px-3 py-1 rounded-full border border-primary/20 shadow-xs">
+                  <Sparkles className="w-3.5 h-3.5 text-accent" />
+                  <span>Khám phá theo danh mục</span>
+                </div>
+                <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">Danh Mục Nổi Bật</h2>
+                <p className="text-muted text-xs sm:text-sm max-w-md mx-auto">
+                  Lựa chọn các nhóm mặt hàng thiết yếu hàng ngày với tiêu chuẩn chất lượng cao nhất.
+                </p>
+              </div>
+
+              {isLoadingCats ? (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5">
+                  {[1, 2, 3, 4, 5, 6].map((n) => (
+                    <div key={n} className="p-6 rounded-3xl bg-surface border border-border flex flex-col items-center gap-3">
+                      <Skeleton className="w-12 h-12 rounded-2xl" />
+                      <Skeleton className="w-20 h-4 rounded-md" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4 sm:gap-5">
+                  {categories.map((cat, i) => {
+                    const style = CATEGORY_STYLES[i % CATEGORY_STYLES.length];
+                    return (
+                      <motion.div
+                        key={cat.id}
+                        whileHover={shouldReduceMotion ? {} : { y: -4 }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <Link
+                          to={`/products?category=${cat.id}`}
+                          className={`h-full p-5 sm:p-6 rounded-3xl ${style.color} border ${style.border} flex flex-col items-center text-center shadow-card hover:shadow-card-hover transition-all duration-200 block`}
+                        >
+                          <div className="text-3xl sm:text-4xl mb-2.5 transition-transform duration-200 group-hover:scale-110">
+                            {style.emoji}
+                          </div>
+                          <h3 className="font-bold text-foreground text-xs sm:text-sm line-clamp-1">{cat.name}</h3>
+                          <span className="text-[11px] text-muted mt-1 line-clamp-1">
+                            {cat.description || "Khám phá"}
+                          </span>
+                        </Link>
+                      </motion.div>
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+      </>
+    ),
+    FEATURED_PRODUCTS: (
+      <>
+          {/* Featured Products (Từ GET /products kèm tồn kho theo chi nhánh) */}
+          <section className="py-14 sm:py-20 bg-background">
+            <div className="container mx-auto px-4 md:px-6">
+              <div className="flex flex-col sm:flex-row sm:items-end justify-between gap-4 mb-10">
+                <div>
+                  <div className="inline-flex items-center gap-1.5 text-xs font-bold text-primary-dark uppercase tracking-wider bg-primary-tint/60 px-3 py-1 rounded-full border border-primary/20 shadow-xs mb-2.5">
+                    <Store className="w-3.5 h-3.5" />
+                    Sản phẩm sẵn có tại {selectedBranch ? selectedBranch.name : "cửa hàng"}
+                  </div>
+                  <h2 className="text-2xl sm:text-3xl font-extrabold text-foreground tracking-tight">
+                    Sản Phẩm Tươi Mới Trong Ngày
+                  </h2>
+                </div>
+                <Button variant="outline" asChild className="rounded-2xl text-xs sm:text-sm font-semibold">
+                  <Link to="/products" className="flex items-center gap-1.5">
+                    Xem tất cả ({products.length})
+                    <ArrowRight className="w-4 h-4" />
+                  </Link>
+                </Button>
+              </div>
+
+              {isLoadingProducts ? (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {[1, 2, 3, 4].map((i) => (
+                    <div key={i} className="rounded-3xl border border-border bg-surface p-4 space-y-4">
+                      <Skeleton className="aspect-square w-full rounded-2xl" />
+                      <Skeleton className="h-4 w-3/4" />
+                      <Skeleton className="h-4 w-1/2" />
+                      <Skeleton className="h-9 w-full rounded-xl" />
+                    </div>
+                  ))}
+                </div>
+              ) : (
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+                  {products.slice(0, 8).map((product) => {
+                    const availableStock = stockMap.get(product.id);
+                    return (
+                      <ProductCard
+                        key={product.id}
+                        product={product}
+                        availableStock={availableStock}
+                        branchName={selectedBranch?.name}
+                      />
+                    );
+                  })}
+                </div>
+              )}
+            </div>
+          </section>
+      </>
+    ),
+    WHY_CHOOSE_US: (
+      <>
+          {/* Why Choose Us Section (4 giá trị cốt lõi) */}
+          <WhyChooseUsSection />
+      </>
+    ),
+    TESTIMONIALS: (
+      <>
+          {/* Customer Testimonials Section (Đánh giá khách hàng) */}
+          <TestimonialsSection />
+      </>
+    ),
+  };
+
+  return (
+    <div className="flex flex-col min-h-screen relative overflow-hidden">
+      {/* Ambient background: các khối màu mờ trôi chậm, max 0.08 opacity */}
+      <AmbientBackground />
+
+      {/* Real-time Hero Greeting with Parallax */}
+      <section className="pt-5 pb-2 sm:pt-6 sm:pb-3 bg-gradient-to-b from-primary-tint/30 to-background">
+        <div className="container mx-auto px-4 md:px-6">
+          <HeroGreeting />
+        </div>
+      </section>
+
+      {/* Hero Promo Banner Slider (khoảng cách 24px) */}
+      <section className="pt-2 pb-3 sm:pt-3 sm:pb-4 bg-background">
+        <div className="container mx-auto px-4 md:px-6">
+          <HeroPromoSlider banners={storefront?.banners} />
+        </div>
+      </section>
+
+      {orderedBlocks.map((block) => (
+        <React.Fragment key={block.key}>{blockNodes[block.key]}</React.Fragment>
+      ))}
+    </div>
+  );
+}
+
