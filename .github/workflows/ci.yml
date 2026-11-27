@@ -1,0 +1,43 @@
+name: CI Frontend
+
+on:
+  push:
+    branches: [main, UI]
+  pull_request:
+    branches: [main, UI]
+  workflow_dispatch:
+
+jobs:
+  lint-build:
+    name: ESLint, Typecheck, Build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci --no-audit --no-fund
+      - name: ESLint
+        run: npx eslint . --format stylish | tee eslint-report.txt
+      - name: Typecheck + production build
+        run: npm run build | tee build-report.txt
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: frontend-reports
+          path: |
+            eslint-report.txt
+            build-report.txt
+
+  secret-scan:
+    name: Gitleaks secret scan
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - uses: gitleaks/gitleaks-action@v2
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
