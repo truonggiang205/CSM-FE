@@ -6,9 +6,12 @@ export type Role = "CUSTOMER" | "STAFF" | "BRANCH_MANAGER" | "ADMIN";
 export interface User {
   id: string;
   email: string;
+  /** @deprecated dùng fullName (BE trả về fullName) */
   name?: string;
+  fullName?: string;
+  phone?: string | null;
   role: Role;
-  branch_id?: string;
+  branch_id?: string | null;
 }
 
 interface AuthState {
@@ -18,6 +21,8 @@ interface AuthState {
   isAuthenticated: boolean;
   setAuth: (user: User, token: string, refreshToken?: string) => void;
   setTokens: (token: string, refreshToken?: string) => void;
+  /** Cập nhật một phần thông tin user đang đăng nhập (sau khi sửa hồ sơ) */
+  updateUser: (patch: Partial<User>) => void;
   logout: () => void;
   loginAsRole?: (role: Role) => Promise<void>;
   toggleTestRole?: () => Promise<void>;
@@ -71,6 +76,14 @@ export const useAuthStore = create<AuthState>((set, get) => {
         refreshToken: refreshToken || get().refreshToken,
         isAuthenticated: true,
       });
+    },
+
+    updateUser: (patch) => {
+      const current = get().user;
+      if (!current) return;
+      const next = { ...current, ...patch };
+      localStorage.setItem(LOCAL_USER_KEY, JSON.stringify(next));
+      set({ user: next });
     },
 
     logout: () => {
