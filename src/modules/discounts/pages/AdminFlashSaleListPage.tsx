@@ -21,6 +21,8 @@ import {
   flashSaleApi,
   FlashSaleCampaign,
   CreateFlashSalePayload,
+  FlashSaleDiscountType,
+  formatFlashSaleDiscount,
 } from "../../../api/flashSaleApi";
 import { productApi } from "../../../api/productApi";
 import { Product } from "../../../types/product";
@@ -34,8 +36,22 @@ interface ItemRow {
   original_price: number;
   sale_price: number;
   discount_percentage: number;
+  /** Giảm theo % hay trừ thẳng tiền mặt */
+  discount_type: FlashSaleDiscountType;
+  /** Số % (PERCENT) hoặc số tiền VNĐ (FIXED_AMOUNT) */
+  discount_value: number;
   quantity_limit: number;
   max_per_user: number;
+}
+
+/** Tính lại giá sale và % hiển thị từ kiểu giảm + mức giảm. */
+function applyDiscount(row: ItemRow): ItemRow {
+  const orig = Math.max(0, Number(row.original_price) || 0);
+  const value = Math.max(0, Number(row.discount_value) || 0);
+  const sale =
+    row.discount_type === "FIXED_AMOUNT" ? orig - value : Math.round(orig * (1 - value / 100));
+  const pct = orig > 0 ? Math.round(((orig - sale) / orig) * 100) : 0;
+  return { ...row, sale_price: sale, discount_percentage: pct };
 }
 
 export function AdminFlashSaleListPage() {
@@ -140,6 +156,11 @@ export function AdminFlashSaleListPage() {
         original_price: Number(i.original_price) || 0,
         sale_price: Number(i.sale_price) || 0,
         discount_percentage: Number(i.discount_percentage) || 0,
+        discount_type: i.discount_type === "FIXED_AMOUNT" ? "FIXED_AMOUNT" : "PERCENT",
+        discount_value:
+          i.discount_type === "FIXED_AMOUNT"
+            ? Number(i.discount_value) || Math.max(0, Number(i.original_price) - Number(i.sale_price))
+            : Number(i.discount_value) || Number(i.discount_percentage) || 0,
         quantity_limit: Number(i.quantity_limit) || 50,
         max_per_user: Number(i.max_per_user) || 2,
       }))
@@ -162,6 +183,8 @@ export function AdminFlashSaleListPage() {
         original_price: orig,
         sale_price: sale,
         discount_percentage: pct,
+        discount_type: "PERCENT",
+        discount_value: pct,
         quantity_limit: 50,
         max_per_user: 2,
       },
@@ -171,18 +194,32 @@ export function AdminFlashSaleListPage() {
   const handleUpdateItem = (index: number, patch: Partial<ItemRow>) => {
     setItems((prev) => {
       const next = [...prev];
-      const cur = { ...next[index], ...patch };
+      let cur: ItemRow = { ...next[index], ...patch };
 
-      if ("original_price" in patch || "discount_percentage" in patch) {
+      if ("discount_type" in patch && patch.discount_type !== next[index].discount_type) {
+        // Đổi kiểu giảm: giữ nguyên giá sale hiện tại, quy đổi mức giảm sang đơn vị mới
         const orig = cur.original_price;
-        const pct = cur.discount_percentage;
-        cur.sale_price = Math.round(orig * (1 - pct / 100));
+        const sale = next[index].sale_price;
+        cur.discount_value =
+          cur.discount_type === "FIXED_AMOUNT"
+            ? Math.max(0, orig - sale)
+            : orig > 0
+              ? Math.max(0, Math.round(((orig - sale) / orig) * 100))
+              : 0;
+        cur = applyDiscount(cur);
       } else if ("sale_price" in patch) {
+        // Nhập thẳng giá sale: suy ra mức giảm theo kiểu đang chọn
         const orig = cur.original_price;
         const sale = cur.sale_price;
-        if (orig > 0) {
-          cur.discount_percentage = Math.max(0, Math.round(((orig - sale) / orig) * 100));
-        }
+        cur.discount_value =
+          cur.discount_type === "FIXED_AMOUNT"
+            ? Math.max(0, orig - sale)
+            : orig > 0
+              ? Math.max(0, Math.round(((orig - sale) / orig) * 100))
+              : 0;
+        cur.discount_percentage = orig > 0 ? Math.max(0, Math.round(((orig - sale) / orig) * 100)) : 0;
+      } else if ("original_price" in patch || "discount_value" in patch) {
+        cur = applyDiscount(cur);
       }
 
       next[index] = cur;
@@ -259,8 +296,12 @@ export function AdminFlashSaleListPage() {
         setFormError(`Sản phẩm dòng ${i + 1} chưa có ID hoặc Tên sản phẩm`);
         return;
       }
-      if (items[i].sale_price <= 0) {
-        setFormError(`Giá sale dòng ${i + 1} phải lớn hơn 0`);
+      if (items[i].sale_price <= 0 || items[i].sale_price >= items[i].original_price) {
+        setFormError(`Giá sale dòng ${i + 1} phải lớn hơn 0đ và nhỏ hơn giá gốc`);
+        return;
+      }
+      if (items[i].discount_type === "PERCENT" && (items[i].discount_value < 1 || items[i].discount_value > 99)) {
+        setFormError(`Mức giảm % dòng ${i + 1} phải từ 1 đến 99`);
         return;
       }
     }
@@ -280,6 +321,8 @@ export function AdminFlashSaleListPage() {
         original_price: Number(i.original_price),
         sale_price: Number(i.sale_price),
         discount_percentage: Number(i.discount_percentage),
+        discount_type: i.discount_type,
+        discount_value: Number(i.discount_value),
         quantity_limit: Number(i.quantity_limit) || 50,
         max_per_user: Number(i.max_per_user) || 2,
       })),
@@ -611,7 +654,7 @@ export function AdminFlashSaleListPage() {
                                 {item.product_name || `Mã: ${item.product_id}`}
                               </span>
                               <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-black shrink-0">
-                                -{item.discount_percentage}%
+                                {formatFlashSaleDiscount(item)}
                               </span>
                             </div>
                             <div className="text-[11px] text-muted font-mono mt-0.5">ID: {item.product_id}</div>
@@ -863,15 +906,54 @@ export function AdminFlashSaleListPage() {
                           </div>
 
                           <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">% Giảm Giá</label>
-                            <Input
-                              type="number"
-                              min={0}
-                              max={100}
-                              value={row.discount_percentage}
-                              onChange={(e) => handleUpdateItem(idx, { discount_percentage: Number(e.target.value) })}
-                              className="rounded-xl text-xs h-9 font-mono font-bold text-accent"
-                            />
+                            <div className="flex flex-wrap items-center justify-between gap-1.5">
+                              <label className="text-[11px] font-bold text-foreground whitespace-nowrap">Mức Giảm</label>
+                              <div
+                                role="radiogroup"
+                                aria-label="Kiểu giảm giá"
+                                className="inline-flex rounded-lg border border-border bg-surface-soft p-0.5 text-[10px] font-bold"
+                              >
+                                {([
+                                  { value: "PERCENT", label: "%" },
+                                  { value: "FIXED_AMOUNT", label: "Tiền mặt (đ)" },
+                                ] as const).map((opt) => (
+                                  <button
+                                    key={opt.value}
+                                    type="button"
+                                    role="radio"
+                                    aria-checked={row.discount_type === opt.value}
+                                    onClick={() => handleUpdateItem(idx, { discount_type: opt.value })}
+                                    className={`px-2 py-0.5 rounded-md whitespace-nowrap transition-colors ${
+                                      row.discount_type === opt.value
+                                        ? "bg-accent text-white shadow-xs"
+                                        : "text-muted hover:text-foreground"
+                                    }`}
+                                  >
+                                    {opt.label}
+                                  </button>
+                                ))}
+                              </div>
+                            </div>
+                            <div className="relative">
+                              <Input
+                                type="number"
+                                min={0}
+                                max={row.discount_type === "PERCENT" ? 99 : Math.max(0, row.original_price - 1)}
+                                step={row.discount_type === "PERCENT" ? 1 : 500}
+                                value={row.discount_value}
+                                onChange={(e) => handleUpdateItem(idx, { discount_value: Number(e.target.value) })}
+                                className="rounded-xl text-xs h-9 font-mono font-bold text-accent pr-9"
+                                aria-label={row.discount_type === "PERCENT" ? "Phần trăm giảm" : "Số tiền giảm (đ)"}
+                              />
+                              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-muted">
+                                {row.discount_type === "PERCENT" ? "%" : "đ"}
+                              </span>
+                            </div>
+                            <p className="text-[10px] text-muted">
+                              {row.discount_type === "PERCENT"
+                                ? `≈ giảm ${formatVND(Math.max(0, row.original_price - row.sale_price))}`
+                                : `≈ giảm ${row.discount_percentage}%`}
+                            </p>
                           </div>
 
                           <div className="space-y-1">

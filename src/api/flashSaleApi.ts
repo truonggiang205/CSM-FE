@@ -1,6 +1,9 @@
 import apiClient from "./apiClient";
 import { VoucherItem } from "./discountApi";
 
+/** Kiểu giảm giá của một món Flash Sale: theo % hoặc trừ thẳng tiền mặt (VNĐ). */
+export type FlashSaleDiscountType = "PERCENT" | "FIXED_AMOUNT";
+
 export interface FlashSaleItem {
   id?: string;
   product_id: string;
@@ -9,6 +12,8 @@ export interface FlashSaleItem {
   original_price: number;
   sale_price: number;
   discount_percentage?: number;
+  discount_type?: FlashSaleDiscountType;
+  discount_value?: number;
   quantity_limit?: number;
   sold_count?: number;
   max_per_user?: number;
@@ -43,8 +48,10 @@ export interface CreateFlashSalePayload {
     product_name?: string;
     product_image?: string;
     original_price: number;
-    sale_price: number;
+    sale_price?: number;
     discount_percentage?: number;
+    discount_type?: FlashSaleDiscountType;
+    discount_value?: number;
     quantity_limit?: number;
     max_per_user?: number;
   }>;
@@ -69,6 +76,8 @@ export interface TodayDealItem {
   original_price: number;
   sale_price: number;
   discount_percentage: number;
+  discount_type?: FlashSaleDiscountType;
+  discount_value?: number;
   quantity_limit: number;
   sold_count: number;
   max_per_user: number;
@@ -148,3 +157,25 @@ export const flashSaleApi = {
     return res.data;
   },
 };
+
+/**
+ * Nhãn giảm giá hiển thị trên badge: "-20%" khi giảm theo %, "-5.000đ" khi giảm tiền mặt.
+ * Dữ liệu cũ (không có discount_type) được hiểu là giảm theo %.
+ */
+export function formatFlashSaleDiscount(item: {
+  original_price: number | string;
+  sale_price: number | string;
+  discount_percentage?: number | string;
+  discount_type?: FlashSaleDiscountType;
+  discount_value?: number | string;
+}): string {
+  const original = Number(item.original_price) || 0;
+  const sale = Number(item.sale_price) || 0;
+  if (item.discount_type === "FIXED_AMOUNT") {
+    const amount = Number(item.discount_value) || Math.max(0, original - sale);
+    return `-${new Intl.NumberFormat("vi-VN").format(amount)}đ`;
+  }
+  const percent =
+    Number(item.discount_percentage) || (original > 0 ? Math.round(((original - sale) / original) * 100) : 0);
+  return `-${percent}%`;
+}

@@ -7,7 +7,7 @@ export type HomeSectionType = "FLASH_SALE" | "CSM_PICKS" | "NEW_ARRIVALS";
 export const HOME_SECTION_META: Record<HomeSectionType, { label: string; description: string; max: number }> = {
   FLASH_SALE: {
     label: "Giờ vàng giảm giá",
-    description: "Dải sản phẩm Flash Sale có đồng hồ đếm ngược (tối đa 8 món hiển thị).",
+    description: "Dải Flash Sale có đồng hồ đếm ngược. Món, giá và kiểu giảm (% / tiền mặt) lấy từ Quản lý Giờ Vàng.",
     max: 8,
   },
   CSM_PICKS: {
