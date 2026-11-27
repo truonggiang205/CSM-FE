@@ -1,10 +1,11 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { motion, AnimatePresence } from "framer-motion";
-import { X, Star, ShoppingCart, Check, Plus, Minus, ArrowRight, ShieldCheck, Truck, Store } from "lucide-react";
+import { X, Star, ShoppingCart, Check, Plus, Minus, ArrowRight, ShieldCheck, Truck, Store, Flame, Clock } from "lucide-react";
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
+import { useFlashSaleCountdown } from "../../../hooks/useFlashSaleCountdown";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
 import { ProductImage } from "../../../components/ui/ProductImage";
@@ -40,6 +41,9 @@ export function QuickViewModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Hook phải được gọi trước mọi lệnh return sớm (rules-of-hooks)
+  const { timeLeft, isExpired } = useFlashSaleCountdown(product?.flashSaleMeta?.endTime);
+
   if (!isOpen || !product) return null;
 
   const formatCurrency = (amount: number) => {
@@ -53,9 +57,11 @@ export function QuickViewModal({
   const isOutOfStock = effectiveStock <= 0;
   const displayImage = product.images && product.images[0];
 
+
+  const isFlashSaleActive = !!product.flashSaleMeta && !product.flashSaleMeta.isSoldOut && !isExpired;
   const originalPrice = product.price;
-  const salePrice = product.discountPrice || originalPrice;
-  const hasDiscount = !!product.discountPrice && product.discountPrice < originalPrice;
+  const salePrice = isFlashSaleActive && product.discountPrice ? product.discountPrice : originalPrice;
+  const hasDiscount = isFlashSaleActive && !!product.discountPrice && product.discountPrice < originalPrice;
   const percentOff = hasDiscount
     ? Math.round(((originalPrice - salePrice) / originalPrice) * 100)
     : 0;
@@ -128,7 +134,7 @@ export function QuickViewModal({
               {hasDiscount && (
                 <div className="absolute top-3 left-3">
                   <span className="px-2.5 py-1 rounded-full bg-danger text-white text-xs font-black shadow-xs">
-                    -{percentOff}%
+                    {product.flashSaleMeta?.discountLabel ?? `-${percentOff}%`}
                   </span>
                 </div>
               )}
@@ -171,14 +177,53 @@ export function QuickViewModal({
               </div>
 
               {/* Price Box */}
-              <div className="p-3.5 rounded-2xl bg-surface-soft border border-border/80 flex items-baseline gap-3">
-                <span className="text-2xl font-black text-primary-dark">
-                  {formatCurrency(salePrice)}
-                </span>
-                {hasDiscount && (
-                  <span className="text-sm text-muted line-through font-medium">
-                    {formatCurrency(originalPrice)}
-                  </span>
+              <div className="p-3.5 rounded-2xl bg-surface-soft border border-border/80 space-y-2">
+                <div className="flex items-baseline justify-between gap-3">
+                  <div className="flex items-baseline gap-3">
+                    <span className="text-2xl font-black text-primary-dark">
+                      {formatCurrency(salePrice)}
+                    </span>
+                    {hasDiscount && (
+                      <span className="text-sm text-muted line-through font-medium">
+                        {formatCurrency(originalPrice)}
+                      </span>
+                    )}
+                  </div>
+                  {isFlashSaleActive && product.flashSaleMeta && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-danger text-white text-[10px] font-black uppercase tracking-wider">
+                      ⚡ Giờ Vàng
+                    </span>
+                  )}
+                  {product.flashSaleMeta?.isSoldOut && (
+                    <span className="px-2.5 py-0.5 rounded-full bg-muted/20 text-muted border border-border text-[10px] font-bold uppercase tracking-wider">
+                      Đã hết suất Giờ Vàng
+                    </span>
+                  )}
+                </div>
+
+                {isFlashSaleActive && product.flashSaleMeta && (
+                  <div className="pt-2 border-t border-border/50 space-y-1.5">
+                    <div className="flex items-center justify-between text-xs font-bold text-danger">
+                      <span className="flex items-center gap-1">
+                        <Flame className="w-3.5 h-3.5 animate-pulse" />
+                        <span>Đã bán: {product.flashSaleMeta.soldCount}/{product.flashSaleMeta.quantityLimit} suất</span>
+                      </span>
+                      {timeLeft && (
+                        <span className="font-mono text-[11px] text-danger flex items-center gap-1 font-bold">
+                          <Clock className="w-3 h-3 text-danger" />
+                          <span>{timeLeft}</span>
+                        </span>
+                      )}
+                    </div>
+                    <div className="w-full h-2 bg-danger-pastel/60 rounded-full overflow-hidden">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-danger rounded-full transition-all duration-300"
+                        style={{
+                          width: `${Math.min(100, Math.max(6, Math.round(((product.flashSaleMeta.soldCount || 0) / (product.flashSaleMeta.quantityLimit || 1)) * 100)))}%`,
+                        }}
+                      />
+                    </div>
+                  </div>
                 )}
               </div>
 

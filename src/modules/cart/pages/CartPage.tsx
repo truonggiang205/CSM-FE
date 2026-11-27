@@ -244,24 +244,46 @@ export function CartPage() {
                           </div>
 
                           <div className="space-y-1 min-w-0">
-                            <span className="text-[10px] sm:text-[11px] font-bold text-primary-dark uppercase tracking-wider block">
-                              {item.product.category?.name || "Tiện lợi"}
-                            </span>
-                            <Link
-                              to={`/products/${item.product.id}`}
-                              className="font-bold text-xs sm:text-sm text-foreground hover:text-primary transition-colors line-clamp-1"
-                            >
-                              {item.product.name}
-                            </Link>
+                            {item.itemType === "COMBO" ? (
+                              <span className="inline-flex items-center gap-1 text-[10px] font-extrabold px-2.5 py-0.5 rounded-full bg-accent-tint text-accent-dark border border-accent/30 uppercase tracking-wider">
+                                🎁 Combo Tiết Kiệm
+                              </span>
+                            ) : (
+                              <span className="text-[10px] sm:text-[11px] font-bold text-primary-dark uppercase tracking-wider block">
+                                {item.product.category?.name || "Tiện lợi"}
+                              </span>
+                            )}
+                            {item.itemType === "COMBO" ? (
+                              <div className="font-bold text-xs sm:text-sm text-foreground line-clamp-1">
+                                {item.product.name}
+                              </div>
+                            ) : (
+                              <Link
+                                to={`/products/${item.product.id}`}
+                                className="font-bold text-xs sm:text-sm text-foreground hover:text-primary transition-colors line-clamp-1"
+                              >
+                                {item.product.name}
+                              </Link>
+                            )}
+                            {item.itemType === "COMBO" && item.comboItems && item.comboItems.length > 0 && (
+                              <p className="text-[11px] text-muted">
+                                Bao gồm: {item.comboItems.map((ci) => `${ci.quantity}x ${ci.productName}`).join(" + ")}
+                              </p>
+                            )}
                             <div className="flex items-center gap-2 text-xs text-muted font-medium">
                               <span>Đơn giá: {formatCurrency(price)}</span>
-                              {stockMap.has(item.product.id) && (
+                              {item.itemType === "COMBO" && item.product.price > price && (
+                                <span className="line-through text-[11px]">
+                                  {formatCurrency(item.product.price)}
+                                </span>
+                              )}
+                              {item.itemType !== "COMBO" && stockMap.has(item.product.id) && (
                                 <span className="text-[11px] text-primary-dark font-semibold">
                                   &bull; Kho chi nhánh: {stockMap.get(item.product.id)}
                                 </span>
                               )}
                             </div>
-                            {stockMap.has(item.product.id) && item.quantity > (stockMap.get(item.product.id) || 0) && (
+                            {item.itemType !== "COMBO" && stockMap.has(item.product.id) && item.quantity > (stockMap.get(item.product.id) || 0) && (
                               <div className="mt-1 p-2 rounded-xl bg-danger-pastel border border-danger/30 text-danger-dark text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
                                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-danger-dark" />
                                 <span>Số lượng ({item.quantity}) vượt tồn kho chi nhánh ({stockMap.get(item.product.id)} món)!</span>

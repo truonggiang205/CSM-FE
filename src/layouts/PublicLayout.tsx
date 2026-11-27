@@ -23,6 +23,7 @@ import {
   Menu,
   User,
   ShoppingBag,
+  Zap,
 } from "lucide-react";
 import { useCartStore } from "../store/useCartStore";
 import { useAuthStore } from "../store/useAuthStore";
@@ -32,9 +33,13 @@ import { Button } from "../components/ui/Button";
 import { BranchSelector } from "../components/branch/BranchSelector";
 import { AnnouncementBar } from "../components/storefront/AnnouncementBar";
 import { PromoPopup } from "../components/storefront/PromoPopup";
+import apiClient from "../api/apiClient";
+import { useCartFlashSaleSync } from "../hooks/useCartFlashSaleSync";
 
 export default function PublicLayout() {
   const { toggleCart, getTotalItems } = useCartStore();
+  // Giỏ hàng tự về giá gốc khi Flash Sale kết thúc
+  useCartFlashSaleSync();
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();
@@ -78,9 +83,16 @@ export default function PublicLayout() {
     }
   };
 
-  const handleNewsletterSubmit = (e: React.FormEvent) => {
+  const handleNewsletterSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newsletterEmail.trim()) {
+    const trimmed = newsletterEmail.trim();
+    if (!trimmed) return;
+    try {
+      await apiClient.post("/notifications/newsletter/subscribe", { email: trimmed });
+      setNewsletterSubscribed(true);
+      setNewsletterEmail("");
+      setTimeout(() => setNewsletterSubscribed(false), 5000);
+    } catch {
       setNewsletterSubscribed(true);
       setNewsletterEmail("");
       setTimeout(() => setNewsletterSubscribed(false), 5000);
@@ -146,6 +158,19 @@ export default function PublicLayout() {
                 }
               >
                 Tất cả sản phẩm
+              </NavLink>
+              <NavLink
+                to="/deals"
+                className={({ isActive }) =>
+                  `relative px-3 py-1.5 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary focus-visible:ring-offset-2 rounded-xl flex items-center gap-1.5 ${
+                    isActive
+                      ? "text-accent-dark font-bold after:absolute after:bottom-0 after:left-3 after:right-3 after:h-0.5 after:bg-accent after:rounded-full"
+                      : "text-muted hover:text-accent-dark"
+                  }`
+                }
+              >
+                <Zap className="w-3.5 h-3.5 fill-current text-accent" />
+                <span>Ưu Đãi</span>
               </NavLink>
               {isAuthenticated && (
                 <NavLink
@@ -362,6 +387,21 @@ export default function PublicLayout() {
                 >
                   <ShoppingBag className="w-4 h-4" />
                   Tất cả sản phẩm
+                </NavLink>
+
+                <NavLink
+                  to="/deals"
+                  onClick={() => setIsMobileMenuOpen(false)}
+                  className={({ isActive }) =>
+                    `flex items-center gap-3 px-3.5 py-2.5 rounded-xl text-sm font-semibold transition-all ${
+                      isActive
+                        ? "bg-accent-tint text-accent-dark font-bold border border-accent/25"
+                        : "text-muted hover:bg-surface-soft hover:text-foreground"
+                    }`
+                  }
+                >
+                  <Zap className="w-4 h-4 fill-current text-accent" />
+                  Ưu Đãi
                 </NavLink>
 
                 {isAuthenticated && (

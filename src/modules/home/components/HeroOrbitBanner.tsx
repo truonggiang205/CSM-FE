@@ -3,8 +3,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Link } from "react-router-dom";
 import { Sparkles, ShoppingBag, ArrowRight, ChevronLeft, ChevronRight, Flame, Pause, Play } from "lucide-react";
 import { Button } from "../../../components/ui/Button";
-import { productApi } from "../../../api/productApi";
-import { mockProducts } from "../../../mocks/products";
+import { comboApi } from "../../../api/comboApi";
 
 interface FeaturedCombo {
   id: string;
@@ -37,24 +36,31 @@ export function HeroOrbitBanner() {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    const fetchProducts = async () => {
+    const fetchCombos = async () => {
       try {
-        let products = await productApi.getProducts();
-        if (!products || products.length === 0) {
-          products = mockProducts;
+        const publicCombos = await comboApi.getPublicCombos();
+        if (!publicCombos || publicCombos.length === 0) {
+          setCombos([]);
+          return;
         }
 
-        const mappedCombos = products.slice(0, 6).map((p: any, index: number) => {
+        const mappedCombos = publicCombos.slice(0, 6).map((c, index) => {
           const style = STYLE_PRESETS[index % STYLE_PRESETS.length];
-          const basePrice = Number(p.price ?? p.base_price ?? 0);
+          const comboPrice = Number(c.combo_price) || 0;
+          const origPrice = Number(c.original_price) || comboPrice;
+          const pct = origPrice > 0 ? Math.round(((origPrice - comboPrice) / origPrice) * 100) : 0;
+          const itemsDesc =
+            c.description ||
+            (c.items || []).map((i) => `${i.quantity}x ${i.product_name || i.product_id}`).join(" + ") ||
+            "Combo tiết kiệm CSM";
           return {
-            id: p.id.toString(),
-            name: p.name,
+            id: c.id,
+            name: c.name,
             emoji: style.emoji,
-            price: `${basePrice.toLocaleString("vi-VN")}₫`,
-            originalPrice: `${(basePrice + 10000).toLocaleString("vi-VN")}₫`,
-            tag: index === 0 ? "Bán chạy #1" : "Ưu đãi",
-            desc: p.description || "Món ngon hấp dẫn",
+            price: `${comboPrice.toLocaleString("vi-VN")}₫`,
+            originalPrice: `${origPrice.toLocaleString("vi-VN")}₫`,
+            tag: pct > 0 ? `Tiết kiệm ${pct}%` : "Combo Hot",
+            desc: itemsDesc,
             bgColor: style.bgColor,
             textColor: style.textColor,
             borderColor: style.borderColor,
@@ -62,32 +68,13 @@ export function HeroOrbitBanner() {
           };
         });
         setCombos(mappedCombos);
-      } catch (error) {
-        console.error("Failed to fetch products:", error);
-        // Fallback trực tiếp với mockProducts
-        const mappedCombos = mockProducts.slice(0, 6).map((p: any, index: number) => {
-          const style = STYLE_PRESETS[index % STYLE_PRESETS.length];
-          const basePrice = Number(p.price || 20000);
-          return {
-            id: p.id.toString(),
-            name: p.name,
-            emoji: style.emoji,
-            price: `${basePrice.toLocaleString("vi-VN")}₫`,
-            originalPrice: `${(basePrice + 10000).toLocaleString("vi-VN")}₫`,
-            tag: index === 0 ? "Bán chạy #1" : "Ưu đãi",
-            desc: p.description || "Món ngon hấp dẫn",
-            bgColor: style.bgColor,
-            textColor: style.textColor,
-            borderColor: style.borderColor,
-            accentBg: style.accentBg,
-          };
-        });
-        setCombos(mappedCombos);
+      } catch {
+        setCombos([]);
       } finally {
         setIsLoading(false);
       }
     };
-    fetchProducts();
+    fetchCombos();
   }, []);
 
   const totalItems = combos.length;
@@ -232,9 +219,9 @@ export function HeroOrbitBanner() {
                 </span>
               </div>
               <Button size="sm" asChild className="mt-2.5 h-7 px-4 text-xs rounded-full shadow-sm">
-                <Link to="/products" className="flex items-center justify-center gap-1.5">
+                <Link to="/deals?tab=combo" className="flex items-center justify-center gap-1.5">
                   <ShoppingBag className="w-3.5 h-3.5" />
-                  <span>Mua ngay</span>
+                  <span>Xem combo</span>
                   <ArrowRight className="w-3 h-3" />
                 </Link>
               </Button>

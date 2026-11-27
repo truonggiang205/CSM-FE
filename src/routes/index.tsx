@@ -1,5 +1,5 @@
 import React, { lazy, Suspense } from "react";
-import { createBrowserRouter, RouterProvider } from "react-router-dom";
+import { createBrowserRouter, RouterProvider, Navigate } from "react-router-dom";
 import PublicLayout from "../layouts/PublicLayout";
 import AdminLayout from "../layouts/AdminLayout";
 import { ProtectedRoute } from "../modules/auth/components/ProtectedRoute";
@@ -43,6 +43,18 @@ const AdminVoucherListPage = lazy(() =>
 );
 const AdminStorefrontPage = lazy(() =>
   import("../modules/storefront/pages/AdminStorefrontPage").then((m) => ({ default: m.AdminStorefrontPage }))
+);
+const AdminFlashSaleListPage = lazy(() =>
+  import("../modules/discounts/pages/AdminFlashSaleListPage").then((m) => ({ default: m.AdminFlashSaleListPage }))
+);
+const AdminComboListPage = lazy(() =>
+  import("../modules/discounts/pages/AdminComboListPage").then((m) => ({ default: m.AdminComboListPage }))
+);
+const DealsPage = lazy(() =>
+  import("../modules/discounts/pages/DealsPage").then((m) => ({ default: m.DealsPage }))
+);
+const ExplorePage = lazy(() =>
+  import("../modules/home/pages/ExplorePage").then((m) => ({ default: m.ExplorePage }))
 );
 const BranchesPage = lazy(() =>
   import("../modules/branches/pages/BranchesPage").then((m) => ({ default: m.BranchesPage }))
@@ -111,6 +123,22 @@ const router = createBrowserRouter([
       {
         path: "products/:id",
         element: withSuspense(ProductDetailPage),
+      },
+      {
+        path: "deals",
+        element: withSuspense(DealsPage),
+      },
+      {
+        path: "discounts",
+        element: withSuspense(DealsPage),
+      },
+      {
+        path: "combos",
+        element: <Navigate to="/deals?tab=combo" replace />,
+      },
+      {
+        path: "explore",
+        element: withSuspense(ExplorePage),
       },
       {
         path: "cart",
@@ -211,6 +239,14 @@ const router = createBrowserRouter([
               {
                 path: "vouchers",
                 element: withSuspense(AdminVoucherListPage),
+              },
+              {
+                path: "flash-sales",
+                element: withSuspense(AdminFlashSaleListPage),
+              },
+              {
+                path: "combos",
+                element: withSuspense(AdminComboListPage),
               },
             ],
           },

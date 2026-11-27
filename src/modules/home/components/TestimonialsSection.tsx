@@ -1,9 +1,30 @@
 import { Star, MessageSquareQuote } from "lucide-react";
+import { useQuery } from "@tanstack/react-query";
 import { mockTestimonials } from "../homeData";
+import { orderApi } from "../../../api/orderApi";
 
 const FALLBACK_AVATAR = "https://images.unsplash.com/photo-1534528741775-53994a69daeb?auto=format&fit=crop&w=150&q=80";
 
 export function TestimonialsSection() {
+  const { data: realReviews = [] } = useQuery({
+    queryKey: ["public-order-reviews"],
+    queryFn: orderApi.getPublicReviews,
+  });
+
+  const displayReviews =
+    realReviews.length > 0
+      ? realReviews.map((r) => ({
+          id: r.id,
+          name: r.customer_name,
+          role: "Khách hàng đã mua hàng",
+          avatar: FALLBACK_AVATAR,
+          rating: r.rating,
+          comment: r.comment,
+          date: new Date(r.created_at).toLocaleDateString("vi-VN"),
+          purchasedItem: r.purchased_item || "Đơn hàng CSM",
+        }))
+      : mockTestimonials;
+
   return (
     <section className="py-14 sm:py-18 bg-background border-b border-border/80">
       <div className="container mx-auto px-4 md:px-6">
@@ -21,7 +42,7 @@ export function TestimonialsSection() {
         </div>
 
         <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-          {mockTestimonials.map((item) => (
+          {displayReviews.map((item) => (
             <div
               key={item.id}
               className="p-6 rounded-3xl bg-surface border border-border/80 shadow-card hover:shadow-card-hover transition-all duration-200 flex flex-col justify-between space-y-4"
