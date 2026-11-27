@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState, useCallback } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { ArrowUp, ArrowDown, X, Search, Plus, Save, RotateCcw, RefreshCw, Package } from "lucide-react";
+import { ArrowUp, ArrowDown, X, Search, Plus, Save, RotateCcw, RefreshCw, Package, Zap, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { ProductImage } from "../../../components/ui/ProductImage";
@@ -14,6 +15,8 @@ import {
   HOME_SECTION_TYPES,
 } from "../../../api/storefrontApi";
 import { resolveAssetUrl } from "../../../lib/assetUrl";
+import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
+import { useAuthStore } from "../../../store/useAuthStore";
 import { SectionLivePreview } from "./StorefrontPreviews";
 import { getErrorMessage, toLocalInput, fromLocalInput, getLiveStatus, LIVE_STATUS_STYLE } from "../utils";
 
@@ -91,6 +94,36 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
   }, [current, activeType]);
 
   const meta = HOME_SECTION_META[activeType];
+  const isFlashSale = activeType === "FLASH_SALE";
+  const { user } = useAuthStore();
+  const isAdmin = user?.role === "ADMIN";
+
+  // Khối Giờ vàng: sản phẩm, giá và kiểu giảm (% / tiền mặt) lấy từ chiến dịch Flash Sale đang chạy/sắp chạy
+  const { data: flashSaleData } = useQuery({
+    queryKey: ["active-flash-sale"],
+    queryFn: flashSaleApi.getActiveOrUpcoming,
+    enabled: isFlashSale,
+    staleTime: 30_000,
+  });
+  const flashCampaign = flashSaleData?.status !== "NONE" ? flashSaleData?.campaign ?? null : null;
+  const flashPreviewItems = useMemo<DraftItem[]>(
+    () =>
+      (flashCampaign?.items || []).map((item) => ({
+        note: formatFlashSaleDiscount(item),
+        product: {
+          id: item.product_id,
+          name: item.product_name || item.product_id,
+          slug: item.product_id,
+          price: Number(item.original_price) || 0,
+          discountPrice: Number(item.sale_price) || undefined,
+          description: "",
+          images: item.product_image ? [item.product_image] : [],
+          category: { id: "flash-sale", name: "Giờ vàng" },
+          stock: Number(item.quantity_limit) || 0,
+        } as Product,
+      })),
+    [flashCampaign]
+  );
   const selectedIds = useMemo(() => new Set(draft.items.map((i) => i.product.id)), [draft.items]);
 
   const searchResults = useMemo(() => {
@@ -142,7 +175,8 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
         start_at,
         end_at,
         branch_id: scope,
-        items: draft.items.map((i) => ({ product_id: i.product.id, note: i.note.trim() || null })),
+        // Giờ vàng không lưu sản phẩm ở đây: danh sách món do chiến dịch Flash Sale quyết định
+        items: isFlashSale ? [] : draft.items.map((i) => ({ product_id: i.product.id, note: i.note.trim() || null })),
       });
       setSections((s) => (s ? { ...s, [activeType]: saved } : s));
       onNotify(`Đã lưu khối "${meta.label}"`);
@@ -204,6 +238,8 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
             <p className="text-[11px] text-muted mt-1">
               {current
                 ? "Phạm vi này đã có cấu hình riêng."
+                : isFlashSale
+                ? "Chưa cấu hình: dùng tên chiến dịch Flash Sale làm tiêu đề."
                 : isGlobalScope
                 ? "Chưa cấu hình: trang chủ đang tự chọn sản phẩm theo mặc định."
                 : "Chưa cấu hình: chi nhánh đang dùng cấu hình toàn chuỗi (hoặc mặc định)."}
@@ -246,6 +282,43 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
           Bật khối này
         </label>
 
+        {isFlashSale ? (
+          <div className="rounded-2xl border border-accent/30 bg-accent-tint/40 p-4 space-y-3" data-testid="section-flash-sale-source">
+            <div className="flex items-start gap-3">
+              <div className="w-9 h-9 rounded-xl bg-accent-tint border border-accent/30 text-accent-dark flex items-center justify-center shrink-0">
+                <Zap className="w-4 h-4 fill-current" />
+              </div>
+              <div className="space-y-1 min-w-0">
+                <p className="text-xs font-bold text-foreground">Sản phẩm và mức giảm lấy từ chiến dịch Flash Sale</p>
+                <p className="text-[11px] text-muted leading-relaxed">
+                  Khối này chỉ chỉnh tiêu đề, mô tả và lịch hiển thị. Danh sách món, giá sale và kiểu giảm
+                  (theo % hoặc tiền mặt) được cấu hình ở trang Quản lý Giờ Vàng để giá hiển thị luôn khớp giá khi đặt hàng.
+                </p>
+              </div>
+            </div>
+            <div className="text-[11px] text-foreground">
+              {flashCampaign ? (
+                <span>
+                  {flashSaleData?.status === "UPCOMING" ? "Sắp diễn ra" : "Đang diễn ra"}:{" "}
+                  <strong>{flashCampaign.name}</strong> · {flashCampaign.items?.length || 0} món ·{" "}
+                  {flashCampaign.start_time?.slice(0, 5)} – {flashCampaign.end_time?.slice(0, 5)}
+                </span>
+              ) : (
+                <span className="text-muted">Hiện chưa có chiến dịch nào đang chạy, khối sẽ tự ẩn trên trang chủ.</span>
+              )}
+            </div>
+            {isAdmin ? (
+              <Button variant="outline" size="sm" asChild className="rounded-xl text-xs gap-1.5">
+                <Link to="/admin/flash-sales">
+                  <ExternalLink className="w-3.5 h-3.5" />
+                  Mở Quản lý Giờ Vàng
+                </Link>
+              </Button>
+            ) : (
+              <p className="text-[11px] text-muted">Liên hệ Admin để thay đổi món hoặc mức giảm của Giờ vàng.</p>
+            )}
+          </div>
+        ) : (
         <div className="space-y-2">
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-foreground">
@@ -338,6 +411,7 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
             )}
           </div>
         </div>
+        )}
 
         </div>
 
@@ -347,7 +421,7 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
             type={activeType}
             title={draft.title}
             subtitle={draft.subtitle}
-            items={draft.items}
+            items={isFlashSale ? flashPreviewItems : draft.items}
             enabled={draft.is_active}
           />
         </div>

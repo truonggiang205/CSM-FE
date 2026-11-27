@@ -5,6 +5,7 @@ import { X, Star, ShoppingCart, Check, Plus, Minus, ArrowRight, ShieldCheck, Tru
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
+import { useFlashSaleCountdown } from "../../../hooks/useFlashSaleCountdown";
 import { Button } from "../../../components/ui/Button";
 import { Badge } from "../../../components/ui/Badge";
 import { ProductImage } from "../../../components/ui/ProductImage";
@@ -40,6 +41,9 @@ export function QuickViewModal({
     return () => window.removeEventListener("keydown", handleKeyDown);
   }, [isOpen, onClose]);
 
+  // Hook phải được gọi trước mọi lệnh return sớm (rules-of-hooks)
+  const { timeLeft, isExpired } = useFlashSaleCountdown(product?.flashSaleMeta?.endTime);
+
   if (!isOpen || !product) return null;
 
   const formatCurrency = (amount: number) => {
@@ -53,45 +57,6 @@ export function QuickViewModal({
   const isOutOfStock = effectiveStock <= 0;
   const displayImage = product.images && product.images[0];
 
-  const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isExpired, setIsExpired] = useState<boolean>(false);
-  const endTimeStr = product.flashSaleMeta?.endTime;
-
-  useEffect(() => {
-    if (!endTimeStr) {
-      setTimeLeft("");
-      setIsExpired(false);
-      return;
-    }
-
-    const updateTimer = () => {
-      const now = new Date();
-      const parts = endTimeStr.split(":").map(Number);
-      if (parts.length < 2) return;
-
-      const target = new Date(now);
-      target.setHours(parts[0], parts[1], parts[2] || 0, 0);
-
-      const diff = target.getTime() - now.getTime();
-      if (diff <= 0) {
-        setTimeLeft("");
-        setIsExpired(true);
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      const pad = (n: number) => String(n).padStart(2, "0");
-      setTimeLeft(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
-      setIsExpired(false);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [endTimeStr]);
 
   const isFlashSaleActive = !!product.flashSaleMeta && !product.flashSaleMeta.isSoldOut && !isExpired;
   const originalPrice = product.price;

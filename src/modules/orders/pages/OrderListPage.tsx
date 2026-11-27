@@ -32,14 +32,22 @@ import { Badge } from "../../../components/ui/Badge";
 import { Card } from "../../../components/ui/Card";
 import { Skeleton } from "../../../components/ui/Skeleton";
 
+type AuthUser = NonNullable<ReturnType<typeof useAuthStore.getState>["user"]>;
+
 export function OrderListPage() {
   const { user } = useAuthStore();
-  const [searchParams, setSearchParams] = useSearchParams();
 
-  // Chặn khách hàng thông thường không được vào quản trị đơn hàng
+  // Chặn khách hàng thông thường không được vào quản trị đơn hàng.
+  // Kiểm tra ở component bọc ngoài để mọi hook bên trong luôn được gọi đủ, đúng thứ tự (rules-of-hooks).
   if (!user || user.role === "CUSTOMER") {
     return <Navigate to="/unauthorized" replace />;
   }
+
+  return <OrderListContent user={user} />;
+}
+
+function OrderListContent({ user }: { user: AuthUser }) {
+  const [searchParams, setSearchParams] = useSearchParams();
 
   const isAdmin = user.role === "ADMIN";
   const userBranchId = user.branch_id;

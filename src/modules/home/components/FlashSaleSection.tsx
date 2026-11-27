@@ -8,7 +8,7 @@ import { useCartToastStore } from "../../../store/useCartToastStore";
 import { Button } from "../../../components/ui/Button";
 import type { HomeSection } from "../../../api/storefrontApi";
 import { ProductImage } from "../../../components/ui/ProductImage";
-import { flashSaleApi } from "../../../api/flashSaleApi";
+import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 
 interface FlashSaleSectionProps {
   products: Product[];
@@ -109,7 +109,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
     const matchingProduct = products.find((p) => p.id === item.product_id);
     const originalPrice = Number(item.original_price) || 20000;
     const salePrice = Number(item.sale_price) || Math.round(originalPrice * 0.8);
-    const percentOff = item.discount_percentage || Math.round(((originalPrice - salePrice) / originalPrice) * 100);
+    const discountLabel = formatFlashSaleDiscount({ ...item, original_price: originalPrice, sale_price: salePrice });
     const limit = Number(item.quantity_limit) || 50;
     const sold = Number(item.sold_count) || 0;
     const soldPercent = Math.min(100, Math.round((sold / Math.max(1, limit)) * 100));
@@ -121,7 +121,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
       categoryName: matchingProduct?.category?.name || "Giờ Vàng",
       originalPrice,
       salePrice,
-      percentOff,
+      discountLabel,
       soldPercent,
       quantityLimit: limit,
       soldCount: sold,
@@ -188,6 +188,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
                 </span>
 
                 <span className="text-xs text-muted">
+                  {section?.subtitle ? `${section.subtitle} · ` : ""}
                   {isUpcoming
                     ? `Mở bán lúc ${campaign?.start_time?.slice(0, 5) || "hôm nay"}`
                     : `Áp dụng đến ${campaign?.end_time?.slice(0, 5) || "23:59"}`}
@@ -258,7 +259,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
                     />
                     <div className="absolute top-2 left-2 flex flex-col gap-1 items-start">
                       <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-black shadow-xs">
-                        -{item.percentOff}%
+                        {item.discountLabel}
                       </span>
                     </div>
                   </Link>

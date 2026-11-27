@@ -9,6 +9,7 @@ import { ProductImage } from "../../../components/ui/ProductImage";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { useTilt } from "../../../hooks/useTilt";
+import { useFlashSaleCountdown } from "../../../hooks/useFlashSaleCountdown";
 
 interface ProductCardProps {
   product: Product;
@@ -18,53 +19,6 @@ interface ProductCardProps {
   onQuickView?: (product: Product) => void;
 }
 
-function useFlashSaleCountdown(endTimeStr?: string) {
-  const [timeLeft, setTimeLeft] = useState<string>("");
-  const [isExpired, setIsExpired] = useState<boolean>(false);
-
-  useEffect(() => {
-    if (!endTimeStr) {
-      setTimeLeft("");
-      setIsExpired(false);
-      return;
-    }
-
-    const updateTimer = () => {
-      const now = new Date();
-      let target: Date;
-      if (endTimeStr.includes("T")) {
-        target = new Date(endTimeStr);
-        if (isNaN(target.getTime())) return;
-      } else {
-        const parts = endTimeStr.split(":").map(Number);
-        if (parts.length < 2) return;
-        target = new Date(now);
-        target.setHours(parts[0], parts[1], parts[2] || 0, 0);
-      }
-
-      const diff = target.getTime() - now.getTime();
-      if (diff <= 0) {
-        setTimeLeft("");
-        setIsExpired(true);
-        return;
-      }
-
-      const hours = Math.floor(diff / (1000 * 60 * 60));
-      const minutes = Math.floor((diff % (1000 * 60 * 60)) / (1000 * 60));
-      const seconds = Math.floor((diff % (1000 * 60)) / 1000);
-
-      const pad = (n: number) => String(n).padStart(2, "0");
-      setTimeLeft(`${pad(hours)}:${pad(minutes)}:${pad(seconds)}`);
-      setIsExpired(false);
-    };
-
-    updateTimer();
-    const interval = setInterval(updateTimer, 1000);
-    return () => clearInterval(interval);
-  }, [endTimeStr]);
-
-  return { timeLeft, isExpired };
-}
 
 export function ProductCard({
   product,

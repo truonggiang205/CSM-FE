@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo, useRef } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Zap, Clock, ShoppingCart, Flame, RefreshCw, Layers } from "lucide-react";
-import { flashSaleApi, TodayDealsResponse, TodayDealItem } from "../../../api/flashSaleApi";
+import { flashSaleApi, TodayDealsResponse, TodayDealItem, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 import { comboApi } from "../../../api/comboApi";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
@@ -322,9 +322,7 @@ export function DealsPage() {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 sm:gap-5">
               {activeDeals.map((deal) => {
-                const percentOff =
-                  deal.discount_percentage ||
-                  Math.round(((deal.original_price - deal.sale_price) / deal.original_price) * 100);
+                const discountLabel = formatFlashSaleDiscount(deal);
                 const isLive = deal.status === "ACTIVE";
                 const remaining = Math.max(0, deal.quantity_limit - deal.sold_count);
                 const isSoldOut = remaining <= 0;
@@ -371,7 +369,7 @@ export function DealsPage() {
                           {formatVND(deal.original_price)}
                         </span>
                         <span className="px-2 py-0.5 rounded-full bg-danger-pastel text-danger-dark text-[10px] font-black">
-                          -{percentOff}%
+                          {discountLabel}
                         </span>
                       </div>
 
