@@ -34,9 +34,12 @@ import { BranchSelector } from "../components/branch/BranchSelector";
 import { AnnouncementBar } from "../components/storefront/AnnouncementBar";
 import { PromoPopup } from "../components/storefront/PromoPopup";
 import apiClient from "../api/apiClient";
+import { useCartFlashSaleSync } from "../hooks/useCartFlashSaleSync";
 
 export default function PublicLayout() {
   const { toggleCart, getTotalItems } = useCartStore();
+  // Giỏ hàng tự về giá gốc khi Flash Sale kết thúc
+  useCartFlashSaleSync();
   const { user, isAuthenticated, logout } = useAuthStore();
   const navigate = useNavigate();
   const location = useLocation();

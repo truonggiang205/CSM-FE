@@ -27,6 +27,12 @@ interface CartState {
   removeItem: (productId: string) => void;
   updateQuantity: (productId: string, quantity: number) => void;
   clearCart: () => void;
+  /**
+   * Đồng bộ giá Flash Sale trong giỏ với chiến dịch đang chạy.
+   * activePrices: productId -> giá sale còn hiệu lực. Món không có trong danh sách sẽ về giá gốc.
+   * Trả về số món đã đổi giá.
+   */
+  syncFlashSalePrices: (activePrices: Record<string, number>) => number;
   toggleCart: () => void;
   setIsOpen: (isOpen: boolean) => void;
   getTotalItems: () => number;
@@ -168,6 +174,28 @@ export const useCartStore = create<CartState>()(
       },
 
       clearCart: () => set({ items: [] }),
+
+      syncFlashSalePrices: (activePrices) => {
+        let changed = 0;
+        const items = get().items.map((item) => {
+          // Combo có giá riêng do discount-service quản lý, không thuộc Flash Sale
+          if (item.itemType === "COMBO") return item;
+          const sale = activePrices[String(item.product.id)];
+          const nextDiscount = sale !== undefined && sale > 0 && sale < item.product.price ? sale : undefined;
+          if (item.product.discountPrice === nextDiscount) return item;
+          changed++;
+          return {
+            ...item,
+            product: {
+              ...item.product,
+              discountPrice: nextDiscount,
+              flashSaleMeta: nextDiscount !== undefined ? item.product.flashSaleMeta : undefined,
+            },
+          };
+        });
+        if (changed > 0) set({ items });
+        return changed;
+      },
       toggleCart: () => set((state) => ({ isOpen: !state.isOpen })),
       setIsOpen: (isOpen) => set({ isOpen }),
 
