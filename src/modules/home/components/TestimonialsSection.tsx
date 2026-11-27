@@ -69,7 +69,10 @@ export function TestimonialsSection() {
                     src={item.avatar}
                     alt={item.name}
                     onError={(e) => {
-                      e.currentTarget.src = FALLBACK_AVATAR;
+                      // Chỉ thay ảnh dự phòng một lần: nếu ảnh dự phòng cũng lỗi thì dừng, tránh tải lại vô hạn
+                      const img = e.currentTarget;
+                      if (img.src === FALLBACK_AVATAR) return;
+                      img.src = FALLBACK_AVATAR;
                     }}
                     className="w-10 h-10 rounded-full object-cover border border-primary/20 shadow-xs"
                     loading="lazy"

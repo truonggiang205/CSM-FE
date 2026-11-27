@@ -149,7 +149,10 @@ export function HeroPromoSlider({ banners: remoteBanners }: HeroPromoSliderProps
                 loading="eager"
                 decoding="async"
                 onError={(e) => {
-                  e.currentTarget.src = FALLBACK_HERO_IMAGE;
+                  // Chỉ thay ảnh dự phòng một lần: nếu ảnh dự phòng cũng lỗi thì dừng, tránh tải lại vô hạn
+                  const img = e.currentTarget;
+                  if (img.src === FALLBACK_HERO_IMAGE) return;
+                  img.src = FALLBACK_HERO_IMAGE;
                 }}
                 className="w-full h-full object-cover transition-transform duration-500 hover:scale-105"
               />
