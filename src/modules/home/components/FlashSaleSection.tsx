@@ -48,10 +48,8 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
 
   useEffect(() => {
     const rawTarget = flashSaleData.targetDateTime || flashSaleData.targetTime;
-    if (!isLiveCampaign || !rawTarget) {
-      setTimeLeft({ hours: "00", minutes: "00", seconds: "00" });
-      return;
-    }
+    // Không có chiến dịch: khối tự ẩn (return null bên dưới) nên không cần đếm ngược
+    if (!isLiveCampaign || !rawTarget) return;
 
     const calculateTimeRemaining = () => {
       const now = new Date();

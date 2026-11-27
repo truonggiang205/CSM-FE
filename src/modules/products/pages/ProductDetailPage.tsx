@@ -26,7 +26,7 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
-import { flashSaleApi } from "../../../api/flashSaleApi";
+import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
@@ -192,6 +192,7 @@ export function ProductDetailPage() {
           quantityLimit: Number(flashSaleItem.quantity_limit) || 0,
           endTime: rawEndTimeStr,
           isSoldOut: false,
+          discountLabel: formatFlashSaleDiscount(flashSaleItem),
         },
       };
     }
@@ -410,7 +411,7 @@ export function ProductDetailPage() {
             />
             {hasDiscount && (
               <span className="absolute top-4 left-4 bg-danger text-white text-xs font-black px-3 py-1 rounded-full shadow-xs">
-                -{percentOff}% GIẢM
+                {(effectiveProduct || product).flashSaleMeta?.discountLabel ?? `-${percentOff}%`} GIẢM
               </span>
             )}
           </motion.div>

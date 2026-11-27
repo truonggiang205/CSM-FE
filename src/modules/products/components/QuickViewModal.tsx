@@ -134,7 +134,7 @@ export function QuickViewModal({
               {hasDiscount && (
                 <div className="absolute top-3 left-3">
                   <span className="px-2.5 py-1 rounded-full bg-danger text-white text-xs font-black shadow-xs">
-                    -{percentOff}%
+                    {product.flashSaleMeta?.discountLabel ?? `-${percentOff}%`}
                   </span>
                 </div>
               )}

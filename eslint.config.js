@@ -19,6 +19,9 @@ export default tseslint.config(
     },
     rules: {
       ...reactHooks.configs.recommended.rules,
+      // Rule dành cho React Compiler (dự án chưa bật). Mẫu "gọi API trong useEffect rồi setLoading/setData"
+      // vẫn đúng với React 18 nên chỉ cảnh báo để dần chuyển sang React Query, không chặn build/lint.
+      "react-hooks/set-state-in-effect": "warn",
       "react-refresh/only-export-components": ["warn", { allowConstantExport: true }],
       "@typescript-eslint/no-explicit-any": "warn",
       "@typescript-eslint/no-unused-vars": ["warn", { argsIgnorePattern: "^_" }],

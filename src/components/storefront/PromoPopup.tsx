@@ -25,7 +25,7 @@ export function PromoPopup() {
 
   useEffect(() => {
     if (!banner || blocked) return;
-    let seen: string | null = null;
+    let seen: string | null;
     try {
       seen = localStorage.getItem(SEEN_KEY);
     } catch {

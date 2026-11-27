@@ -65,6 +65,8 @@ function OrderListContent({ user }: { user: AuthUser }) {
 
   // Data states
   const [data, setData] = useState<Paginated<Order> | null>(null);
+  // Mốc thời gian lúc tải danh sách, dùng để tính "x phút trước" (không gọi Date.now() khi render)
+  const [fetchedAt, setFetchedAt] = useState(() => Date.now());
   const [branches, setBranches] = useState<Branch[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -154,6 +156,7 @@ function OrderListContent({ user }: { user: AuthUser }) {
       ]);
 
       setData(res);
+      setFetchedAt(Date.now());
       setAllStatusOrders(allRes.items || []);
     } catch (err: any) {
       const msg = err.response?.data?.message || err.message || "Không thể tải danh sách đơn hàng quản trị.";
@@ -194,7 +197,7 @@ function OrderListContent({ user }: { user: AuthUser }) {
 
   // Tính thời gian tương đối
   const getTimeAgo = (dateStr: string) => {
-    const diffMs = Date.now() - new Date(dateStr).getTime();
+    const diffMs = fetchedAt - new Date(dateStr).getTime();
     const diffMins = Math.floor(diffMs / (60 * 1000));
     const diffHours = Math.floor(diffMins / 60);
     const diffDays = Math.floor(diffHours / 24);

@@ -19,7 +19,7 @@ import { ProductCard } from "../components/ProductCard";
 import { QuickViewModal } from "../components/QuickViewModal";
 import { productApi } from "../../../api/productApi";
 import { inventoryApi } from "../../../api/inventoryApi";
-import { flashSaleApi } from "../../../api/flashSaleApi";
+import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 import { useBranchStore } from "../../../store/useBranchStore";
 import { Input } from "../../../components/ui/Input";
 import { Button } from "../../../components/ui/Button";
@@ -174,6 +174,7 @@ export function ProductListPage() {
         quantityLimit: number;
         isSoldOut: boolean;
         endTime?: string;
+        discountLabel: string;
       }
     >();
     if (flashSaleData?.status === "ACTIVE" && flashSaleData.items) {
@@ -188,6 +189,7 @@ export function ProductListPage() {
             soldCount: sold,
             quantityLimit: limit,
             isSoldOut,
+            discountLabel: formatFlashSaleDiscount(item),
             endTime: flashSaleData.endTime || flashSaleData.campaign?.end_time,
           });
         }
@@ -210,6 +212,7 @@ export function ProductListPage() {
               quantityLimit: fs.quantityLimit,
               endTime: fs.endTime,
               isSoldOut: false,
+              discountLabel: fs.discountLabel,
             },
           };
         }
