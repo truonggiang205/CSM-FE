@@ -9,6 +9,7 @@ import { UserPlus, AlertCircle, CheckCircle2 } from "lucide-react";
 
 export function RegisterPage() {
   const [fullName, setFullName] = useState("");
+  const [phone, setPhone] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
@@ -29,6 +30,12 @@ export function RegisterPage() {
       return;
     }
 
+    const cleanPhone = phone.replace(/[\s.\-()]/g, "");
+    if (cleanPhone && !/^(\+84|0)\d{9,10}$/.test(cleanPhone)) {
+      setErrorMsg("Số điện thoại không hợp lệ (bắt đầu bằng 0 hoặc +84, 10–11 chữ số)");
+      return;
+    }
+
     if (password !== confirmPassword) {
       setErrorMsg("Mật khẩu xác nhận không khớp");
       return;
@@ -41,6 +48,7 @@ export function RegisterPage() {
         email: email.trim().toLowerCase(),
         password,
         fullName: fullName.trim(),
+        ...(cleanPhone ? { phone: cleanPhone } : {}),
       });
 
       setSuccessMsg("Đăng ký thành công! Đang chuyển hướng...");
@@ -97,6 +105,21 @@ export function RegisterPage() {
               placeholder="Nguyễn Văn A"
               value={fullName}
               onChange={(e) => setFullName(e.target.value)}
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <Label htmlFor="register-phone">
+              Số điện thoại <span className="text-muted font-normal">(không bắt buộc)</span>
+            </Label>
+            <Input
+              id="register-phone"
+              type="tel"
+              inputMode="tel"
+              autoComplete="tel"
+              placeholder="0901 234 567"
+              value={phone}
+              onChange={(e) => setPhone(e.target.value)}
             />
           </div>
 

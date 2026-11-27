@@ -15,13 +15,13 @@ import {
   Tag,
   ChevronRight,
   Home,
-  ShieldCheck,
-  UserCheck,
+  UserCog,
   LayoutTemplate,
   Zap,
   Layers,
 } from "lucide-react";
 import { useAuthStore } from "../store/useAuthStore";
+import { UserAvatar } from "../components/ui/UserAvatar";
 
 interface NavItem {
   name: string;
@@ -132,6 +132,7 @@ const BREADCRUMB_MAP: Record<string, { parent?: { title: string; href: string };
   "/admin/branches": { parent: { title: "Hệ thống", href: "/admin/branches" }, title: "Quản lý chi nhánh" },
   "/admin/customers": { parent: { title: "Hệ thống", href: "/admin/customers" }, title: "Quản lý người dùng" },
   "/admin/settings": { parent: { title: "Hệ thống", href: "/admin/settings" }, title: "Cài đặt cấu hình" },
+  "/admin/profile": { parent: { title: "Tài khoản", href: "/admin/profile" }, title: "Hồ sơ của tôi" },
 };
 
 function getRoleLabel(role?: string, branchId?: string): { title: string; badge: string } {
@@ -158,7 +159,7 @@ export default function AdminLayout() {
   }, [location.pathname]);
 
   const userRole = user?.role || "";
-  const roleInfo = getRoleLabel(user?.role, user?.branch_id);
+  const roleInfo = getRoleLabel(user?.role, user?.branch_id ?? undefined);
 
   // Lọc menu theo role hiện tại
   const visibleGroups = useMemo(() => {
@@ -259,25 +260,34 @@ export default function AdminLayout() {
 
         {/* Thẻ định danh người dùng và nút đăng xuất */}
         <div className="p-3.5 border-t border-border space-y-2.5 shrink-0 bg-surface">
-          <div className="p-2.5 rounded-2xl bg-surface-soft border border-border/60">
+          <Link
+            to="/admin/profile"
+            title="Xem và chỉnh sửa hồ sơ của tôi"
+            aria-label="Hồ sơ của tôi"
+            className={`block p-2.5 rounded-2xl border transition-all group focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/40 ${
+              location.pathname === "/admin/profile"
+                ? "bg-primary-tint/60 border-primary/30"
+                : "bg-surface-soft border-border/60 hover:border-primary/30 hover:bg-primary-tint/30"
+            }`}
+          >
             <div className="flex items-center gap-2.5">
-              <div className="w-8 h-8 rounded-xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary font-bold text-xs shrink-0">
-                {user?.role === "ADMIN" ? (
-                  <ShieldCheck className="w-4 h-4" />
-                ) : (
-                  <UserCheck className="w-4 h-4" />
-                )}
-              </div>
-              <div className="flex flex-col min-w-0">
+              <UserAvatar
+                avatarUrl={user?.avatarUrl}
+                name={user?.fullName}
+                email={user?.email}
+                className="w-8 h-8 rounded-xl text-[11px]"
+              />
+              <div className="flex flex-col min-w-0 flex-1">
                 <span className="text-xs font-bold truncate text-foreground">
-                  {user?.email || "Người vận hành"}
+                  {user?.fullName || user?.email || "Người vận hành"}
                 </span>
                 <span className="text-[10px] font-semibold text-primary-dark truncate">
                   {roleInfo.title}
                 </span>
               </div>
+              <UserCog className="w-3.5 h-3.5 text-muted group-hover:text-primary shrink-0 transition-colors" />
             </div>
-          </div>
+          </Link>
 
           <button
             type="button"
@@ -449,21 +459,27 @@ export default function AdminLayout() {
                 </nav>
 
                 <div className="p-4 border-t border-border space-y-3 bg-surface-soft/40 shrink-0">
-                  <div className="p-3 rounded-2xl bg-surface border border-border/60">
+                  <Link
+                    to="/admin/profile"
+                    aria-label="Hồ sơ của tôi"
+                    className="block p-3 rounded-2xl bg-surface border border-border/60 hover:border-primary/30 transition-all"
+                  >
                     <div className="flex items-center gap-2.5">
-                      <div className="w-8 h-8 rounded-xl bg-primary-tint text-primary-dark font-bold flex items-center justify-center text-xs border border-primary/20 shrink-0">
-                        {user?.role === "ADMIN" ? (
-                          <ShieldCheck className="w-4 h-4" />
-                        ) : (
-                          <UserCheck className="w-4 h-4" />
-                        )}
-                      </div>
+                      <UserAvatar
+                        avatarUrl={user?.avatarUrl}
+                        name={user?.fullName}
+                        email={user?.email}
+                        className="w-8 h-8 rounded-xl text-[11px]"
+                      />
                       <div className="min-w-0 flex-1">
-                        <p className="text-xs font-bold truncate text-foreground">{user?.email}</p>
-                        <p className="text-[10px] text-muted">{roleInfo.title}</p>
+                        <p className="text-xs font-bold truncate text-foreground">
+                          {user?.fullName || user?.email}
+                        </p>
+                        <p className="text-[10px] text-muted">{roleInfo.title} · Hồ sơ của tôi</p>
                       </div>
+                      <UserCog className="w-4 h-4 text-muted shrink-0" />
                     </div>
-                  </div>
+                  </Link>
 
                   <button
                     type="button"
