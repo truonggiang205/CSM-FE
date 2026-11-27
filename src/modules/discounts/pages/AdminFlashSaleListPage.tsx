@@ -91,7 +91,7 @@ export function AdminFlashSaleListPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
-  const [currentTicker, setCurrentTicker] = useState<number>(Date.now());
+  const [currentTicker, setCurrentTicker] = useState<number>(() => Date.now());
 
   useEffect(() => {
     const timer = setInterval(() => {
@@ -347,7 +347,7 @@ export function AdminFlashSaleListPage() {
   const getCampaignStatus = (c: FlashSaleCampaign) => {
     if (!c.is_active) return { label: "TẠM NGƯNG", color: "bg-muted/15 text-muted border-border" };
 
-    const nowMs = Date.now();
+    const nowMs = currentTicker;
     const { startMs, endMs } = getCampaignBounds(c);
 
     if (nowMs >= startMs && nowMs <= endMs) {

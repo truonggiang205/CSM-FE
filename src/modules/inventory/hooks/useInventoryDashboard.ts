@@ -45,12 +45,13 @@ export function useInventoryDashboard() {
   }, [products]);
 
   // Đảm bảo activeBranchId hợp lệ
+  const userBranchId = user?.branch_id;
   const activeBranchId = useMemo(() => {
-    if (isBranchManager && user?.branch_id) {
-      return user.branch_id;
+    if (isBranchManager && userBranchId) {
+      return userBranchId;
     }
     return selectedBranchId || (branches[0]?.id ?? "br-01");
-  }, [isBranchManager, user?.branch_id, selectedBranchId, branches]);
+  }, [isBranchManager, userBranchId, selectedBranchId, branches]);
 
   // 3. Lấy tồn kho của chi nhánh
   const {
@@ -141,7 +142,7 @@ export function useInventoryDashboard() {
 
   // Danh sách đã lọc và sắp xếp
   const filteredInventory = useMemo(() => {
-    let result = enrichedInventory.filter((item) => {
+    const result = enrichedInventory.filter((item) => {
       const q = searchTerm.toLowerCase();
       const matchSearch =
         item.product_name.toLowerCase().includes(q) || item.sku.toLowerCase().includes(q);

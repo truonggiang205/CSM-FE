@@ -104,7 +104,9 @@ export function LayoutManager({ scope, isGlobalScope, onNotify }: LayoutManagerP
 
   const visibleCount = blocks.filter((b) => b.visible).length;
   const activeKey = hoverKey || selectedKey;
-  let visibleNo = 0;
+  // Số thứ tự hiển thị của từng khối đang bật (tính trước, không đổi biến trong lúc render JSX)
+  const visibleNoByKey = new Map<string, number>();
+  blocks.filter((b) => b.visible).forEach((b, i) => visibleNoByKey.set(b.key, i + 1));
 
   return (
     <div className="space-y-4">
@@ -159,7 +161,7 @@ export function LayoutManager({ scope, isGlobalScope, onNotify }: LayoutManagerP
               const meta = HOME_BLOCK_META[block.key];
               const color = BLOCK_COLORS[block.key];
               const isActive = activeKey === block.key;
-              if (block.visible) visibleNo += 1;
+              const visibleNo = visibleNoByKey.get(block.key) ?? 0;
               const showDropLine = dragIndex !== null && overIndex === index && dragIndex !== index;
               return (
                 <li

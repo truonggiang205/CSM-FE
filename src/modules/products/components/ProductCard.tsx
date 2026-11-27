@@ -30,7 +30,12 @@ export function ProductCard({
   const { addItem } = useCartStore();
   const [isAdded, setIsAdded] = useState(false);
   const shouldReduceMotion = useReducedMotion();
-  const tilt = useTilt({ maxTilt: 3, perspective: 800 });
+  const {
+    ref: tiltRef,
+    handleMouseMove: handleTiltMove,
+    handleMouseLeave: handleTiltLeave,
+    style: tiltStyle,
+  } = useTilt({ maxTilt: 3, perspective: 800 });
   const { timeLeft, isExpired } = useFlashSaleCountdown(product.flashSaleMeta?.endTime);
 
   const formatCurrency = (amount: number) => {
@@ -98,7 +103,7 @@ export function ProductCard({
           {hasDiscount && (
             <div className="absolute top-2 left-2 flex flex-col gap-1 items-start z-10 pointer-events-none">
               <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-black shadow-xs">
-                -{percentOff}%
+                {product.flashSaleMeta?.discountLabel ?? `-${percentOff}%`}
               </span>
             </div>
           )}
@@ -224,10 +229,10 @@ export function ProductCard({
 
   return (
     <motion.div
-      ref={tilt.ref}
-      onMouseMove={tilt.handleMouseMove}
-      onMouseLeave={tilt.handleMouseLeave}
-      style={tilt.style}
+      ref={tiltRef}
+      onMouseMove={handleTiltMove}
+      onMouseLeave={handleTiltLeave}
+      style={tiltStyle}
       whileHover={shouldReduceMotion ? {} : { y: -4 }}
       transition={{ duration: 0.18 }}
       className="group relative flex flex-col h-full rounded-3xl border border-border bg-surface shadow-card hover:shadow-card-hover overflow-hidden transition-shadow duration-200 transform-gpu"
@@ -244,7 +249,7 @@ export function ProductCard({
         <div className="absolute top-2.5 left-2.5 flex flex-col gap-1.5 items-start z-10 pointer-events-none">
           {hasDiscount && (
             <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-black shadow-xs">
-              -{percentOff}%
+              {product.flashSaleMeta?.discountLabel ?? `-${percentOff}%`}
             </span>
           )}
 

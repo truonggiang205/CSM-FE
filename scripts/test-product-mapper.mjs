@@ -5,7 +5,7 @@ console.log("🧪 CHẠY KIỂM THỬ TỰ ĐỘNG MAPPER SẢN PHẨM (CSM-FE)"
 console.log("====================================================\n");
 
 // Sử dụng Playwright test runner để chạy trực tiếp tests/mapper.spec.ts với hỗ trợ TypeScript nguyên bản
-const result = spawnSync("npx.cmd", ["playwright", "test", "tests/mapper.spec.ts", "--reporter=list"], {
+const result = spawnSync(process.platform === "win32" ? "npx.cmd" : "npx", ["playwright", "test", "tests/mapper.spec.ts", "--reporter=list"], {
   stdio: "inherit",
   shell: true,
 });

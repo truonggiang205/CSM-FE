@@ -22,6 +22,8 @@ export interface ProductFlashSaleMeta {
   quantityLimit: number;
   endTime?: string;
   isSoldOut?: boolean;
+  /** Nhãn giảm giá theo kiểu Admin chọn: "-20%" hoặc "-5.000đ" */
+  discountLabel?: string;
 }
 
 export interface Product {
