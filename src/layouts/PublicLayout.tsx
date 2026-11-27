@@ -268,7 +268,7 @@ export default function PublicLayout() {
                   aria-label="Xem thông tin tài khoản"
                 >
                   <User className="w-3.5 h-3.5 text-primary" />
-                  <span className="truncate max-w-[100px]">{user?.name || user?.email?.split("@")[0] || "Tôi"}</span>
+                  <span className="truncate max-w-[100px]">{user?.fullName || user?.name || user?.email?.split("@")[0] || "Tôi"}</span>
                 </Link>
                 <button
                   onClick={logout}

@@ -38,8 +38,9 @@ export function CheckoutPage() {
   const navigate = useNavigate();
 
   const [step, setStep] = useState<1 | 2 | 3>(1); // 1: Info, 2: Payment, 3: Success
-  const [recipientName, setRecipientName] = useState("");
-  const [recipientPhone, setRecipientPhone] = useState("");
+  // Điền sẵn họ tên & SĐT từ hồ sơ tài khoản (khách vẫn sửa được)
+  const [recipientName, setRecipientName] = useState(() => user?.fullName || "");
+  const [recipientPhone, setRecipientPhone] = useState(() => user?.phone || "");
   const [shippingAddress, setShippingAddress] = useState("");
   const [orderNotes, setOrderNotes] = useState("");
   const [paymentMethod, setPaymentMethod] = useState<PaymentMethod>("COD");
