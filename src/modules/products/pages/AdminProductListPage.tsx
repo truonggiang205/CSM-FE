@@ -30,26 +30,87 @@ import { Pagination, paginate } from "../../../components/ui/Pagination";
 import { ProductSearchSelect } from "../../../components/ui/ProductSearchSelect";
 import { getStockSummaries, StockSummary } from "../../../lib/stock";
 import { formatDateTimeVN } from "../../../lib/datetime";
+import { NumberInput } from "../../../components/ui/NumberInput";
+import { FieldError, FormErrorSummary, invalidClass } from "../../../components/ui/FieldError";
 
 type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
 
 interface ProductFormData {
   name: string;
   sku: string;
-  base_price: number;
+  base_price: number | null;
   category_id: string;
   description: string;
   image_url: string;
+  is_active: boolean;
 }
 
 const emptyFormData: ProductFormData = {
   name: "",
   sku: "",
-  base_price: 10000,
+  base_price: null,
   category_id: "",
   description: "",
   image_url: "",
+  is_active: true,
 };
+
+/** Giới hạn nhập liệu — khớp với kiểm tra ở BE (product-service). */
+const PRODUCT_LIMITS = {
+  nameMin: 2,
+  nameMax: 150,
+  descriptionMax: 1000,
+  priceMin: 1000,
+  priceMax: 100_000_000,
+  imageUrlMax: 500,
+};
+
+type ProductField = "name" | "base_price" | "category_id" | "description" | "image";
+const PRODUCT_FIELD_ORDER: ProductField[] = ["name", "base_price", "category_id", "description", "image"];
+const PRODUCT_FIELD_LABELS: Record<ProductField, string> = {
+  name: "Tên sản phẩm",
+  base_price: "Giá niêm yết",
+  category_id: "Danh mục",
+  description: "Mô tả",
+  image: "Hình ảnh",
+};
+
+/** Mã SKU tự sinh: SP-yymmdd-XXXX (khoá, không cho sửa tay). BE kiểm tra trùng khi lưu. */
+const generateSku = () => {
+  const d = new Date();
+  const ymd = `${String(d.getFullYear()).slice(-2)}${String(d.getMonth() + 1).padStart(2, "0")}${String(d.getDate()).padStart(2, "0")}`;
+  const rand = Math.random().toString(36).slice(2, 6).toUpperCase().padEnd(4, "0");
+  return `SP-${ymd}-${rand}`;
+};
+
+const fmtVnd = (n: number) => new Intl.NumberFormat("vi-VN").format(n) + "đ";
+
+function validateProductForm(f: ProductFormData, categoryIds: Set<string>): Partial<Record<ProductField, string>> {
+  const e: Partial<Record<ProductField, string>> = {};
+  const L = PRODUCT_LIMITS;
+  const name = f.name.trim();
+  if (!name) e.name = "Vui lòng nhập tên sản phẩm.";
+  else if (name.length < L.nameMin) e.name = `Tên sản phẩm tối thiểu ${L.nameMin} ký tự.`;
+  else if (name.length > L.nameMax) e.name = `Tên sản phẩm tối đa ${L.nameMax} ký tự (hiện tại ${name.length}).`;
+
+  if (f.base_price === null) e.base_price = "Vui lòng nhập giá niêm yết.";
+  else if (f.base_price < L.priceMin) e.base_price = `Giá niêm yết phải từ ${fmtVnd(L.priceMin)} trở lên.`;
+  else if (f.base_price > L.priceMax) e.base_price = `Giá niêm yết không vượt quá ${fmtVnd(L.priceMax)}.`;
+
+  if (!f.category_id) e.category_id = "Vui lòng chọn danh mục trong danh sách.";
+  else if (!categoryIds.has(f.category_id)) e.category_id = "Danh mục không hợp lệ, vui lòng chọn lại trong danh sách.";
+
+  if (f.description.length > L.descriptionMax)
+    e.description = `Mô tả tối đa ${L.descriptionMax} ký tự (hiện tại ${f.description.length}).`;
+
+  const url = f.image_url.trim();
+  if (url) {
+    if (url.length > L.imageUrlMax) e.image = `URL hình ảnh tối đa ${L.imageUrlMax} ký tự.`;
+    else if (!/^https?:\/\/\S+$/i.test(url) && !url.startsWith("/uploads/"))
+      e.image = "URL hình ảnh phải bắt đầu bằng http:// hoặc https://.";
+  }
+  return e;
+}
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 const ALLOWED_EXTENSIONS = [".jpg", ".jpeg", ".png", ".webp"];
@@ -99,6 +160,9 @@ export function AdminProductListPage() {
   const [formData, setFormData] = useState<ProductFormData>(emptyFormData);
   const [formLoading, setFormLoading] = useState(false);
   const [formError, setFormError] = useState<string | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Partial<Record<ProductField, string>>>({});
+  const [formSubmitted, setFormSubmitted] = useState(false);
+  const [confirmSave, setConfirmSave] = useState(false);
 
   // Upload ảnh & preview
   const [selectedImageFile, setSelectedImageFile] = useState<File | null>(null);
@@ -272,9 +336,10 @@ export function AdminProductListPage() {
     setEditingProduct(null);
     setFormData({
       ...emptyFormData,
-      category_id: categories[0]?.id || "",
-      sku: `SKU-${Date.now().toString().slice(-6)}`,
+      sku: generateSku(),
     });
+    setFieldErrors({});
+    setFormSubmitted(false);
     setSelectedImageFile(null);
     if (imagePreviewUrl && imagePreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreviewUrl);
@@ -291,10 +356,13 @@ export function AdminProductListPage() {
       name: p.name,
       sku: p.sku || `SKU-${p.id.slice(0, 6)}`,
       base_price: p.price,
-      category_id: p.category?.id || categories[0]?.id || "",
+      category_id: p.category?.id || "",
       description: p.description || "",
-      image_url: p.images?.[0] || "",
+      image_url: p.images?.[0] && !p.images[0].startsWith("/uploads/") ? p.images[0] : "",
+      is_active: p.isActive !== false,
     });
+    setFieldErrors({});
+    setFormSubmitted(false);
     setSelectedImageFile(null);
     if (imagePreviewUrl && imagePreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreviewUrl);
@@ -312,7 +380,10 @@ export function AdminProductListPage() {
     // 1. Kiểm tra kích thước tối đa 2MB
     if (file.size > MAX_IMAGE_SIZE_BYTES) {
       const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
-      setFormError(`Dung lượng ảnh vượt quá 2MB (tệp hiện tại: ${sizeMB}MB). Vui lòng chọn ảnh nhỏ hơn.`);
+      setFieldErrors((prev) => ({
+        ...prev,
+        image: `Dung lượng ảnh vượt quá 2MB (tệp hiện tại: ${sizeMB}MB). Vui lòng chọn ảnh nhỏ hơn.`,
+      }));
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
@@ -325,13 +396,13 @@ export function AdminProductListPage() {
     const isMimeAllowed = ALLOWED_MIME_TYPES.includes(mime);
 
     if (!isExtAllowed || !isMimeAllowed) {
-      setFormError("Chỉ chấp nhận tệp hình ảnh định dạng JPG, PNG hoặc WEBP.");
+      setFieldErrors((prev) => ({ ...prev, image: "Chỉ chấp nhận tệp hình ảnh định dạng JPG, PNG hoặc WEBP." }));
       if (fileInputRef.current) fileInputRef.current.value = "";
       return;
     }
 
     // Tệp hợp lệ: tạo preview
-    setFormError(null);
+    setFieldErrors((prev) => ({ ...prev, image: undefined }));
     setSelectedImageFile(file);
     if (imagePreviewUrl && imagePreviewUrl.startsWith("blob:")) {
       URL.revokeObjectURL(imagePreviewUrl);
@@ -350,23 +421,35 @@ export function AdminProductListPage() {
   };
 
   // Submit form tạo/sửa dùng API thật (POST /products, PUT /products/:id, POST /products/:id/image)
-  const handleSubmit = async (e: React.FormEvent) => {
+  const categoryIds = useMemo(() => new Set(categories.map((c) => c.id)), [categories]);
+
+  const updateForm = (patch: Partial<ProductFormData>) => {
+    const next = { ...formData, ...patch };
+    setFormData(next);
+    if (formSubmitted) {
+      setFieldErrors((prev) => {
+        const v = validateProductForm(next, categoryIds);
+        // Lỗi ảnh do chọn tệp (2MB / sai định dạng) giữ nguyên cho tới khi chọn tệp khác hoặc nhập URL.
+        if (!v.image && prev.image && !("image_url" in patch)) v.image = prev.image;
+        return v;
+      });
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
+    setFormSubmitted(true);
+    const found = validateProductForm(formData, categoryIds);
+    // Giữ lỗi ảnh (2MB / sai định dạng) đã báo khi chọn tệp
+    if (!found.image && fieldErrors.image && !formData.image_url.trim()) found.image = fieldErrors.image;
+    setFieldErrors(found);
+    if (Object.values(found).some(Boolean)) return;
+    setConfirmSave(true);
+  };
 
-    if (!formData.name.trim()) {
-      setFormError("Vui lòng nhập tên sản phẩm");
-      return;
-    }
-    if (!formData.sku.trim()) {
-      setFormError("Vui lòng nhập mã SKU");
-      return;
-    }
-    if (formData.base_price < 0) {
-      setFormError("Giá niêm yết không được nhỏ hơn 0");
-      return;
-    }
-
+  const doSave = async () => {
+    setConfirmSave(false);
     setFormLoading(true);
     try {
       let savedProduct: Product;
@@ -375,8 +458,8 @@ export function AdminProductListPage() {
         // Cập nhật sản phẩm qua PUT /products/:id
         savedProduct = await productApi.updateProduct(editingProduct.id, {
           name: formData.name.trim(),
-          sku: formData.sku.trim(),
           base_price: Number(formData.base_price),
+          is_active: formData.is_active,
           category_id: formData.category_id || undefined,
           description: formData.description.trim() || undefined,
           image_url: formData.image_url.trim() || undefined,
@@ -409,6 +492,7 @@ export function AdminProductListPage() {
           name: formData.name.trim(),
           sku: formData.sku.trim(),
           base_price: Number(formData.base_price),
+          is_active: formData.is_active,
           category_id: formData.category_id || undefined,
           description: formData.description.trim() || undefined,
           image_url: formData.image_url.trim() || undefined,
@@ -443,7 +527,7 @@ export function AdminProductListPage() {
         err?.response?.data?.message ||
         err?.message ||
         "Có lỗi xảy ra khi lưu thông tin sản phẩm trên máy chủ";
-      setFormError(errMsg);
+      setFormError(Array.isArray(errMsg) ? errMsg.join(", ") : errMsg);
     } finally {
       setFormLoading(false);
     }
@@ -866,77 +950,112 @@ export function AdminProductListPage() {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-4">
-              <div className="space-y-1.5">
+            {formSubmitted && (
+              <FormErrorSummary errors={fieldErrors} order={PRODUCT_FIELD_ORDER} labels={PRODUCT_FIELD_LABELS} />
+            )}
+
+            <form onSubmit={handleSubmit} noValidate className="space-y-4">
+              <div className="space-y-1.5" data-field="name">
                 <Label htmlFor="productName">Tên sản phẩm *</Label>
                 <Input
                   id="productName"
-                  required
+                  maxLength={PRODUCT_LIMITS.nameMax}
                   placeholder="Ví dụ: Trà Sữa Trân Châu CSM"
                   value={formData.name}
-                  onChange={(e) => setFormData({ ...formData, name: e.target.value })}
-                  className="rounded-xl"
+                  onChange={(e) => updateForm({ name: e.target.value })}
+                  aria-invalid={!!fieldErrors.name || undefined}
+                  className={`rounded-xl ${invalidClass(fieldErrors.name)}`}
                 />
+                <div className="flex justify-between gap-2">
+                  <FieldError message={fieldErrors.name} />
+                  <span className="text-[10px] text-muted ml-auto mt-1">
+                    {formData.name.length}/{PRODUCT_LIMITS.nameMax}
+                  </span>
+                </div>
               </div>
 
               <div className="grid grid-cols-2 gap-4">
                 <div className="space-y-1.5">
-                  <Label htmlFor="sku">Mã SKU *</Label>
+                  <Label htmlFor="sku">Mã SKU (tự sinh)</Label>
                   <Input
                     id="sku"
-                    required
-                    placeholder="Ví dụ: SKU-TS-001"
+                    readOnly
                     value={formData.sku}
-                    onChange={(e) => setFormData({ ...formData, sku: e.target.value })}
+                    title="Mã SKU được hệ thống tự sinh và không sửa được"
                     className="rounded-xl font-mono"
                   />
+                </div>
+
+                <div className="space-y-1.5" data-field="base_price">
+                  <Label htmlFor="base_price">Giá niêm yết (VNĐ) *</Label>
+                  <NumberInput
+                    id="base_price"
+                    value={formData.base_price}
+                    onValueChange={(v) => updateForm({ base_price: v })}
+                    thousandSeparator
+                    maxDigits={9}
+                    suffix="đ"
+                    placeholder="Từ 1.000đ"
+                    invalid={!!fieldErrors.base_price}
+                    className="rounded-xl font-mono"
+                  />
+                  <FieldError message={fieldErrors.base_price} />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1.5" data-field="category_id">
+                  <Label>Danh mục sản phẩm *</Label>
+                  <ProductSearchSelect
+                    options={categories.map((c) => ({ id: c.id, name: c.name }))}
+                    value={formData.category_id}
+                    onChange={(opt) => updateForm({ category_id: opt?.id || "" })}
+                    emptyLabel="-- Chọn danh mục --"
+                    placeholder="Gõ tên danh mục để tìm..."
+                    notFoundLabel="Không tìm thấy danh mục phù hợp"
+                    invalid={!!fieldErrors.category_id}
+                  />
+                  <FieldError message={fieldErrors.category_id} />
                 </div>
 
                 <div className="space-y-1.5">
-                  <Label htmlFor="base_price">Giá niêm yết (VNĐ) *</Label>
-                  <Input
-                    id="base_price"
-                    type="number"
-                    min={0}
-                    step={1000}
-                    required
-                    value={formData.base_price}
-                    onChange={(e) => setFormData({ ...formData, base_price: Number(e.target.value) })}
-                    className="rounded-xl font-mono"
-                  />
+                  <Label htmlFor="productStatus">Trạng thái</Label>
+                  <select
+                    id="productStatus"
+                    value={formData.is_active ? "ACTIVE" : "INACTIVE"}
+                    onChange={(e) => updateForm({ is_active: e.target.value === "ACTIVE" })}
+                    className="w-full h-9 px-3 rounded-xl bg-surface border border-border text-foreground text-xs font-medium focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+                  >
+                    <option value="ACTIVE">Đang bán</option>
+                    <option value="INACTIVE">Tạm ngưng</option>
+                  </select>
                 </div>
               </div>
 
-              <div className="space-y-1.5">
-                <Label htmlFor="category">Danh mục sản phẩm</Label>
-                <select
-                  id="category"
-                  value={formData.category_id}
-                  onChange={(e) => setFormData({ ...formData, category_id: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-foreground text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/20"
-                >
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="space-y-1.5">
+              <div className="space-y-1.5" data-field="description">
                 <Label htmlFor="description">Mô tả sản phẩm</Label>
                 <textarea
                   id="description"
                   rows={3}
+                  maxLength={PRODUCT_LIMITS.descriptionMax}
                   placeholder="Nhập thông tin mô tả chi tiết sản phẩm..."
                   value={formData.description}
-                  onChange={(e) => setFormData({ ...formData, description: e.target.value })}
-                  className="w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-foreground text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/20 resize-none"
+                  onChange={(e) => updateForm({ description: e.target.value })}
+                  className={`w-full px-3.5 py-2.5 rounded-xl bg-surface border border-border text-foreground text-sm focus:outline-hidden focus:ring-2 focus:ring-primary/20 resize-none ${invalidClass(fieldErrors.description)}`}
                 />
+                <div className="flex justify-between gap-2">
+                  <FieldError message={fieldErrors.description} />
+                  <span className="text-[10px] text-muted ml-auto mt-1">
+                    {formData.description.length}/{PRODUCT_LIMITS.descriptionMax}
+                  </span>
+                </div>
               </div>
 
               {/* Phần quản lý hình ảnh & tải tệp ảnh */}
-              <div className="space-y-2 p-3.5 rounded-2xl bg-surface-soft/60 border border-border">
+              <div
+                data-field="image"
+                className={`space-y-2 p-3.5 rounded-2xl bg-surface-soft/60 border ${fieldErrors.image ? "border-danger ring-1 ring-danger/30" : "border-border"}`}
+              >
                 <Label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                   <ImageIcon className="w-4 h-4 text-primary" /> Hình ảnh sản phẩm
                 </Label>
@@ -992,11 +1111,13 @@ export function AdminProductListPage() {
                   </p>
                   <Input
                     id="imageUrl"
+                    maxLength={PRODUCT_LIMITS.imageUrlMax}
                     placeholder="https://... URL hình ảnh"
                     value={formData.image_url}
-                    onChange={(e) => setFormData({ ...formData, image_url: e.target.value })}
+                    onChange={(e) => updateForm({ image_url: e.target.value })}
                     className="rounded-xl text-xs"
                   />
+                  <FieldError message={fieldErrors.image} />
                 </div>
               </div>
 
@@ -1078,6 +1199,17 @@ export function AdminProductListPage() {
           </div>
         </div>
       )}
+
+      <ConfirmDialog
+        open={confirmSave}
+        title={editingProduct ? `Lưu thay đổi cho "${formData.name.trim()}"?` : `Tạo sản phẩm "${formData.name.trim()}"?`}
+        description={`Giá niêm yết ${fmtVnd(formData.base_price ?? 0)} · ${
+          categories.find((c) => c.id === formData.category_id)?.name || ""
+        } · ${formData.is_active ? "Đang bán" : "Tạm ngưng"}`}
+        confirmLabel={editingProduct ? "Lưu thay đổi" : "Tạo sản phẩm"}
+        onConfirm={doSave}
+        onCancel={() => setConfirmSave(false)}
+      />
 
       {/* Xem chi tiết sản phẩm — hiển thị đầy đủ các trường đã rút gọn ở bảng */}
       {viewingProduct && (
