@@ -233,7 +233,10 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
         <div className="relative">
           <div className="flex gap-4 sm:gap-5 overflow-x-auto pb-4 pt-1 px-1 scrollbar-none snap-x snap-mandatory">
             {displayItems.map((item) => {
-              const availableStock = stockMap.get(item.id) ?? item.quantityLimit;
+              // Tồn kho tính theo chi nhánh khách đang chọn: còn suất Giờ Vàng nhưng chi nhánh hết hàng
+              // (hoặc chưa từng nhập hàng) thì không cho đặt. Chỉ coi "không có dòng tồn kho" là 0
+              // khi đã tải xong tồn kho chi nhánh (stockMap có dữ liệu).
+              const availableStock = stockMap.get(item.id) ?? (stockMap.size > 0 ? 0 : item.quantityLimit);
               const isOutOfStock = availableStock <= 0;
 
               return (
@@ -285,7 +288,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
                           Đã bán {item.soldCount}/{item.quantityLimit} suất · tối đa {item.maxPerUser}/khách
                         </span>
                         <span className="text-accent-dark font-bold">
-                          {isOutOfStock ? "Hết hàng" : "Sắp cháy hàng"}
+                          {isOutOfStock ? "Hết hàng tại chi nhánh" : item.soldCount >= item.quantityLimit ? "Hết suất sale" : "Sắp cháy hàng"}
                         </span>
                       </div>
                       <div className="w-full h-1.5 rounded-full bg-surface-soft overflow-hidden border border-border/50">
@@ -314,7 +317,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
                         aria-label={`Thêm ${item.name} vào giỏ`}
                       >
                         <ShoppingCart className="w-3.5 h-3.5" />
-                        <span>{isOutOfStock ? "Hết hàng" : "Mua ngay"}</span>
+                        <span>{isOutOfStock ? "Hết hàng tại chi nhánh này" : "Mua ngay"}</span>
                       </Button>
                     )}
                   </div>

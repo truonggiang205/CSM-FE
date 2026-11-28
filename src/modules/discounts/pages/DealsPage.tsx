@@ -4,6 +4,7 @@ import { useQuery } from "@tanstack/react-query";
 import { Zap, Clock, ShoppingCart, Flame, RefreshCw, Layers } from "lucide-react";
 import { flashSaleApi, TodayDealsResponse, TodayDealItem, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 import { comboApi } from "../../../api/comboApi";
+import { inventoryApi } from "../../../api/inventoryApi";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { useBranchStore } from "../../../store/useBranchStore";
@@ -16,7 +17,7 @@ export function DealsPage() {
   const initialTab = searchParams.get("tab") === "combo" ? "combo" : "flash-sale";
   const [activeTab, setActiveTab] = useState<"flash-sale" | "combo">(initialTab);
 
-  const { addItem, items: cartItems } = useCartStore();
+  const { addItem } = useCartStore();
   const { showToast } = useCartToastStore();
   const { selectedBranch } = useBranchStore();
 
@@ -125,6 +126,21 @@ export function DealsPage() {
     return () => clearInterval(timer);
   }, [isLiveCampaign, data.flashSale.targetTime]);
 
+  // Tồn kho của chi nhánh khách đang chọn: còn suất Giờ Vàng nhưng chi nhánh hết hàng thì không cho đặt
+  const { data: branchInventory, isSuccess: branchStockLoaded } = useQuery({
+    queryKey: ["inventory", "branch", selectedBranch?.id],
+    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
+    enabled: !!selectedBranch?.id,
+    staleTime: 15_000,
+  });
+  const branchStock = useMemo(() => {
+    const map = new Map<string, number>();
+    (branchInventory || []).forEach((row) => {
+      map.set(String(row.product_id), row.available ?? row.quantity - row.reserved_quantity);
+    });
+    return map;
+  }, [branchInventory]);
+
   // Combo count for Tab 2 badge
   const { data: combos = [] } = useQuery({
     queryKey: ["public-combos"],
@@ -133,14 +149,7 @@ export function DealsPage() {
   });
 
   const handleAddToCart = (deal: TodayDealItem) => {
-    const currentInCart = cartItems.find((i) => i.product.id === deal.product_id)?.quantity || 0;
-    const limit = deal.max_per_user || 2;
-
-    if (currentInCart >= limit) {
-      alert(`Mỗi khách hàng chỉ được áp dụng giá ưu đãi tối đa ${limit} suất cho món "${deal.product_name}".`);
-      return;
-    }
-
+    // Vượt giới hạn suất / khách vẫn cho thêm: giỏ hàng ghi rõ phần vượt tính giá gốc (server tính giống hệt)
     addItem(
       {
         id: deal.product_id,
@@ -326,6 +335,8 @@ export function DealsPage() {
                 const isLive = deal.status === "ACTIVE";
                 const remaining = Math.max(0, deal.quantity_limit - deal.sold_count);
                 const isSoldOut = remaining <= 0;
+                const branchQty = branchStock.get(String(deal.product_id));
+                const outOfStockAtBranch = branchStockLoaded && (branchQty === undefined || branchQty <= 0);
 
                 return (
                   <Card
@@ -397,12 +408,20 @@ export function DealsPage() {
                     </div>
 
                     <Button
-                      disabled={!isLive || isSoldOut}
+                      disabled={!isLive || isSoldOut || outOfStockAtBranch}
                       onClick={() => handleAddToCart(deal)}
                       className="w-full rounded-2xl h-10 text-xs font-bold gap-1.5 shadow-sm cursor-pointer"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      <span>{isSoldOut ? "Đã bán hết" : isLive ? "Thêm vào giỏ ngay" : "Chưa tới giờ mở"}</span>
+                      <span>
+                        {outOfStockAtBranch
+                          ? `Hết hàng tại ${selectedBranch?.name || "chi nhánh này"}`
+                          : isSoldOut
+                            ? "Đã bán hết"
+                            : isLive
+                              ? "Thêm vào giỏ ngay"
+                              : "Chưa tới giờ mở"}
+                      </span>
                     </Button>
                   </Card>
                 );
