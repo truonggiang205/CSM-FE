@@ -105,6 +105,9 @@ export interface TodayDealItem {
   campaign_name: string;
   start_time: string;
   end_time: string;
+  /** Thời điểm bắt đầu / kết thúc đầy đủ (ISO, +07:00) — có từ server mới. */
+  start_date_time?: string;
+  end_date_time?: string;
   status: "ACTIVE" | "UPCOMING" | "ENDED";
 }
 

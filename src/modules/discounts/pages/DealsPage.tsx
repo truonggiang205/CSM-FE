@@ -5,6 +5,7 @@ import { Zap, Clock, ShoppingCart, Flame, RefreshCw, Layers } from "lucide-react
 import { flashSaleApi, TodayDealsResponse, TodayDealItem, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
 import { comboApi } from "../../../api/comboApi";
 import { inventoryApi } from "../../../api/inventoryApi";
+import { formatDateTimeVN } from "../../../lib/datetime";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { useBranchStore } from "../../../store/useBranchStore";
@@ -167,11 +168,36 @@ export function DealsPage() {
     showToast(deal.product_name);
   };
 
-  const activeDeals = useMemo(() => {
+  const activeDeals = useMemo<TodayDealItem[]>(() => {
     if (!isLiveCampaign) return [];
-    const active = data.deals.filter((d) => d.status === "ACTIVE");
-    return active.length > 0 ? active : data.deals;
-  }, [data.deals, isLiveCampaign]);
+    if (data.deals.length > 0) {
+      const active = data.deals.filter((d) => d.status === "ACTIVE");
+      return active.length > 0 ? active : data.deals;
+    }
+    // Server cũ chưa trả món của ca sắp diễn ra: dựng từ thông tin ca để vẫn hiển thị trước
+    const camp = data.flashSale.campaign;
+    if (!camp) return [];
+    return (data.flashSale.items || camp.items || []).map((i, idx) => ({
+      id: i.id || `${camp.id}-${idx}`,
+      product_id: i.product_id,
+      product_name: i.product_name || i.product_id,
+      original_price: Number(i.original_price) || 0,
+      sale_price: Number(i.sale_price) || 0,
+      discount_percentage: Number(i.discount_percentage) || 0,
+      discount_type: i.discount_type,
+      discount_value: Number(i.discount_value) || 0,
+      quantity_limit: Number(i.quantity_limit) || 0,
+      sold_count: Math.min(Number(i.quantity_limit) || 0, Number(i.sold_count) || 0),
+      max_per_user: Number(i.max_per_user) || 0,
+      campaign_id: camp.id,
+      campaign_name: camp.name,
+      start_time: camp.start_time,
+      end_time: camp.end_time,
+      start_date_time: data.flashSale.startDateTime,
+      end_date_time: data.flashSale.endDateTime,
+      status: data.flashSale.status === "UPCOMING" ? "UPCOMING" : "ACTIVE",
+    }));
+  }, [data.deals, data.flashSale, isLiveCampaign]);
 
   const formatVND = (val: number) => {
     return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
@@ -267,7 +293,7 @@ export function DealsPage() {
                 <div className="flex items-center gap-2">
                   <Zap className="w-5 h-5 text-accent fill-current" />
                   <h2 className="text-lg sm:text-xl font-black text-foreground tracking-tight">
-                    Sản Phẩm Đang Giảm Giá ({activeDeals.length} món)
+                    {isUpcoming ? "Sản Phẩm Sắp Mở Bán" : "Sản Phẩm Đang Giảm Giá"} ({activeDeals.length} món)
                   </h2>
                 </div>
 
@@ -348,7 +374,9 @@ export function DealsPage() {
                         <span className="text-[11px] font-bold text-muted flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5 text-accent" />
                           <span>
-                            {deal.start_time.slice(0, 5)} - {deal.end_time.slice(0, 5)}
+                            {deal.start_date_time && deal.end_date_time
+                              ? `${formatDateTimeVN(deal.start_date_time)} → ${formatDateTimeVN(deal.end_date_time)}`
+                              : `${deal.start_time.slice(0, 5)} - ${deal.end_time.slice(0, 5)}`}
                           </span>
                         </span>
 
