@@ -134,6 +134,7 @@ export const productApi = {
     description?: string;
     category_id?: string;
     image_url?: string;
+    is_active?: boolean;
   }): Promise<Product> => {
     const response = await apiClient.post<any>("/products", data);
     return mapBackendProductToFrontend(response.data);
@@ -148,6 +149,7 @@ export const productApi = {
       description?: string;
       category_id?: string;
       image_url?: string;
+      is_active?: boolean;
     }>
   ): Promise<Product> => {
     const response = await apiClient.put<any>(`/products/${id}`, data);
