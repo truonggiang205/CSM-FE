@@ -572,7 +572,7 @@ export function AdminComboListPage() {
                   </div>
 
                   <div>
-                    <h3 className="font-black text-base text-foreground line-clamp-1">{combo.name}</h3>
+                    <h3 className="font-black text-base text-foreground line-clamp-1 break-all" title={combo.name}>{combo.name}</h3>
                     {combo.description && (
                       <p className="text-xs text-muted line-clamp-2 mt-0.5">{combo.description}</p>
                     )}
@@ -582,6 +582,7 @@ export function AdminComboListPage() {
                     <div className="text-[10px] font-bold uppercase tracking-wider text-muted">
                       Món thành phần ({combo.items?.length || 0})
                     </div>
+                    <div className="max-h-28 overflow-y-auto space-y-1.5 pr-1">
                     {(combo.items || []).map((ci, idx) => (
                       <div key={idx} className="flex items-center justify-between text-xs">
                         <span className="font-semibold text-foreground truncate">
@@ -592,6 +593,7 @@ export function AdminComboListPage() {
                         </span>
                       </div>
                     ))}
+                    </div>
                   </div>
 
                   <div className="flex items-center justify-between text-xs pt-1">
@@ -823,7 +825,7 @@ export function AdminComboListPage() {
                         Chưa có món nào. Bấm "Thêm món vào Combo" rồi gõ tên hoặc mã SKU để tìm sản phẩm.
                       </div>
                     ) : (
-                      <div className="space-y-2.5">
+                      <div className="space-y-2.5 max-h-72 overflow-y-auto pr-1 -mr-1">
                         {items.map((row, idx) => (
                           <div
                             key={idx}
@@ -996,7 +998,7 @@ export function AdminComboListPage() {
                     </div>
 
                     <div>
-                      <h4 className="text-lg font-black text-foreground">
+                      <h4 className="text-lg font-black text-foreground line-clamp-2 break-words">
                         {name.trim() || "Tên Combo của bạn"}
                       </h4>
                       <p className="text-xs text-muted line-clamp-2 mt-0.5">
@@ -1005,13 +1007,13 @@ export function AdminComboListPage() {
                     </div>
 
                     <div className="py-4 px-3 rounded-2xl bg-surface-soft border border-border/60">
-                      <div className="flex items-center justify-center flex-wrap gap-2">
+                      <div className="flex items-center justify-center flex-wrap gap-2 max-h-56 overflow-y-auto">
                         {items.length === 0 ? (
                           <span className="text-xs text-muted">Chưa chọn sản phẩm</span>
                         ) : (
                           items.map((item, idx) => (
-                            <React.Fragment key={idx}>
-                              {idx > 0 && <Plus className="w-3.5 h-3.5 text-primary" />}
+                            <div key={idx} className="flex items-center gap-2">
+                              {idx > 0 && <Plus className="w-3.5 h-3.5 text-primary shrink-0" />}
                               <div className="flex flex-col items-center text-center p-2 rounded-xl bg-surface border border-border/70 w-24 relative">
                                 <div className="w-10 h-10 rounded-lg overflow-hidden bg-surface-soft mb-1">
                                   <ProductImage
@@ -1028,7 +1030,7 @@ export function AdminComboListPage() {
                                   x{item.quantity} · {formatVND(item.original_price)}
                                 </span>
                               </div>
-                            </React.Fragment>
+                            </div>
                           ))
                         )}
                       </div>
