@@ -135,17 +135,21 @@ export function ComboCard({
             )}
           </div>
 
-          <div className="flex items-stretch justify-center flex-wrap gap-2 mt-4 relative z-10">
+          <div className="flex items-stretch justify-center flex-wrap gap-2 mt-4 relative z-10 max-h-56 overflow-y-auto pr-1">
             {resolvedItems.map((item, itemIdx) => {
               const itemOutOfStock = item.stock < item.requiredQty;
               return (
-                <React.Fragment key={`${item.product_id}-${itemIdx}`}>
+                // Gộp dấu "+" với món phía sau để khi xuống dòng dấu cộng không bị treo ở cuối dòng
+                <div
+                  key={`${item.product_id}-${itemIdx}`}
+                  className="flex items-center gap-2 flex-1 min-w-[80px] max-w-[140px]"
+                >
                   {itemIdx > 0 && (
-                    <div className="flex items-center justify-center text-primary font-black">
+                    <div className="flex items-center justify-center text-primary font-black shrink-0">
                       <Plus className="w-3.5 h-3.5" />
                     </div>
                   )}
-                  <div className="flex-1 min-w-[80px] max-w-[115px] flex flex-col items-center text-center p-2 rounded-2xl bg-surface/90 border border-border/80 shadow-2xs relative">
+                  <div className="flex-1 min-w-0 flex flex-col items-center text-center p-2 rounded-2xl bg-surface/90 border border-border/80 shadow-2xs relative">
                     <div className="w-11 h-11 rounded-xl overflow-hidden bg-surface-soft border border-border/60 mb-1.5 relative">
                       <ProductImage
                         src={item.image}
@@ -175,7 +179,7 @@ export function ComboCard({
                       {item.requiredQty}
                     </span>
                   </div>
-                </React.Fragment>
+                </div>
               );
             })}
           </div>
