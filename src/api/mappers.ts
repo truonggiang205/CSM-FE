@@ -98,6 +98,7 @@ export function mapBackendProductToFrontend(raw: any): Product {
     createdAt: raw.created_at || raw.createdAt || undefined,
     isFeatured: Boolean(raw.is_featured ?? raw.isFeatured),
     curatorNote: raw.curator_note || raw.curatorNote || undefined,
+    isActive: raw.is_active === undefined && raw.isActive === undefined ? true : Boolean(raw.is_active ?? raw.isActive),
   };
 }
 

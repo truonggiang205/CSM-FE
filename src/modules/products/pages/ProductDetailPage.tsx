@@ -346,7 +346,8 @@ export function ProductDetailPage() {
     );
   }
 
-  const isOutOfStock = availableQty <= 0;
+  const isPaused = product.isActive === false;
+  const isOutOfStock = availableQty <= 0 || isPaused;
   const isLowStock = availableQty > 0 && availableQty <= 5;
 
   // Thư viện ảnh: lấy từ product.images hoặc mảng rỗng nếu không có
@@ -576,7 +577,11 @@ export function ProductDetailPage() {
 
           {/* Cart Action Area */}
           <div className="border-t border-border pt-6 space-y-3">
-            {isOutOfStock ? (
+            {isPaused ? (
+              <div className="p-3.5 rounded-2xl bg-slate-100 border border-slate-300 text-slate-700 text-xs leading-relaxed">
+                Sản phẩm này đang <strong>tạm ngưng bán</strong>. Bạn vui lòng quay lại sau nhé!
+              </div>
+            ) : isOutOfStock ? (
               <div className="p-3.5 rounded-2xl bg-danger-pastel/70 border border-danger/25 text-danger-dark text-xs leading-relaxed">
                 ⚠️ Chi nhánh <strong>{selectedBranch?.name}</strong> hiện đã hết sản phẩm này.
                 Vui lòng tham khảo bảng tồn kho các chi nhánh bên dưới để chọn cửa hàng còn hàng gần bạn nhất!
@@ -618,7 +623,7 @@ export function ProductDetailPage() {
                 onClick={handleAddToCart}
               >
                 <ShoppingCart className="w-4 h-4" />
-                <span>{isOutOfStock ? "Tạm hết hàng" : "Thêm vào giỏ"}</span>
+                <span>{isPaused ? "Tạm ngưng bán" : isOutOfStock ? "Tạm hết hàng" : "Thêm vào giỏ"}</span>
               </Button>
 
               {/* Buy Now Button */}

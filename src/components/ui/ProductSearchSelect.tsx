@@ -28,6 +28,12 @@ export interface ProductSearchSelectProps {
   showPrice?: boolean;
   /** Số lựa chọn tối đa hiển thị cùng lúc trong danh sách gợi ý. */
   limit?: number;
+  /** Chữ hiển thị khi chưa chọn gì. */
+  emptyLabel?: string;
+  /** Chữ hiển thị khi không có kết quả tìm kiếm. */
+  notFoundLabel?: string;
+  /** Cho phép bấm X để bỏ chọn (mặc định có). */
+  clearable?: boolean;
 }
 
 const normalize = (s: string) =>
@@ -52,6 +58,9 @@ export function ProductSearchSelect({
   className,
   showPrice = false,
   limit = 50,
+  emptyLabel = "-- Chọn sản phẩm --",
+  notFoundLabel = "Không tìm thấy sản phẩm phù hợp",
+  clearable = true,
 }: ProductSearchSelectProps) {
   const [open, setOpen] = React.useState(false);
   const [query, setQuery] = React.useState("");
@@ -107,10 +116,10 @@ export function ProductSearchSelect({
         )}
       >
         <span className={cn("truncate", selected ? "text-foreground" : "text-muted")} title={selected?.name}>
-          {selected ? selected.name : "-- Chọn sản phẩm --"}
+          {selected ? selected.name : emptyLabel}
         </span>
         <span className="flex items-center gap-1 shrink-0">
-          {selected && !disabled && (
+          {selected && !disabled && clearable && (
             <span
               role="button"
               tabIndex={-1}
@@ -159,7 +168,7 @@ export function ProductSearchSelect({
           </div>
           <ul role="listbox" className="max-h-60 overflow-y-auto py-1">
             {filtered.length === 0 ? (
-              <li className="px-3 py-3 text-xs text-muted text-center">Không tìm thấy sản phẩm phù hợp</li>
+              <li className="px-3 py-3 text-xs text-muted text-center">{notFoundLabel}</li>
             ) : (
               filtered.map((o, i) => {
                 const blocked = isBlocked(o);
