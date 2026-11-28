@@ -227,8 +227,7 @@ export function OrderDetailDrawer({
                         setConfirmDialog({
                           targetStatus: "CANCELLED",
                           title: `Hủy đơn hàng #${order.id.slice(0, 8)}?`,
-                          description:
-                            "Đơn hàng sẽ chuyển sang CANCELLED và Saga hoàn trả tồn kho tạm giữ (release-stock) tại chi nhánh.",
+                          description: `Đơn hàng sẽ chuyển sang Đã hủy và hoàn trả tồn kho tạm giữ tại chi nhánh.${order.voucher_code ? ` Mã giảm giá ${order.voucher_code} sẽ được hoàn lại cho khách.` : ""}`,
                           isDangerous: true,
                         })
                       }
@@ -267,7 +266,7 @@ export function OrderDetailDrawer({
                         setConfirmDialog({
                           targetStatus: "CANCELLED",
                           title: `Hủy đơn hàng #${order.id.slice(0, 8)}?`,
-                          description: "Chuyển đơn hàng sang CANCELLED.",
+                          description: `Chuyển đơn hàng sang Đã hủy và hoàn hàng về kho.${order.voucher_code ? ` Mã giảm giá ${order.voucher_code} sẽ được hoàn lại cho khách.` : ""}`,
                           isDangerous: true,
                         })
                       }
@@ -324,7 +323,7 @@ export function OrderDetailDrawer({
                         setConfirmDialog({
                           targetStatus: "CANCELLED",
                           title: `Hủy đơn hàng đã thanh toán #${order.id.slice(0, 8)}?`,
-                          description: "Hủy đơn hàng đã trả tiền và chuyển sang CANCELLED.",
+                          description: `Hủy đơn hàng đã trả tiền và chuyển sang Đã hủy.${order.voucher_code ? ` Mã giảm giá ${order.voucher_code} sẽ được hoàn lại cho khách.` : ""}`,
                           isDangerous: true,
                         })
                       }

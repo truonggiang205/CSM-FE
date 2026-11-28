@@ -337,8 +337,13 @@ export function OrderDetailPage() {
             <div>
               <p className="font-bold text-sm">Đơn hàng này đã bị huỷ</p>
               <p className="text-xs mt-0.5">
-                Các sản phẩm trong đơn đã được giải phóng tồn kho về chi nhánh (Saga Compensating).
+                Các sản phẩm trong đơn đã được giải phóng tồn kho về chi nhánh.
               </p>
+              {order.voucher_code && (
+                <p className="text-xs mt-0.5">
+                  Mã giảm giá <b className="font-mono">{order.voucher_code}</b> đã được hoàn lại, bạn có thể dùng lại khi đặt đơn mới.
+                </p>
+              )}
             </div>
           </div>
         ) : (
@@ -631,6 +636,12 @@ export function OrderDetailPage() {
               <p className="text-muted text-xs sm:text-sm mt-1.5 leading-relaxed">
                 Đơn hàng <b>#{order.id}</b> đang ở trạng thái Chờ xử lý. Sau khi huỷ, số lượng giữ hàng trong kho sẽ được hoàn trả lại ngay lập tức.
               </p>
+              {order.voucher_code && (
+                <p className="mt-2 p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 text-emerald-800 text-xs">
+                  Mã giảm giá <b className="font-mono">{order.voucher_code}</b> sẽ được hoàn lại vào tài khoản của bạn để dùng cho đơn sau
+                  (nếu mã vẫn còn trong thời gian áp dụng).
+                </p>
+              )}
             </div>
 
             {cancelError && (
