@@ -36,6 +36,7 @@ import { formatDateTimeVN, toLocalMs } from "../../../lib/datetime";
 import { getStockSummaries } from "../../../lib/stock";
 import { getPromoStatus, canTogglePromo, PROMO_STATUS_META, PromoStatus } from "../../../lib/promoStatus";
 import { Card } from "../../../components/ui/Card";
+import { Pagination, paginate } from "../../../components/ui/Pagination";
 
 interface ItemRow {
   product_id: string;
@@ -71,6 +72,8 @@ export function AdminFlashSaleListPage() {
   const [statusFilter, setStatusFilter] = useState<"ALL" | PromoStatus>("ALL");
   const [sortBy, setSortBy] = useState<"START_DESC" | "START_ASC" | "CREATED_DESC" | "NAME_ASC">("START_DESC");
   const [pageError, setPageError] = useState<string | null>(null);
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
   const [detailCampaign, setDetailCampaign] = useState<FlashSaleCampaign | null>(null);
   const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
 
@@ -607,7 +610,10 @@ export function AdminFlashSaleListPage() {
           <Search className="w-4 h-4 absolute left-3.5 top-1/2 -translate-y-1/2 text-muted" />
           <Input
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             placeholder="Tìm theo tên chiến dịch hoặc tên món..."
             className="pl-9 rounded-xl text-xs h-10"
           />
@@ -628,7 +634,10 @@ export function AdminFlashSaleListPage() {
           {(["ALL", "ACTIVE", "UPCOMING", "PAUSED", "ENDED"] as const).map((st) => (
             <button
               key={st}
-              onClick={() => setStatusFilter(st)}
+              onClick={() => {
+                setStatusFilter(st);
+                setPage(1);
+              }}
               className={`px-3 py-2 rounded-xl text-xs font-bold border transition-all ${
                 statusFilter === st
                   ? "bg-primary-tint text-primary-dark border-primary/30 shadow-2xs"
@@ -671,7 +680,7 @@ export function AdminFlashSaleListPage() {
             </Button>
           </div>
         ) : (
-          filteredCampaigns.map((camp) => {
+          paginate(filteredCampaigns, page, pageSize).map((camp) => {
             const status = getCampaignStatus(camp);
             const statusInfo = PROMO_STATUS_META[status];
             const toggleable = canTogglePromo(status);
@@ -804,7 +813,7 @@ export function AdminFlashSaleListPage() {
                       Danh Sách Món Trong Ca
                     </div>
 
-                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3 max-h-[26rem] overflow-y-auto pr-1">
                       {(camp.items || []).map((item, idx) => (
                         <div
                           key={item.id || idx}
@@ -848,6 +857,19 @@ export function AdminFlashSaleListPage() {
             );
           })
         )}
+
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredCampaigns.length}
+          onPageChange={setPage}
+          onPageSizeChange={(size) => {
+            setPageSize(size);
+            setPage(1);
+          }}
+          unit="ca"
+          className="pt-2"
+        />
       </div>
 
       {isModalOpen && (
@@ -989,7 +1011,7 @@ export function AdminFlashSaleListPage() {
                 </div>
 
                 <div className="space-y-4 pt-2 border-t border-border" data-field="items">
-                  <div className="flex flex-wrap items-center justify-between gap-2">
+                  <div className="sticky -top-5 sm:-top-6 z-10 -mx-5 sm:-mx-6 px-5 sm:px-6 py-2 bg-surface/95 backdrop-blur-xs flex flex-wrap items-center justify-between gap-2">
                     <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
                       <Package className="w-3.5 h-3.5 text-accent" />
                       <span>2. Danh Sách Món</span>
