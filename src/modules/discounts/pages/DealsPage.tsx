@@ -3,7 +3,6 @@ import { Link, useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Zap, Clock, ShoppingCart, Flame, RefreshCw, Layers } from "lucide-react";
 import { flashSaleApi, TodayDealsResponse, TodayDealItem, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
-import { comboApi } from "../../../api/comboApi";
 import { inventoryApi } from "../../../api/inventoryApi";
 import { formatDateTimeVN } from "../../../lib/datetime";
 import { useCartStore } from "../../../store/useCartStore";
@@ -142,12 +141,6 @@ export function DealsPage() {
     return map;
   }, [branchInventory]);
 
-  // Combo count for Tab 2 badge
-  const { data: combos = [] } = useQuery({
-    queryKey: ["public-combos"],
-    queryFn: comboApi.getPublicCombos,
-    refetchInterval: 30000,
-  });
 
   const handleAddToCart = (deal: TodayDealItem) => {
     // Vượt giới hạn suất / khách vẫn cho thêm: giỏ hàng ghi rõ phần vượt tính giá gốc (server tính giống hệt)
@@ -231,7 +224,7 @@ export function DealsPage() {
               }`}
             >
               <Layers className="w-4 h-4" />
-              <span>Combo Tiết Kiệm ({combos.length})</span>
+              <span>Combo Tiết Kiệm</span>
             </button>
           </div>
 
