@@ -98,6 +98,18 @@ export const discountApi = {
     return res.data;
   },
 
+  // Dành cho Admin: Sửa voucher (chỉ gửi các trường cần đổi)
+  updateVoucher: async (id: string, payload: Partial<CreateVoucherPayload>): Promise<VoucherItem> => {
+    const res = await apiClient.patch<VoucherItem>(`/vouchers/${id}`, payload);
+    return res.data;
+  },
+
+  // Dành cho Admin: Xoá voucher (BE chặn khi mã đang gắn với đơn hàng)
+  deleteVoucher: async (id: string): Promise<{ success: boolean; message: string }> => {
+    const res = await apiClient.delete(`/vouchers/${id}`);
+    return res.data;
+  },
+
   // Dành cho Admin: Bật / Tắt trạng thái hoạt động của voucher
   toggleVoucher: async (id: string): Promise<VoucherItem> => {
     const res = await apiClient.patch<VoucherItem>(`/vouchers/${id}/toggle`);
