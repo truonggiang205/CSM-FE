@@ -27,6 +27,34 @@ import { ProductImage } from "../../../components/ui/ProductImage";
 import { ProductSearchSelect } from "../../../components/ui/ProductSearchSelect";
 import { storefrontApi } from "../../../api/storefrontApi";
 import { resolveAssetUrl } from "../../../lib/assetUrl";
+import { NumberInput } from "../../../components/ui/NumberInput";
+import { FieldError, FormErrorSummary, invalidClass } from "../../../components/ui/FieldError";
+import { formatDateTimeVN, toDateTimeLocalValue } from "../../../lib/datetime";
+
+/** Giới hạn nhập liệu — khớp với kiểm tra ở BE (discount-service). */
+const COMBO_LIMITS = {
+  nameMin: 3,
+  nameMax: 100,
+  descriptionMax: 255,
+  priceMin: 1000,
+  priceMax: 100_000_000,
+  itemQtyMax: 99,
+  maxQuantityMax: 100_000,
+  imageUrlMax: 500,
+};
+
+const COMBO_FIELD_LABELS: Record<string, string> = {
+  name: "Tên Combo",
+  description: "Mô tả",
+  image: "Ảnh combo",
+  items: "Sản phẩm thành phần",
+  combo_price: "Giá bán Combo",
+  start_date: "Ngày bắt đầu",
+  end_date: "Ngày kết thúc",
+  max_quantity: "Số suất tối đa",
+};
+
+const isValidImageUrl = (url: string) => /^https?:\/\/[^\s]+\.[^\s]+$/i.test(url) || url.startsWith("/uploads/");
 
 const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
 const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -51,10 +79,12 @@ export function AdminComboListPage() {
   const [name, setName] = useState("");
   const [description, setDescription] = useState("");
   const [imageUrl, setImageUrl] = useState("");
-  const [comboPrice, setComboPrice] = useState<number>(0);
+  const [comboPrice, setComboPrice] = useState<number | null>(null);
   const [startDate, setStartDate] = useState("");
   const [endDate, setEndDate] = useState("");
-  const [maxQuantity, setMaxQuantity] = useState<string>("");
+  const [maxQuantity, setMaxQuantity] = useState<number | null>(null);
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
+  const [formSubmitted, setFormSubmitted] = useState(false);
   const [isActive, setIsActive] = useState(true);
   const [items, setItems] = useState<ComboItemRow[]>([]);
   const [formError, setFormError] = useState<string | null>(null);
@@ -131,10 +161,12 @@ export function AdminComboListPage() {
     setName("");
     setDescription("");
     setImageUrl("");
-    setComboPrice(0);
+    setComboPrice(null);
     setStartDate("");
     setEndDate("");
-    setMaxQuantity("");
+    setMaxQuantity(null);
+    setFieldErrors({});
+    setFormSubmitted(false);
     setIsActive(true);
     setItems([]);
     setFormError(null);
@@ -147,10 +179,13 @@ export function AdminComboListPage() {
     setName(combo.name);
     setDescription(combo.description || "");
     setImageUrl(combo.image_url || "");
-    setComboPrice(Number(combo.combo_price) || 0);
-    setStartDate(combo.start_date ? new Date(combo.start_date).toISOString().slice(0, 16) : "");
-    setEndDate(combo.end_date ? new Date(combo.end_date).toISOString().slice(0, 16) : "");
-    setMaxQuantity(combo.max_quantity !== null && combo.max_quantity !== undefined ? String(combo.max_quantity) : "");
+    setComboPrice(Number(combo.combo_price) || null);
+    // datetime-local cần giờ địa phương (toISOString là giờ UTC, lệch 7 tiếng)
+    setStartDate(toDateTimeLocalValue(combo.start_date));
+    setEndDate(toDateTimeLocalValue(combo.end_date));
+    setMaxQuantity(combo.max_quantity !== null && combo.max_quantity !== undefined ? Number(combo.max_quantity) : null);
+    setFieldErrors({});
+    setFormSubmitted(false);
     setIsActive(combo.is_active);
     setItems(
       (combo.items || []).map((i) => ({
@@ -198,9 +233,9 @@ export function AdminComboListPage() {
     [availableProducts],
   );
 
-  const handleQuantityChange = (idx: number, qty: number) => {
+  const handleQuantityChange = (idx: number, qty: number | null) => {
     setItems((prev) =>
-      prev.map((row, i) => (i === idx ? { ...row, quantity: Math.max(1, qty) } : row))
+      prev.map((row, i) => (i === idx ? { ...row, quantity: qty ?? 0 } : row))
     );
   };
 
@@ -217,40 +252,65 @@ export function AdminComboListPage() {
   const calculatedDiscountPct =
     calculatedOriginalTotal > 0 ? Math.round((calculatedSavings / calculatedOriginalTotal) * 100) : 0;
 
+  const validateCombo = (nowMs: number) => {
+    const e: Record<string, string> = {};
+    const L = COMBO_LIMITS;
+    const n = name.trim();
+    if (!n) e.name = "Vui lòng nhập tên Combo.";
+    else if (n.length < L.nameMin) e.name = `Tên Combo tối thiểu ${L.nameMin} ký tự.`;
+    else if (n.length > L.nameMax) e.name = `Tên Combo tối đa ${L.nameMax} ký tự (hiện tại ${n.length}).`;
+
+    if (description.length > L.descriptionMax)
+      e.description = `Mô tả tối đa ${L.descriptionMax} ký tự (hiện tại ${description.length}).`;
+
+    const url = imageUrl.trim();
+    if (!imageFile && url) {
+      if (url.length > L.imageUrlMax) e.image = `URL ảnh tối đa ${L.imageUrlMax} ký tự.`;
+      else if (!isValidImageUrl(url)) e.image = "URL ảnh không hợp lệ, cần bắt đầu bằng http:// hoặc https:// (VD: https://example.com/anh.jpg).";
+    }
+    if (imageError) e.image = imageError;
+
+    if (items.length === 0) e.items = "Vui lòng thêm món vào combo.";
+    else if (items.some((i) => !i.product_id)) e.items = "Còn dòng món chưa chọn sản phẩm. Hãy chọn sản phẩm hoặc xoá dòng đó.";
+    else if (items.some((i) => !i.quantity || i.quantity < 1 || i.quantity > L.itemQtyMax))
+      e.items = `Số lượng mỗi món phải từ 1 đến ${L.itemQtyMax}.`;
+    else if (items.reduce((sum, i) => sum + i.quantity, 0) < 2) e.items = "Combo cần có tổng số lượng từ 2 sản phẩm trở lên.";
+
+    const fmt = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "đ";
+    if (comboPrice === null) e.combo_price = "Vui lòng nhập giá bán Combo, không được để trống.";
+    else if (comboPrice < L.priceMin) e.combo_price = `Giá bán Combo phải từ ${fmt(L.priceMin)} trở lên.`;
+    else if (comboPrice > L.priceMax) e.combo_price = `Giá bán Combo không vượt quá ${fmt(L.priceMax)}.`;
+    else if (calculatedOriginalTotal > 0 && comboPrice > calculatedOriginalTotal)
+      e.combo_price = `Giá bán Combo (${fmt(comboPrice)}) không được lớn hơn tổng giá gốc (${fmt(calculatedOriginalTotal)}).`;
+
+    const startMs = startDate ? new Date(startDate).getTime() : null;
+    const endMs = endDate ? new Date(endDate).getTime() : null;
+    const original = editingComboId ? combos.find((c) => c.id === editingComboId) : null;
+    const startChanged = !original || toDateTimeLocalValue(original.start_date) !== startDate;
+    const endChanged = !original || toDateTimeLocalValue(original.end_date) !== endDate;
+    if (startMs !== null && startChanged && startMs < nowMs - 60_000)
+      e.start_date = `Ngày bắt đầu không được ở quá khứ (bây giờ là ${formatDateTimeVN(nowMs)}).`;
+    if (endMs !== null && endChanged && endMs <= nowMs) e.end_date = "Ngày kết thúc phải ở tương lai.";
+    else if (startMs !== null && endMs !== null && endMs <= startMs) e.end_date = "Ngày kết thúc phải sau ngày bắt đầu.";
+
+    if (maxQuantity !== null && (maxQuantity < 1 || maxQuantity > L.maxQuantityMax))
+      e.max_quantity = `Số suất tối đa từ 1 đến ${new Intl.NumberFormat("vi-VN").format(L.maxQuantityMax)} (để trống nếu không giới hạn).`;
+    return e;
+  };
+
+  // Sau lần bấm lưu đầu tiên, lỗi được cập nhật ngay khi người dùng sửa
+  useEffect(() => {
+    if (formSubmitted) setFieldErrors(validateCombo(Date.now()));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [formSubmitted, name, description, imageUrl, imageFile, imageError, items, comboPrice, startDate, endDate, maxQuantity]);
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
-
-    if (!name.trim()) {
-      setFormError("Vui lòng nhập tên Combo.");
-      return;
-    }
-
-    if (items.some((i) => !i.product_id)) {
-      setFormError("Còn dòng món chưa chọn sản phẩm. Hãy chọn sản phẩm hoặc xoá dòng đó.");
-      return;
-    }
-
-    const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
-    if (items.length === 0 || totalQty < 2) {
-      setFormError("Combo cần có tổng số lượng từ 2 sản phẩm trở lên.");
-      return;
-    }
-
-    if (comboPrice <= 0) {
-      setFormError("Vui lòng nhập giá bán Combo hợp lệ (> 0).");
-      return;
-    }
-
-    if (calculatedOriginalTotal > 0 && comboPrice > calculatedOriginalTotal) {
-      setFormError("Giá bán Combo không được lớn hơn tổng giá gốc.");
-      return;
-    }
-
-    if (startDate && endDate && new Date(endDate) <= new Date(startDate)) {
-      setFormError("Ngày kết thúc phải sau ngày bắt đầu.");
-      return;
-    }
+    setFormSubmitted(true);
+    const found = validateCombo(Date.now());
+    setFieldErrors(found);
+    if (Object.keys(found).length > 0) return;
 
     let finalImageUrl = imageUrl.trim();
     if (imageFile) {
@@ -273,7 +333,7 @@ export function AdminComboListPage() {
       original_price: calculatedOriginalTotal,
       start_date: startDate ? new Date(startDate).toISOString() : null,
       end_date: endDate ? new Date(endDate).toISOString() : null,
-      max_quantity: maxQuantity.trim() ? Number(maxQuantity) : null,
+      max_quantity: maxQuantity,
       is_active: isActive,
       items: items.map((i) => ({
         product_id: i.product_id,
@@ -543,11 +603,20 @@ export function AdminComboListPage() {
             </div>
 
             {/* Modal Body */}
-            <form onSubmit={handleSubmit} className="flex-1 overflow-y-auto p-6">
+            <form onSubmit={handleSubmit} noValidate className="flex-1 overflow-y-auto p-6">
               {formError && (
                 <div className="mb-4 p-3 rounded-2xl bg-danger-pastel border border-danger/30 text-danger-dark text-xs font-semibold flex items-center gap-2">
                   <AlertCircle className="w-4 h-4 shrink-0" />
                   <span>{formError}</span>
+                </div>
+              )}
+              {formSubmitted && (
+                <div className="mb-4">
+                  <FormErrorSummary
+                    errors={fieldErrors}
+                    order={["name", "description", "image", "items", "combo_price", "start_date", "end_date", "max_quantity"]}
+                    labels={COMBO_FIELD_LABELS}
+                  />
                 </div>
               )}
 
@@ -558,26 +627,30 @@ export function AdminComboListPage() {
                     <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted">
                       1. Thông tin Combo
                     </h3>
-                    <div>
+                    <div data-field="name">
                       <label className="text-xs font-bold text-foreground block mb-1">Tên Combo *</label>
                       <Input
-                        required
+                        maxLength={COMBO_LIMITS.nameMax}
                         placeholder="Ví dụ: Combo Bữa Sáng Năng Lượng"
                         value={name}
                         onChange={(e) => setName(e.target.value)}
-                        className="rounded-xl bg-surface text-xs"
+                        aria-invalid={!!fieldErrors.name || undefined}
+                        className={`rounded-xl bg-surface text-xs ${invalidClass(fieldErrors.name)}`}
                       />
+                      <FieldError message={fieldErrors.name} />
                     </div>
-                    <div>
+                    <div data-field="description">
                       <label className="text-xs font-bold text-foreground block mb-1">Mô tả ngắn</label>
                       <Input
+                        maxLength={COMBO_LIMITS.descriptionMax}
                         placeholder="Ví dụ: Bánh mì giòn nóng kèm cà phê sữa thơm béo, tiết kiệm 9k"
                         value={description}
                         onChange={(e) => setDescription(e.target.value)}
-                        className="rounded-xl bg-surface text-xs"
+                        className={`rounded-xl bg-surface text-xs ${invalidClass(fieldErrors.description)}`}
                       />
+                      <FieldError message={fieldErrors.description} />
                     </div>
-                    <div className="space-y-2">
+                    <div className="space-y-2" data-field="image">
                       <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
                         <ImageIcon className="w-3.5 h-3.5 text-primary" /> Ảnh đại diện Combo (tuỳ chọn)
                       </label>
@@ -621,19 +694,23 @@ export function AdminComboListPage() {
                           {imageFile.name} ({(imageFile.size / 1024).toFixed(0)} KB) — sẽ tải lên khi lưu combo
                         </p>
                       )}
-                      {imageError && <p className="text-[11px] font-semibold text-danger-dark">{imageError}</p>}
                       <Input
-                        placeholder="Hoặc dán URL ảnh. Để trống để tự ghép ảnh các món thành phần"
+                        maxLength={COMBO_LIMITS.imageUrlMax}
+                        placeholder="Hoặc dán URL ảnh (https://...). Để trống để tự ghép ảnh các món thành phần"
                         value={imageUrl}
                         disabled={!!imageFile}
                         onChange={(e) => setImageUrl(e.target.value)}
-                        className="rounded-xl bg-surface text-xs"
+                        className={`rounded-xl bg-surface text-xs ${invalidClass(fieldErrors.image)}`}
                       />
+                      <FieldError message={fieldErrors.image || imageError} />
                     </div>
                   </div>
 
                   {/* Items Builder */}
-                  <div className="space-y-3 p-4 rounded-2xl bg-surface-soft border border-border/60">
+                  <div
+                    data-field="items"
+                    className={`space-y-3 p-4 rounded-2xl bg-surface-soft border ${fieldErrors.items ? "border-danger ring-1 ring-danger/30" : "border-border/60"}`}
+                  >
                     <div className="flex items-center justify-between">
                       <h3 className="text-xs font-extrabold uppercase tracking-wider text-muted">
                         2. Sản phẩm thành phần
@@ -672,12 +749,13 @@ export function AdminComboListPage() {
 
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] text-muted font-semibold">SL:</span>
-                              <Input
-                                type="number"
-                                min={1}
-                                value={row.quantity}
-                                onChange={(e) => handleQuantityChange(idx, Number(e.target.value))}
-                                className="w-16 h-9 rounded-lg text-xs text-center font-bold"
+                              <NumberInput
+                                value={row.quantity || null}
+                                onValueChange={(v) => handleQuantityChange(idx, v)}
+                                maxDigits={2}
+                                invalid={formSubmitted && (!row.quantity || row.quantity < 1)}
+                                wrapperClassName="w-16"
+                                className="h-9 rounded-lg text-xs text-center font-bold px-2"
                               />
                             </div>
 
@@ -697,6 +775,7 @@ export function AdminComboListPage() {
                       </div>
                     )}
 
+                    <FieldError message={fieldErrors.items} />
                     <div className="flex items-center justify-between pt-2 border-t border-border/60 text-xs">
                       <span className="font-semibold text-muted">Tổng giá trị gốc:</span>
                       <span className="font-black text-sm text-foreground font-mono">
@@ -712,19 +791,21 @@ export function AdminComboListPage() {
                     </h3>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
+                      <div data-field="combo_price">
                         <label className="text-xs font-bold text-foreground block mb-1">
                           Giá bán Combo (VNĐ) *
                         </label>
-                        <Input
-                          type="number"
-                          min={1000}
-                          step={500}
-                          required
-                          value={comboPrice || ""}
-                          onChange={(e) => setComboPrice(Number(e.target.value))}
+                        <NumberInput
+                          value={comboPrice}
+                          onValueChange={setComboPrice}
+                          thousandSeparator
+                          maxDigits={9}
+                          suffix="đ"
+                          placeholder="Từ 1.000đ, không lớn hơn tổng giá gốc"
+                          invalid={!!fieldErrors.combo_price}
                           className="rounded-xl bg-surface text-xs font-bold"
                         />
+                        <FieldError message={fieldErrors.combo_price} />
                       </div>
 
                       <div className="p-2.5 rounded-xl bg-emerald-50 border border-emerald-200 flex flex-col justify-center">
@@ -738,7 +819,7 @@ export function AdminComboListPage() {
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                      <div>
+                      <div data-field="start_date">
                         <label className="text-xs font-bold text-foreground block mb-1">
                           <Calendar className="w-3 h-3 inline mr-1" />
                           Ngày bắt đầu
@@ -747,10 +828,11 @@ export function AdminComboListPage() {
                           type="datetime-local"
                           value={startDate}
                           onChange={(e) => setStartDate(e.target.value)}
-                          className="rounded-xl bg-surface text-xs"
+                          className={`rounded-xl bg-surface text-xs ${invalidClass(fieldErrors.start_date)}`}
                         />
+                        <FieldError message={fieldErrors.start_date} />
                       </div>
-                      <div>
+                      <div data-field="end_date">
                         <label className="text-xs font-bold text-foreground block mb-1">
                           <Calendar className="w-3 h-3 inline mr-1" />
                           Ngày kết thúc
@@ -759,24 +841,27 @@ export function AdminComboListPage() {
                           type="datetime-local"
                           value={endDate}
                           onChange={(e) => setEndDate(e.target.value)}
-                          className="rounded-xl bg-surface text-xs"
+                          className={`rounded-xl bg-surface text-xs ${invalidClass(fieldErrors.end_date)}`}
                         />
+                        <FieldError message={fieldErrors.end_date} />
                       </div>
                     </div>
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 items-center">
-                      <div>
+                      <div data-field="max_quantity">
                         <label className="text-xs font-bold text-foreground block mb-1">
                           Số lượng suất tối đa (tuỳ chọn)
                         </label>
-                        <Input
-                          type="number"
-                          min={1}
-                          placeholder="Không giới hạn"
+                        <NumberInput
                           value={maxQuantity}
-                          onChange={(e) => setMaxQuantity(e.target.value)}
+                          onValueChange={setMaxQuantity}
+                          thousandSeparator
+                          maxDigits={6}
+                          placeholder="Không giới hạn"
+                          invalid={!!fieldErrors.max_quantity}
                           className="rounded-xl bg-surface text-xs"
                         />
+                        <FieldError message={fieldErrors.max_quantity} />
                       </div>
                       <label className="flex items-center gap-2 pt-4 cursor-pointer text-xs font-bold text-foreground">
                         <input
