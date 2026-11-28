@@ -29,6 +29,10 @@ import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { NumberInput } from "../../../components/ui/NumberInput";
+import { ProductSearchSelect, ProductOption } from "../../../components/ui/ProductSearchSelect";
+import { FieldError, FormErrorSummary, invalidClass } from "../../../components/ui/FieldError";
+import { formatDateTimeVN, toLocalMs } from "../../../lib/datetime";
+import { getStockSummaries } from "../../../lib/stock";
 import { Card } from "../../../components/ui/Card";
 
 interface ItemRow {
@@ -43,6 +47,8 @@ interface ItemRow {
   discount_value: number | null;
   quantity_limit: number | null;
   max_per_user: number | null;
+  /** Số suất đã bán (chỉ có khi sửa ca) — số suất mới không được nhỏ hơn. */
+  sold_count?: number;
 }
 
 /** Tính lại giá sale và % hiển thị từ kiểu giảm + mức giảm. */
@@ -127,6 +133,48 @@ export function AdminFlashSaleListPage() {
     fetchProducts();
   }, []);
 
+  const [errors, setErrors] = useState<Record<string, string>>({});
+  const [collapsedRows, setCollapsedRows] = useState<Record<number, boolean>>({});
+  const [stockByProduct, setStockByProduct] = useState<Record<string, number>>({});
+
+  // Tải tồn kho khả dụng (tổng các chi nhánh) cho các món đang chọn để giới hạn số suất mở bán
+  useEffect(() => {
+    const ids = items.map((i) => i.product_id).filter((id) => id && stockByProduct[id] === undefined);
+    if (ids.length === 0) return;
+    let cancelled = false;
+    getStockSummaries(ids).then((map) => {
+      if (cancelled) return;
+      setStockByProduct((prev) => {
+        const next = { ...prev };
+        for (const [id, s] of Object.entries(map)) next[id] = s.totalAvailable;
+        return next;
+      });
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [items, stockByProduct]);
+
+  const productOptions: ProductOption[] = useMemo(
+    () =>
+      availableProducts.map((p) => ({
+        id: p.id,
+        name: p.name,
+        sku: p.sku,
+        price: p.price,
+        available: stockByProduct[p.id],
+      })),
+    [availableProducts, stockByProduct]
+  );
+
+  const clearError = (key: string) =>
+    setErrors((prev) => {
+      if (!prev[key]) return prev;
+      const next = { ...prev };
+      delete next[key];
+      return next;
+    });
+
   const openCreateModal = () => {
     const today = getTodayDateStr();
     setEditingCampaignId(null);
@@ -137,7 +185,9 @@ export function AdminFlashSaleListPage() {
     setEndTime("13:00");
     setIsActive(true);
     setItems([]);
+    setCollapsedRows({});
     setFormError(null);
+    setErrors({});
     setIsModalOpen(true);
   };
 
@@ -150,46 +200,59 @@ export function AdminFlashSaleListPage() {
     setStartTime(camp.start_time.slice(0, 5));
     setEndTime(camp.end_time.slice(0, 5));
     setIsActive(camp.is_active);
-    setItems(
-      (camp.items || []).map((i) => ({
-        product_id: i.product_id,
-        product_name: i.product_name || "",
-        original_price: Number(i.original_price) || 0,
-        sale_price: Number(i.sale_price) || 0,
-        discount_percentage: Number(i.discount_percentage) || 0,
-        discount_type: i.discount_type === "FIXED_AMOUNT" ? "FIXED_AMOUNT" : "PERCENT",
-        discount_value:
-          i.discount_type === "FIXED_AMOUNT"
-            ? Number(i.discount_value) || Math.max(0, Number(i.original_price) - Number(i.sale_price))
-            : Number(i.discount_value) || Number(i.discount_percentage) || 0,
-        quantity_limit: Number(i.quantity_limit) || 50,
-        max_per_user: Number(i.max_per_user) || 2,
-      }))
-    );
+    const rows = (camp.items || []).map((i) => ({
+      product_id: i.product_id,
+      product_name: i.product_name || "",
+      original_price: Number(i.original_price) || 0,
+      sale_price: Number(i.sale_price) || 0,
+      discount_percentage: Number(i.discount_percentage) || 0,
+      discount_type: (i.discount_type === "FIXED_AMOUNT" ? "FIXED_AMOUNT" : "PERCENT") as FlashSaleDiscountType,
+      discount_value:
+        i.discount_type === "FIXED_AMOUNT"
+          ? Number(i.discount_value) || Math.max(0, Number(i.original_price) - Number(i.sale_price))
+          : Number(i.discount_value) || Number(i.discount_percentage) || 0,
+      quantity_limit: Number(i.quantity_limit) || 50,
+      max_per_user: Number(i.max_per_user) || 2,
+      sold_count: Number(i.sold_count) || 0,
+    }));
+    setItems(rows);
+    // Khi sửa ca có nhiều món: thu gọn sẵn để form gọn
+    setCollapsedRows(Object.fromEntries(rows.map((_, idx) => [idx, rows.length > 1])));
     setFormError(null);
+    setErrors({});
     setIsModalOpen(true);
   };
 
-  const handleAddItem = (productId?: string) => {
-    const selectedProd = availableProducts.find((p) => p.id === productId);
-    const orig = selectedProd ? selectedProd.price : 20000;
-    const pct = 20;
-    const sale = Math.round(orig * (1 - pct / 100));
-
-    setItems([
-      ...items,
+  const handleAddItem = () => {
+    setItems((prev) => [
+      ...prev,
       {
-        product_id: selectedProd ? selectedProd.id : "",
-        product_name: selectedProd ? selectedProd.name : "",
-        original_price: orig,
-        sale_price: sale,
-        discount_percentage: pct,
+        product_id: "",
+        product_name: "",
+        original_price: 0,
+        sale_price: 0,
+        discount_percentage: 0,
         discount_type: "PERCENT",
-        discount_value: pct,
-        quantity_limit: 50,
+        discount_value: 20,
+        quantity_limit: null,
         max_per_user: 2,
       },
     ]);
+    // Thu gọn các món cũ để món mới nằm ngay trong tầm nhìn, không phải kéo lên/xuống nhiều
+    setCollapsedRows((prev) => {
+      const next: Record<number, boolean> = { ...prev };
+      items.forEach((_, idx) => {
+        next[idx] = true;
+      });
+      next[items.length] = false;
+      return next;
+    });
+    clearError("items");
+    setTimeout(() => {
+      document
+        .querySelector(`[data-row="${items.length}"]`)
+        ?.scrollIntoView({ behavior: "smooth", block: "nearest" });
+    }, 50);
   };
 
   const handleUpdateItem = (index: number, patch: Partial<ItemRow>) => {
@@ -208,17 +271,6 @@ export function AdminFlashSaleListPage() {
               ? Math.max(0, Math.round(((orig - sale) / orig) * 100))
               : 0;
         cur = applyDiscount(cur);
-      } else if ("sale_price" in patch) {
-        // Nhập thẳng giá sale: suy ra mức giảm theo kiểu đang chọn
-        const orig = cur.original_price;
-        const sale = cur.sale_price;
-        cur.discount_value =
-          cur.discount_type === "FIXED_AMOUNT"
-            ? Math.max(0, orig - sale)
-            : orig > 0
-              ? Math.max(0, Math.round(((orig - sale) / orig) * 100))
-              : 0;
-        cur.discount_percentage = orig > 0 ? Math.max(0, Math.round(((orig - sale) / orig) * 100)) : 0;
       } else if ("original_price" in patch || "discount_value" in patch) {
         cur = applyDiscount(cur);
       }
@@ -230,7 +282,25 @@ export function AdminFlashSaleListPage() {
 
   const handleRemoveItem = (index: number) => {
     setItems((prev) => prev.filter((_, i) => i !== index));
+    setCollapsedRows((prev) => {
+      const next: Record<number, boolean> = {};
+      Object.entries(prev).forEach(([k, v]) => {
+        const i = Number(k);
+        if (i < index) next[i] = v;
+        else if (i > index) next[i - 1] = v;
+      });
+      return next;
+    });
+    setErrors((prev) => {
+      const next: Record<string, string> = {};
+      for (const [k, v] of Object.entries(prev)) if (!k.startsWith("item.")) next[k] = v;
+      return next;
+    });
   };
+
+  const toggleRow = (index: number) => setCollapsedRows((prev) => ({ ...prev, [index]: !prev[index] }));
+  const setAllCollapsed = (collapsed: boolean) =>
+    setCollapsedRows(Object.fromEntries(items.map((_, idx) => [idx, collapsed])));
 
   const handleToggle = async (id: string) => {
     try {
@@ -251,69 +321,104 @@ export function AdminFlashSaleListPage() {
     }
   };
 
+  /** Kiểm tra toàn bộ form, trả về lỗi theo đúng thứ tự hiển thị (trên → dưới, trái → phải). */
+  const validateForm = (nowMs: number): Record<string, string> => {
+    const errs: Record<string, string> = {};
+    const trimmedName = name.trim();
+    if (!trimmedName) errs.name = "Vui lòng nhập tên chiến dịch.";
+    else if (trimmedName.length > 100) errs.name = "Tên chiến dịch tối đa 100 ký tự.";
+
+    if (!startDate) errs.startDate = "Vui lòng chọn ngày bắt đầu.";
+    if (!startTime) errs.startTime = "Vui lòng chọn thời gian bắt đầu.";
+    if (!endDate) errs.endDate = "Vui lòng chọn ngày kết thúc.";
+    if (!endTime) errs.endTime = "Vui lòng chọn thời gian kết thúc.";
+
+    if (startDate && startTime && endDate && endTime) {
+      const startMs = toLocalMs(startDate, startTime);
+      const endMs = toLocalMs(endDate, endTime);
+      const original = editingCampaignId ? campaigns.find((c) => c.id === editingCampaignId) : undefined;
+      const originalStartMs = original ? getCampaignBounds(original).startMs : null;
+      const startChanged = originalStartMs === null || originalStartMs !== startMs;
+
+      if (startChanged && startMs < nowMs - 60_000) {
+        errs.startTime = `Thời gian bắt đầu (${formatDateTimeVN(startMs)}) không được ở quá khứ.`;
+      }
+      if (endMs <= startMs) {
+        errs.endTime = "Thời gian kết thúc phải sau thời gian bắt đầu.";
+      } else if (endMs <= nowMs) {
+        errs.endTime = `Thời gian kết thúc (${formatDateTimeVN(endMs)}) đã ở quá khứ.`;
+      } else {
+        const conflict = campaigns.find((c) => {
+          if (editingCampaignId && c.id === editingCampaignId) return false;
+          if (!c.is_active || !isActive) return false;
+          const b2 = getCampaignBounds(c);
+          return startMs < b2.endMs && b2.startMs < endMs;
+        });
+        if (conflict) {
+          const b2 = getCampaignBounds(conflict);
+          errs.startTime = `Khung giờ ${formatDateTimeVN(startMs)} → ${formatDateTimeVN(endMs)} bị trùng với ca "${conflict.name}" (${formatDateTimeVN(b2.startMs)} → ${formatDateTimeVN(b2.endMs)}).`;
+        }
+      }
+    }
+
+    if (items.length === 0) errs.items = "Vui lòng thêm ít nhất 1 món tham gia ca sale.";
+
+    items.forEach((row, i) => {
+      const label = row.product_name || `Món #${i + 1}`;
+      if (!row.product_id) {
+        errs[`item.${i}.product`] = `Món #${i + 1}: vui lòng chọn sản phẩm.`;
+      }
+      const dv = Number(row.discount_value) || 0;
+      if (row.discount_value === null) {
+        errs[`item.${i}.discount`] = `${label}: vui lòng nhập mức giảm.`;
+      } else if (row.discount_type === "PERCENT" && (dv < 1 || dv > 99)) {
+        errs[`item.${i}.discount`] = `${label}: mức giảm % phải từ 1 đến 99.`;
+      } else if (row.discount_type === "FIXED_AMOUNT" && (dv < 1 || dv >= row.original_price)) {
+        errs[`item.${i}.discount`] = `${label}: số tiền giảm phải từ 1đ và nhỏ hơn giá gốc ${formatVND(row.original_price)}.`;
+      } else if (row.product_id && (row.sale_price <= 0 || row.sale_price >= row.original_price)) {
+        errs[`item.${i}.discount`] = `${label}: giá sale phải lớn hơn 0đ và nhỏ hơn giá gốc.`;
+      }
+
+      const stock = row.product_id ? stockByProduct[row.product_id] : undefined;
+      const sold = row.sold_count || 0;
+      if (!row.quantity_limit || row.quantity_limit < 1) {
+        errs[`item.${i}.quantity`] = `${label}: vui lòng nhập số suất mở bán (lớn hơn 0).`;
+      } else if (row.quantity_limit < sold) {
+        errs[`item.${i}.quantity`] = `${label}: số suất không được nhỏ hơn số suất đã bán (${sold}).`;
+      } else if (stock !== undefined && Number.isFinite(stock) && row.quantity_limit - sold > stock) {
+        errs[`item.${i}.quantity`] = `${label}: số suất còn mở bán (${row.quantity_limit - sold}) vượt quá tồn kho khả dụng (${stock}).`;
+      }
+
+      if (!row.max_per_user || row.max_per_user < 1) {
+        errs[`item.${i}.maxPerUser`] = `${label}: vui lòng nhập số suất tối đa / khách (lớn hơn 0).`;
+      } else if (row.quantity_limit && row.max_per_user > row.quantity_limit) {
+        errs[`item.${i}.maxPerUser`] = `${label}: tối đa / khách không được lớn hơn số suất mở bán (${row.quantity_limit}).`;
+      }
+    });
+
+    return errs;
+  };
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setFormError(null);
 
-    if (!name.trim()) {
-      setFormError("Vui lòng nhập tên chiến dịch");
+    const errs = validateForm(currentTicker);
+    setErrors(errs);
+    if (Object.keys(errs).length > 0) {
+      // Mở rộng các món đang lỗi để người dùng thấy ngay ô cần sửa
+      setCollapsedRows((prev) => {
+        const next = { ...prev };
+        Object.keys(errs).forEach((k) => {
+          const m = /^item\.(\d+)\./.exec(k);
+          if (m) next[Number(m[1])] = false;
+        });
+        return next;
+      });
+      setTimeout(() => {
+        document.getElementById("flashsale-form-errors")?.scrollIntoView({ behavior: "smooth", block: "start" });
+      }, 0);
       return;
-    }
-    if (!startDate || !endDate || !startTime || !endTime) {
-      setFormError("Vui lòng chọn đầy đủ ngày và thời gian bắt đầu / kết thúc");
-      return;
-    }
-
-    const s1 = startTime.length === 5 ? `${startTime}:00` : startTime;
-    const e1 = endTime.length === 5 ? `${endTime}:00` : endTime;
-    const startMs1 = new Date(`${startDate}T${s1}`).getTime();
-    const endMs1 = new Date(`${endDate}T${e1}`).getTime();
-
-    if (endMs1 <= startMs1) {
-      setFormError("Thời điểm kết thúc (ngày & giờ kết thúc) phải lớn hơn thời điểm bắt đầu");
-      return;
-    }
-
-    const conflict = campaigns.find((c) => {
-      if (editingCampaignId && c.id === editingCampaignId) return false;
-      if (!c.is_active) return false;
-      const b2 = getCampaignBounds(c);
-      return startMs1 < b2.endMs && b2.startMs < endMs1;
-    });
-
-    if (conflict) {
-      const b2 = getCampaignBounds(conflict);
-      setFormError(
-        `Khoảng thời gian ${startDate} ${startTime} - ${endDate} ${endTime} bị trùng với ca '${conflict.name}' (${b2.sDate} ${b2.sTime.slice(0, 5)} - ${b2.eDate} ${b2.eTime.slice(0, 5)}).`
-      );
-      return;
-    }
-    if (items.length === 0) {
-      setFormError("Vui lòng thêm ít nhất 1 sản phẩm tham gia ca sale");
-      return;
-    }
-    for (let i = 0; i < items.length; i++) {
-      if (!items[i].product_id.trim() || !items[i].product_name.trim()) {
-        setFormError(`Sản phẩm dòng ${i + 1} chưa có ID hoặc Tên sản phẩm`);
-        return;
-      }
-      if (items[i].sale_price <= 0 || items[i].sale_price >= items[i].original_price) {
-        setFormError(`Giá sale dòng ${i + 1} phải lớn hơn 0đ và nhỏ hơn giá gốc`);
-        return;
-      }
-      const dv = Number(items[i].discount_value) || 0;
-      if (items[i].discount_type === "PERCENT" && (dv < 1 || dv > 99)) {
-        setFormError(`Mức giảm % dòng ${i + 1} phải từ 1 đến 99`);
-        return;
-      }
-      if (!items[i].quantity_limit || items[i].quantity_limit! < 1) {
-        setFormError(`Vui lòng nhập số suất mở bán (lớn hơn 0) cho dòng ${i + 1}`);
-        return;
-      }
-      if (!items[i].max_per_user || items[i].max_per_user! < 1) {
-        setFormError(`Vui lòng nhập số suất tối đa / khách (lớn hơn 0) cho dòng ${i + 1}`);
-        return;
-      }
     }
 
     setSubmitting(true);
@@ -333,8 +438,8 @@ export function AdminFlashSaleListPage() {
         discount_percentage: Number(i.discount_percentage),
         discount_type: i.discount_type,
         discount_value: Number(i.discount_value),
-        quantity_limit: Number(i.quantity_limit) || 50,
-        max_per_user: Number(i.max_per_user) || 2,
+        quantity_limit: Number(i.quantity_limit),
+        max_per_user: Number(i.max_per_user),
       })),
     };
 
@@ -348,7 +453,10 @@ export function AdminFlashSaleListPage() {
       }
       setIsModalOpen(false);
     } catch (err: any) {
-      setFormError(err?.response?.data?.message || "Không thể lưu ca Giờ Vàng. Vui lòng thử lại.");
+      const msg = err?.response?.data?.message;
+      setFormError(
+        (Array.isArray(msg) ? msg.join(" ") : msg) || "Không thể lưu ca Giờ Vàng. Vui lòng thử lại."
+      );
     } finally {
       setSubmitting(false);
     }
@@ -714,6 +822,8 @@ export function AdminFlashSaleListPage() {
               </div>
 
               <button
+                type="button"
+                aria-label="Đóng"
                 onClick={() => setIsModalOpen(false)}
                 className="w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-soft"
               >
@@ -721,280 +831,351 @@ export function AdminFlashSaleListPage() {
               </button>
             </div>
 
-            <form onSubmit={handleSubmit} className="p-5 sm:p-6 space-y-6 overflow-y-auto flex-1">
-              {formError && (
-                <div className="p-3.5 rounded-2xl bg-danger-pastel/70 border border-danger/30 text-danger-dark text-xs font-semibold flex items-center gap-2">
-                  <AlertCircle className="w-4 h-4 shrink-0" />
-                  <span>{formError}</span>
-                </div>
-              )}
-
-              <div className="space-y-4">
-                <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                  <Clock className="w-3.5 h-3.5 text-accent" />
-                  <span>1. Thông Tin Khung Giờ</span>
+            <form onSubmit={handleSubmit} noValidate className="flex-1 min-h-0 flex flex-col">
+              <div className="p-5 sm:p-6 space-y-6 overflow-y-auto flex-1">
+                <div id="flashsale-form-errors" className="space-y-2">
+                  {formError && (
+                    <div role="alert" className="p-3.5 rounded-2xl bg-danger-pastel/70 border border-danger/30 text-danger-dark text-xs font-semibold flex items-center gap-2">
+                      <AlertCircle className="w-4 h-4 shrink-0" />
+                      <span>{formError}</span>
+                    </div>
+                  )}
+                  <FormErrorSummary errors={errors} />
                 </div>
 
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Tên Chiến Dịch *</label>
-                    <Input
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      placeholder="VD: Giờ Vàng Bữa Trưa 11h - 13h"
-                      className="rounded-xl text-xs h-10"
-                      required
-                    />
+                <div className="space-y-4">
+                  <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                    <Clock className="w-3.5 h-3.5 text-accent" />
+                    <span>1. Thông Tin Khung Giờ</span>
                   </div>
 
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Ngày Bắt Đầu *</label>
-                    <Input
-                      type="date"
-                      value={startDate}
-                      onChange={(e) => setStartDate(e.target.value)}
-                      className="rounded-xl text-xs h-10"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Thời Gian Bắt Đầu * (HH:mm)</label>
-                    <Input
-                      type="time"
-                      value={startTime}
-                      onChange={(e) => setStartTime(e.target.value)}
-                      className="rounded-xl text-xs h-10 font-mono"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Ngày Kết Thúc *</label>
-                    <Input
-                      type="date"
-                      value={endDate}
-                      min={startDate}
-                      onChange={(e) => setEndDate(e.target.value)}
-                      className="rounded-xl text-xs h-10"
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Thời Gian Kết Thúc * (HH:mm)</label>
-                    <Input
-                      type="time"
-                      value={endTime}
-                      onChange={(e) => setEndTime(e.target.value)}
-                      className="rounded-xl text-xs h-10 font-mono"
-                      required
-                    />
-                  </div>
-
-                  <div className="sm:col-span-2 space-y-1.5">
-                    <label className="text-xs font-bold text-foreground">Trạng Thái Mở Bán</label>
-                    <div className="h-10 flex items-center gap-2 px-3 rounded-xl border border-border bg-surface-soft/40">
-                      <input
-                        type="checkbox"
-                        id="active_cb"
-                        checked={isActive}
-                        onChange={(e) => setIsActive(e.target.checked)}
-                        className="rounded text-primary focus:ring-0 w-4 h-4 cursor-pointer"
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="sm:col-span-2 space-y-1.5" data-field="name">
+                      <label className="text-xs font-bold text-foreground">Tên Chiến Dịch *</label>
+                      <Input
+                        value={name}
+                        maxLength={100}
+                        onChange={(e) => {
+                          setName(e.target.value);
+                          clearError("name");
+                        }}
+                        placeholder="VD: Giờ Vàng Bữa Trưa 11h - 13h"
+                        className={`rounded-xl text-xs h-10 ${invalidClass(errors.name)}`}
+                        aria-invalid={Boolean(errors.name) || undefined}
                       />
-                      <label htmlFor="active_cb" className="text-xs font-semibold text-foreground cursor-pointer">
+                      <FieldError message={errors.name} />
+                    </div>
+
+                    <div className="space-y-1.5" data-field="startDate">
+                      <label className="text-xs font-bold text-foreground">Ngày Bắt Đầu *</label>
+                      <Input
+                        type="date"
+                        value={startDate}
+                        min={editingCampaignId ? undefined : getTodayDateStr()}
+                        onChange={(e) => {
+                          setStartDate(e.target.value);
+                          if (endDate < e.target.value) setEndDate(e.target.value);
+                          clearError("startDate");
+                          clearError("startTime");
+                        }}
+                        className={`rounded-xl text-xs h-10 ${invalidClass(errors.startDate)}`}
+                      />
+                      <FieldError message={errors.startDate} />
+                    </div>
+
+                    <div className="space-y-1.5" data-field="startTime">
+                      <label className="text-xs font-bold text-foreground">Thời Gian Bắt Đầu *</label>
+                      <Input
+                        type="time"
+                        value={startTime}
+                        onChange={(e) => {
+                          setStartTime(e.target.value);
+                          clearError("startTime");
+                        }}
+                        className={`rounded-xl text-xs h-10 font-mono ${invalidClass(errors.startTime)}`}
+                      />
+                      <FieldError message={errors.startTime} />
+                    </div>
+
+                    <div className="space-y-1.5" data-field="endDate">
+                      <label className="text-xs font-bold text-foreground">Ngày Kết Thúc *</label>
+                      <Input
+                        type="date"
+                        value={endDate}
+                        min={startDate}
+                        onChange={(e) => {
+                          setEndDate(e.target.value);
+                          clearError("endDate");
+                          clearError("endTime");
+                        }}
+                        className={`rounded-xl text-xs h-10 ${invalidClass(errors.endDate)}`}
+                      />
+                      <FieldError message={errors.endDate} />
+                    </div>
+
+                    <div className="space-y-1.5" data-field="endTime">
+                      <label className="text-xs font-bold text-foreground">Thời Gian Kết Thúc *</label>
+                      <Input
+                        type="time"
+                        value={endTime}
+                        onChange={(e) => {
+                          setEndTime(e.target.value);
+                          clearError("endTime");
+                        }}
+                        className={`rounded-xl text-xs h-10 font-mono ${invalidClass(errors.endTime)}`}
+                      />
+                      <FieldError message={errors.endTime} />
+                    </div>
+
+                    <div className="sm:col-span-2">
+                      <label className="h-10 inline-flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={isActive}
+                          onChange={(e) => setIsActive(e.target.checked)}
+                          className="rounded text-primary focus:ring-0 w-4 h-4 cursor-pointer"
+                        />
                         Kích hoạt ngay khi lưu
                       </label>
                     </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="space-y-4 pt-2 border-t border-border">
-                <div className="flex items-center justify-between">
-                  <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
-                    <Package className="w-3.5 h-3.5 text-accent" />
-                    <span>2. Danh Sách Món Giờ Vàng ({items.length} món)</span>
-                  </div>
+                <div className="space-y-4 pt-2 border-t border-border" data-field="items">
+                  <div className="flex flex-wrap items-center justify-between gap-2">
+                    <div className="text-xs font-bold text-foreground uppercase tracking-wider flex items-center gap-1.5">
+                      <Package className="w-3.5 h-3.5 text-accent" />
+                      <span>2. Danh Sách Món</span>
+                    </div>
 
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={() => handleAddItem()}
-                    className="rounded-xl text-xs font-bold gap-1"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    Thêm món
-                  </Button>
-                </div>
-
-                {items.length === 0 ? (
-                  <div className="p-6 text-center rounded-2xl border border-dashed border-border text-muted text-xs">
-                    Chưa có món nào. Bấm <strong>"Thêm món"</strong> để chọn món giảm giá cho ca này.
-                  </div>
-                ) : (
-                  <div className="space-y-3">
-                    {items.map((row, idx) => (
-                      <div
-                        key={idx}
-                        className="p-3.5 rounded-2xl bg-surface-soft/60 border border-border space-y-3 relative group"
+                    <div className="flex items-center gap-2">
+                      {items.length > 1 && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          onClick={() => setAllCollapsed(!items.every((_, i) => collapsedRows[i]))}
+                          className="rounded-xl text-xs font-semibold gap-1 text-muted"
+                        >
+                          {items.every((_, i) => collapsedRows[i]) ? (
+                            <>
+                              <ChevronDown className="w-3.5 h-3.5" /> Mở rộng tất cả
+                            </>
+                          ) : (
+                            <>
+                              <ChevronUp className="w-3.5 h-3.5" /> Thu gọn tất cả
+                            </>
+                          )}
+                        </Button>
+                      )}
+                      <Button
+                        type="button"
+                        size="sm"
+                        variant="outline"
+                        onClick={handleAddItem}
+                        className="rounded-xl text-xs font-bold gap-1"
                       >
-                        <div className="flex items-center justify-between gap-2">
-                          <span className="text-xs font-bold text-foreground">Món #{idx + 1}</span>
-                          <button
-                            type="button"
-                            onClick={() => handleRemoveItem(idx)}
-                            className="text-danger hover:text-danger-dark text-xs font-semibold flex items-center gap-1"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                            <span>Xoá món</span>
-                          </button>
-                        </div>
-
-                        <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5">
-                          <div className="sm:col-span-2 space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">Chọn Món Sẵn Có Hoặc Nhập</label>
-                            <select
-                              value={row.product_id}
-                              onChange={(e) => {
-                                const pid = e.target.value;
-                                const prod = availableProducts.find((p) => p.id === pid);
-                                if (prod) {
-                                  handleUpdateItem(idx, {
-                                    product_id: prod.id,
-                                    product_name: prod.name,
-                                    original_price: prod.price,
-                                  });
-                                } else {
-                                  handleUpdateItem(idx, { product_id: pid });
-                                }
-                              }}
-                              className="w-full h-9 rounded-xl border border-border bg-surface px-2.5 text-xs font-medium focus:outline-hidden"
-                            >
-                              <option value="">-- Chọn từ sản phẩm trong DB --</option>
-                              {availableProducts.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name} ({formatVND(p.price)})
-                                </option>
-                              ))}
-                            </select>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">Mã Sản Phẩm *</label>
-                            <Input
-                              value={row.product_id}
-                              onChange={(e) => handleUpdateItem(idx, { product_id: e.target.value })}
-                              placeholder="VD: p1"
-                              className="rounded-xl text-xs h-9 font-mono"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">Tên Sản Phẩm *</label>
-                            <Input
-                              value={row.product_name}
-                              onChange={(e) => handleUpdateItem(idx, { product_name: e.target.value })}
-                              placeholder="VD: Cà phê sữa đá"
-                              className="rounded-xl text-xs h-9"
-                              required
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">Giá Gốc Niêm Yết (đ)</label>
-                            <NumberInput
-                              thousandSeparator
-                              value={row.original_price}
-                              onValueChange={(v) => handleUpdateItem(idx, { original_price: v ?? 0 })}
-                              className="rounded-xl text-xs h-9 font-mono"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <div className="flex flex-wrap items-center justify-between gap-1.5">
-                              <label className="text-[11px] font-bold text-foreground whitespace-nowrap">Mức Giảm</label>
-                              <div
-                                role="radiogroup"
-                                aria-label="Kiểu giảm giá"
-                                className="inline-flex rounded-lg border border-border bg-surface-soft p-0.5 text-[10px] font-bold"
-                              >
-                                {([
-                                  { value: "PERCENT", label: "%" },
-                                  { value: "FIXED_AMOUNT", label: "Tiền mặt (đ)" },
-                                ] as const).map((opt) => (
-                                  <button
-                                    key={opt.value}
-                                    type="button"
-                                    role="radio"
-                                    aria-checked={row.discount_type === opt.value}
-                                    onClick={() => handleUpdateItem(idx, { discount_type: opt.value })}
-                                    className={`px-2 py-0.5 rounded-md whitespace-nowrap transition-colors ${
-                                      row.discount_type === opt.value
-                                        ? "bg-accent text-white shadow-xs"
-                                        : "text-muted hover:text-foreground"
-                                    }`}
-                                  >
-                                    {opt.label}
-                                  </button>
-                                ))}
-                              </div>
-                            </div>
-                            <NumberInput
-                              thousandSeparator={row.discount_type === "FIXED_AMOUNT"}
-                              maxDigits={row.discount_type === "PERCENT" ? 2 : 9}
-                              value={row.discount_value}
-                              onValueChange={(v) => handleUpdateItem(idx, { discount_value: v })}
-                              suffix={row.discount_type === "PERCENT" ? "%" : "đ"}
-                              className="rounded-xl text-xs h-9 font-mono font-bold text-accent"
-                              aria-label={row.discount_type === "PERCENT" ? "Phần trăm giảm" : "Số tiền giảm (đ)"}
-                            />
-                            <p className="text-[10px] text-muted">
-                              {row.discount_type === "PERCENT"
-                                ? `≈ giảm ${formatVND(Math.max(0, row.original_price - row.sale_price))}`
-                                : `≈ giảm ${row.discount_percentage}%`}
-                            </p>
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">Giá Sale Ưu Đãi (đ)</label>
-                            <NumberInput
-                              thousandSeparator
-                              value={row.sale_price}
-                              onValueChange={(v) => handleUpdateItem(idx, { sale_price: v ?? 0 })}
-                              className="rounded-xl text-xs h-9 font-mono font-bold text-danger-dark"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">Số Suất Mở Bán</label>
-                            <NumberInput
-                              maxDigits={6}
-                              value={row.quantity_limit}
-                              onValueChange={(v) => handleUpdateItem(idx, { quantity_limit: v })}
-                              className="rounded-xl text-xs h-9 font-mono"
-                            />
-                          </div>
-
-                          <div className="space-y-1">
-                            <label className="text-[11px] font-bold text-foreground">Tối Đa / Khách Hàng</label>
-                            <NumberInput
-                              maxDigits={6}
-                              value={row.max_per_user}
-                              onValueChange={(v) => handleUpdateItem(idx, { max_per_user: v })}
-                              className="rounded-xl text-xs h-9 font-mono"
-                            />
-                          </div>
-                        </div>
-                      </div>
-                    ))}
+                        <Plus className="w-3.5 h-3.5" />
+                        Thêm món
+                      </Button>
+                    </div>
                   </div>
-                )}
+                  <FieldError message={errors.items} />
+
+                  {items.length === 0 ? (
+                    <div className="p-6 text-center rounded-2xl border border-dashed border-border text-muted text-xs">
+                      Chưa có món nào. Bấm <strong>"Thêm món"</strong> để chọn món giảm giá cho ca này.
+                    </div>
+                  ) : (
+                    <div className="space-y-3">
+                      {items.map((row, idx) => {
+                        const collapsed = Boolean(collapsedRows[idx]);
+                        const rowHasError = Object.keys(errors).some((k) => k.startsWith(`item.${idx}.`));
+                        const stock = row.product_id ? stockByProduct[row.product_id] : undefined;
+                        return (
+                          <div
+                            key={idx}
+                            data-row={idx}
+                            className={`rounded-2xl bg-surface-soft/60 border ${rowHasError ? "border-danger/50" : "border-border"}`}
+                          >
+                            <div className="flex items-center justify-between gap-2 p-3.5">
+                              <button
+                                type="button"
+                                onClick={() => toggleRow(idx)}
+                                className="flex-1 min-w-0 flex items-center gap-2 text-left"
+                                aria-expanded={!collapsed}
+                              >
+                                {collapsed ? (
+                                  <ChevronDown className="w-4 h-4 text-muted shrink-0" />
+                                ) : (
+                                  <ChevronUp className="w-4 h-4 text-muted shrink-0" />
+                                )}
+                                <span className="text-xs font-bold text-foreground shrink-0">#{idx + 1}</span>
+                                <span className="text-xs font-semibold text-foreground truncate" title={row.product_name}>
+                                  {row.product_name || "Chưa chọn sản phẩm"}
+                                </span>
+                                {collapsed && row.product_id && (
+                                  <span className="hidden sm:flex items-center gap-2 text-[11px] text-muted shrink-0">
+                                    <span className="px-1.5 py-0.5 rounded-full bg-danger text-white font-black text-[10px]">
+                                      {formatFlashSaleDiscount({ ...row, discount_value: row.discount_value ?? 0 })}
+                                    </span>
+                                    <span className="font-mono font-bold text-danger-dark">{formatVND(row.sale_price)}</span>
+                                    <span>· {row.quantity_limit ?? 0} suất</span>
+                                  </span>
+                                )}
+                              </button>
+                              <button
+                                type="button"
+                                onClick={() => handleRemoveItem(idx)}
+                                className="text-danger hover:text-danger-dark text-xs font-semibold flex items-center gap-1 shrink-0"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                                <span>Xoá món</span>
+                              </button>
+                            </div>
+
+                            {!collapsed && (
+                              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-2.5 px-3.5 pb-3.5">
+                                <div className="sm:col-span-2 md:col-span-4 space-y-1" data-field={`item.${idx}.product`}>
+                                  <label className="text-[11px] font-bold text-foreground">Sản phẩm *</label>
+                                  <ProductSearchSelect
+                                    options={productOptions}
+                                    value={row.product_id}
+                                    excludeIds={items.map((i) => i.product_id).filter(Boolean)}
+                                    invalid={Boolean(errors[`item.${idx}.product`])}
+                                    onChange={(opt) => {
+                                      handleUpdateItem(idx, {
+                                        product_id: opt?.id || "",
+                                        product_name: opt?.name || "",
+                                        original_price: opt?.price || 0,
+                                      });
+                                      clearError(`item.${idx}.product`);
+                                      clearError(`item.${idx}.quantity`);
+                                    }}
+                                  />
+                                  <FieldError message={errors[`item.${idx}.product`]} />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-bold text-foreground">Giá gốc niêm yết</label>
+                                  <NumberInput
+                                    readOnly
+                                    tabIndex={-1}
+                                    thousandSeparator
+                                    suffix="đ"
+                                    value={row.original_price}
+                                    onValueChange={() => undefined}
+                                    title="Giá gốc lấy theo giá niêm yết của sản phẩm, không sửa ở đây"
+                                    className="rounded-xl text-xs h-9 font-mono"
+                                  />
+                                </div>
+
+                                <div className="space-y-1" data-field={`item.${idx}.discount`}>
+                                  <div className="flex flex-wrap items-center justify-between gap-1.5">
+                                    <label className="text-[11px] font-bold text-foreground whitespace-nowrap">Mức giảm *</label>
+                                    <div
+                                      role="radiogroup"
+                                      aria-label="Kiểu giảm giá"
+                                      className="inline-flex rounded-lg border border-border bg-surface-soft p-0.5 text-[10px] font-bold"
+                                    >
+                                      {([
+                                        { value: "PERCENT", label: "%" },
+                                        { value: "FIXED_AMOUNT", label: "Tiền mặt" },
+                                      ] as const).map((opt) => (
+                                        <button
+                                          key={opt.value}
+                                          type="button"
+                                          role="radio"
+                                          aria-checked={row.discount_type === opt.value}
+                                          onClick={() => {
+                                            handleUpdateItem(idx, { discount_type: opt.value });
+                                            clearError(`item.${idx}.discount`);
+                                          }}
+                                          className={`px-2 py-0.5 rounded-md whitespace-nowrap transition-colors ${
+                                            row.discount_type === opt.value
+                                              ? "bg-accent text-white shadow-xs"
+                                              : "text-muted hover:text-foreground"
+                                          }`}
+                                        >
+                                          {opt.label}
+                                        </button>
+                                      ))}
+                                    </div>
+                                  </div>
+                                  <NumberInput
+                                    thousandSeparator={row.discount_type === "FIXED_AMOUNT"}
+                                    maxDigits={row.discount_type === "PERCENT" ? 2 : 9}
+                                    value={row.discount_value}
+                                    onValueChange={(v) => {
+                                      handleUpdateItem(idx, { discount_value: v });
+                                      clearError(`item.${idx}.discount`);
+                                    }}
+                                    suffix={row.discount_type === "PERCENT" ? "%" : "đ"}
+                                    invalid={Boolean(errors[`item.${idx}.discount`])}
+                                    className="rounded-xl text-xs h-9 font-mono font-bold text-accent"
+                                    aria-label={row.discount_type === "PERCENT" ? "Phần trăm giảm" : "Số tiền giảm"}
+                                  />
+                                  <FieldError message={errors[`item.${idx}.discount`]} />
+                                </div>
+
+                                <div className="space-y-1">
+                                  <label className="text-[11px] font-bold text-foreground">Giá sale ưu đãi</label>
+                                  <NumberInput
+                                    readOnly
+                                    tabIndex={-1}
+                                    thousandSeparator
+                                    suffix="đ"
+                                    value={row.sale_price}
+                                    onValueChange={() => undefined}
+                                    title="Giá sale được tính tự động từ giá gốc và mức giảm"
+                                    className="rounded-xl text-xs h-9 font-mono font-bold"
+                                  />
+                                </div>
+
+                                <div className="space-y-1" data-field={`item.${idx}.quantity`}>
+                                  <label className="text-[11px] font-bold text-foreground">Số suất mở bán *</label>
+                                  <NumberInput
+                                    maxDigits={6}
+                                    value={row.quantity_limit}
+                                    onValueChange={(v) => {
+                                      handleUpdateItem(idx, { quantity_limit: v });
+                                      clearError(`item.${idx}.quantity`);
+                                      clearError(`item.${idx}.maxPerUser`);
+                                    }}
+                                    invalid={Boolean(errors[`item.${idx}.quantity`])}
+                                    className="rounded-xl text-xs h-9 font-mono"
+                                  />
+                                  {row.product_id && stock !== undefined && Number.isFinite(stock) && (
+                                    <p className="text-[10px] text-muted">Tồn kho khả dụng: {stock}</p>
+                                  )}
+                                  <FieldError message={errors[`item.${idx}.quantity`]} />
+                                </div>
+
+                                <div className="space-y-1" data-field={`item.${idx}.maxPerUser`}>
+                                  <label className="text-[11px] font-bold text-foreground">Tối đa / khách *</label>
+                                  <NumberInput
+                                    maxDigits={4}
+                                    value={row.max_per_user}
+                                    onValueChange={(v) => {
+                                      handleUpdateItem(idx, { max_per_user: v });
+                                      clearError(`item.${idx}.maxPerUser`);
+                                    }}
+                                    invalid={Boolean(errors[`item.${idx}.maxPerUser`])}
+                                    className="rounded-xl text-xs h-9 font-mono"
+                                  />
+                                  <FieldError message={errors[`item.${idx}.maxPerUser`]} />
+                                </div>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               </div>
 
-              <div className="p-4 rounded-2xl bg-surface-soft border border-border flex items-center justify-end gap-3 shrink-0">
+              <div className="px-5 sm:px-6 py-4 border-t border-border bg-surface flex items-center justify-end gap-3 shrink-0">
                 <Button
                   type="button"
                   variant="outline"
