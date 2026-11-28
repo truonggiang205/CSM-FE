@@ -26,6 +26,8 @@ import { Card } from "../../../components/ui/Card";
 import { ProductImage } from "../../../components/ui/ProductImage";
 import { ProductSearchSelect } from "../../../components/ui/ProductSearchSelect";
 import { storefrontApi } from "../../../api/storefrontApi";
+import { branchApi } from "../../../api/branchApi";
+import { inventoryApi } from "../../../api/inventoryApi";
 import { resolveAssetUrl } from "../../../lib/assetUrl";
 import { NumberInput } from "../../../components/ui/NumberInput";
 import { FieldError, FormErrorSummary, invalidClass } from "../../../components/ui/FieldError";
@@ -139,6 +141,54 @@ export function AdminComboListPage() {
     }
   };
 
+  /**
+   * Tồn kho theo từng chi nhánh của mọi sản phẩm: productId -> { branchId: số còn bán được }.
+   * Một đơn combo chỉ lấy hàng ở một chi nhánh, nên "đủ hàng" nghĩa là có ít nhất một chi nhánh đủ.
+   */
+  const [stockByBranch, setStockByBranch] = useState<Map<string, Record<string, number>> | null>(null);
+  const [branchCount, setBranchCount] = useState(0);
+
+  const fetchStock = async () => {
+    try {
+      const branches = await branchApi.getBranches();
+      const rows = await Promise.all(branches.map((b) => inventoryApi.getInventoryByBranch(b.id).catch(() => [])));
+      const map = new Map<string, Record<string, number>>();
+      branches.forEach((b, i) => {
+        for (const item of rows[i]) {
+          if (!item.product_id) continue;
+          const pid = String(item.product_id);
+          const entry = map.get(pid) || {};
+          entry[b.id] = Number(item.available) || 0;
+          map.set(pid, entry);
+        }
+      });
+      setBranchCount(branches.length);
+      setStockByBranch(map);
+    } catch {
+      setStockByBranch(null); // không đọc được tồn kho: không chặn, BE vẫn kiểm tra lại khi lưu
+    }
+  };
+
+  /** Số lượng lớn nhất một chi nhánh còn bán được của sản phẩm (null = chưa rõ). */
+  const bestBranchStock = (productId: string): number | null => {
+    if (!stockByBranch) return null;
+    const entry = stockByBranch.get(productId);
+    if (!entry) return 0;
+    return Math.max(0, ...Object.values(entry));
+  };
+
+  /** Số chi nhánh đủ hàng để bán ít nhất 1 suất combo. */
+  const branchesAbleToSell = (comboItems: { product_id: string; quantity: number }[]): number | null => {
+    if (!stockByBranch || branchCount === 0) return null;
+    const branchIds = new Set<string>();
+    stockByBranch.forEach((entry) => Object.keys(entry).forEach((id) => branchIds.add(id)));
+    let ok = 0;
+    branchIds.forEach((bid) => {
+      if (comboItems.every((ci) => (stockByBranch.get(ci.product_id)?.[bid] ?? 0) >= (Number(ci.quantity) || 1))) ok += 1;
+    });
+    return ok;
+  };
+
   const fetchProducts = async () => {
     try {
       const prods = await productApi.getProducts();
@@ -151,6 +201,7 @@ export function AdminComboListPage() {
   useEffect(() => {
     fetchCombos();
     fetchProducts();
+    fetchStock();
   }, []);
 
   const formatVND = (val: number) =>
@@ -228,10 +279,18 @@ export function AdminComboListPage() {
     );
   };
 
-  const productOptions = useMemo(
-    () => availableProducts.map((p) => ({ id: p.id, name: p.name, sku: p.sku, price: Number(p.price) || 0 })),
-    [availableProducts],
-  );
+  const productOptions = availableProducts.map((p) => {
+    const best = bestBranchStock(p.id);
+    return {
+      id: p.id,
+      name: p.name,
+      sku: p.sku,
+      price: Number(p.price) || 0,
+      available: best ?? undefined,
+      disabled: best === 0,
+      disabledReason: best === 0 ? "Hết hàng ở tất cả chi nhánh" : undefined,
+    };
+  });
 
   const handleQuantityChange = (idx: number, qty: number | null) => {
     setItems((prev) =>
@@ -275,6 +334,19 @@ export function AdminComboListPage() {
     else if (items.some((i) => !i.quantity || i.quantity < 1 || i.quantity > L.itemQtyMax))
       e.items = `Số lượng mỗi món phải từ 1 đến ${L.itemQtyMax}.`;
     else if (items.reduce((sum, i) => sum + i.quantity, 0) < 2) e.items = "Combo cần có tổng số lượng từ 2 sản phẩm trở lên.";
+    else {
+      const short = items.find((i) => {
+        const best = bestBranchStock(i.product_id);
+        return best !== null && i.quantity > best;
+      });
+      if (short) {
+        const best = bestBranchStock(short.product_id) ?? 0;
+        e.items =
+          best === 0
+            ? `"${short.product_name}" đã hết hàng ở tất cả chi nhánh, không thể thêm vào combo.`
+            : `"${short.product_name}" chỉ còn tối đa ${best} tại một chi nhánh, không đủ ${short.quantity} cho mỗi suất combo.`;
+      }
+    }
 
     const fmt = (v: number) => new Intl.NumberFormat("vi-VN").format(v) + "đ";
     if (comboPrice === null) e.combo_price = "Vui lòng nhập giá bán Combo, không được để trống.";
@@ -411,7 +483,15 @@ export function AdminComboListPage() {
         </div>
 
         <div className="flex items-center gap-2.5">
-          <Button variant="outline" size="sm" onClick={fetchCombos} className="rounded-xl gap-1.5">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => {
+              fetchCombos();
+              fetchStock();
+            }}
+            className="rounded-xl gap-1.5"
+          >
             <RefreshCw className="w-4 h-4" />
             <span>Làm mới</span>
           </Button>
@@ -524,6 +604,17 @@ export function AdminComboListPage() {
                       </span>
                     </div>
                     <div className="text-right text-[11px] text-muted">
+                      {(() => {
+                        const able = branchesAbleToSell(combo.items || []);
+                        if (able === null) return null;
+                        return able === 0 ? (
+                          <div className="font-semibold text-danger-dark">Không đủ tồn kho ở chi nhánh nào</div>
+                        ) : (
+                          <div>
+                            Đủ hàng: <strong className="text-foreground">{able}/{branchCount}</strong> chi nhánh
+                          </div>
+                        );
+                      })()}
                       <div>Đã bán: <strong className="text-foreground">{combo.sold_count || 0}</strong></div>
                       {combo.max_quantity && <div>Tối đa: {combo.max_quantity} suất</div>}
                     </div>
@@ -746,6 +837,16 @@ export function AdminComboListPage() {
                               excludeIds={items.filter((_, i) => i !== idx).map((i) => i.product_id).filter(Boolean)}
                               showPrice
                             />
+                            {row.product_id && bestBranchStock(row.product_id) !== null && (
+                              <span
+                                className={`text-[10px] font-semibold whitespace-nowrap ${
+                                  row.quantity > (bestBranchStock(row.product_id) ?? 0) ? "text-danger-dark" : "text-muted"
+                                }`}
+                                title="Số lượng lớn nhất còn bán được tại một chi nhánh"
+                              >
+                                Kho: {bestBranchStock(row.product_id)}
+                              </span>
+                            )}
 
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] text-muted font-semibold">SL:</span>

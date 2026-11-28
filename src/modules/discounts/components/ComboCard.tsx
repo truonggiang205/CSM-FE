@@ -22,7 +22,8 @@ export function resolveComboMetrics(
   const resolvedItems = (combo.items || []).map((ci) => {
     const found = products.find((p) => p.id === ci.product_id);
     const unitPrice = Number(found?.price ?? ci.original_price ?? 0);
-    const stock = stockMap.get(ci.product_id) ?? found?.stock ?? 50;
+    // Chi nhánh không có dòng tồn kho cho món này nghĩa là hết hàng (không còn giả định 50 cái).
+    const stock = stockMap.get(ci.product_id) ?? (stockMap.size > 0 ? 0 : (found?.stock ?? 0));
     const requiredQty = Math.max(1, Number(ci.quantity) || 1);
     return {
       ...ci,
@@ -187,9 +188,13 @@ export function ComboCard({
           <div className="mt-4 p-2.5 rounded-2xl bg-danger-pastel/70 border border-danger/30 text-danger-dark text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-danger" />
             <span>
-              Tạm hết món:{" "}
-              <strong>{outOfStockItems.map((i) => i.name).join(", ")}</strong> tại{" "}
-              {branchName || "chi nhánh này"}
+              Combo này tạm hết tại {branchName || "chi nhánh này"} vì không đủ món:{" "}
+              <strong>
+                {outOfStockItems
+                  .map((i) => (i.stock > 0 ? `${i.name} (còn ${i.stock}, cần ${i.requiredQty})` : `${i.name} (hết hàng)`))
+                  .join(", ")}
+              </strong>
+              . Các combo khác vẫn mua được bình thường.
             </span>
           </div>
         )}
