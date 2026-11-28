@@ -18,7 +18,7 @@ interface FlashSaleSectionProps {
   section?: HomeSection | null;
 }
 
-export function FlashSaleSection({ products, stockMap, branchName: _branchName, section }: FlashSaleSectionProps) {
+export function FlashSaleSection({ products, stockMap, branchName: _branchName }: FlashSaleSectionProps) {
   const { addItem } = useCartStore();
   const { showToast } = useCartToastStore();
 
@@ -183,7 +183,6 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
                 </span>
 
                 <span className="text-xs text-muted">
-                  {section?.subtitle ? `${section.subtitle} · ` : ""}
                   {isUpcoming
                     ? `Mở bán lúc ${campaign?.start_time?.slice(0, 5) || "hôm nay"}`
                     : `Áp dụng đến ${campaign?.end_time?.slice(0, 5) || "23:59"}`}
@@ -191,7 +190,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
               </div>
 
               <h2 className="text-xl sm:text-2xl font-extrabold text-foreground tracking-tight flex items-center gap-2 mt-0.5">
-                <span>{section?.title || campaign?.name || "GIỜ VÀNG GIẢM GIÁ CSM"}</span>
+                <span>{campaign?.name || "GIỜ VÀNG GIẢM GIÁ CSM"}</span>
               </h2>
             </div>
           </div>
