@@ -28,11 +28,14 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Label } from "../../../components/ui/Label";
 import { ProductImage } from "../../../components/ui/ProductImage";
+import { useCartLimits } from "../../../hooks/useCartLimits";
 
 const FREESHIP_THRESHOLD = 150000;
 
 export function CheckoutPage() {
-  const { items, getTotalPrice, clearCart } = useCartStore();
+  const { items, clearCart } = useCartStore();
+  // Tổng tiền tính giống server: phần vượt suất Giờ Vàng tính giá gốc
+  const { totalPrice: cartTotal, hasStockProblem } = useCartLimits();
   const { selectedBranch } = useBranchStore();
   const { isAuthenticated, user } = useAuthStore();
   const navigate = useNavigate();
@@ -64,7 +67,7 @@ export function CheckoutPage() {
     }).format(amount);
   };
 
-  const rawTotal = getTotalPrice();
+  const rawTotal = cartTotal;
   const shippingFee = rawTotal >= FREESHIP_THRESHOLD ? 0 : 15000;
   const finalTotal = Math.max(0, rawTotal + shippingFee - appliedDiscount);
 
@@ -161,6 +164,10 @@ export function CheckoutPage() {
 
     if (!isAuthenticated) {
       navigate("/login", { state: { from: { pathname: "/checkout" } } });
+      return;
+    }
+    if (hasStockProblem) {
+      setErrorMessage("Có món trong giỏ vượt tồn kho của chi nhánh đã chọn. Vui lòng quay lại giỏ hàng để giảm số lượng.");
       return;
     }
 
@@ -649,6 +656,7 @@ function OrderSummaryBox({
   voucherError,
   voucherSuccess,
 }: OrderSummaryBoxProps) {
+  const { limits } = useCartLimits();
   return (
     <div className="bg-surface p-6 rounded-3xl border border-border shadow-card space-y-5">
       <div className="flex items-center justify-between pb-3 border-b border-border/80">
@@ -689,9 +697,12 @@ function OrderSummaryBox({
                 </p>
               )}
               <span className="text-[11px] text-muted font-mono">SL: x{item.quantity}</span>
+              {limits[item.product.id]?.note && (
+                <p className="text-[10px] font-semibold text-amber-700">{limits[item.product.id]?.note}</p>
+              )}
             </div>
             <span className="font-bold text-xs text-primary-dark shrink-0">
-              {format((item.product.discountPrice || item.product.price) * item.quantity)}
+              {format(limits[item.product.id]?.lineTotal ?? (item.product.discountPrice || item.product.price) * item.quantity)}
             </span>
           </div>
         ))}

@@ -19,7 +19,7 @@ interface FlashSaleSectionProps {
 }
 
 export function FlashSaleSection({ products, stockMap, branchName: _branchName, section }: FlashSaleSectionProps) {
-  const { addItem, items: cartItems } = useCartStore();
+  const { addItem } = useCartStore();
   const { showToast } = useCartToastStore();
 
   const {
@@ -109,7 +109,8 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
     const salePrice = Number(item.sale_price) || Math.round(originalPrice * 0.8);
     const discountLabel = formatFlashSaleDiscount({ ...item, original_price: originalPrice, sale_price: salePrice });
     const limit = Number(item.quantity_limit) || 50;
-    const sold = Number(item.sold_count) || 0;
+    // Không bao giờ hiển thị số đã bán vượt quá số suất mở bán
+    const sold = Math.min(limit, Number(item.sold_count) || 0);
     const soldPercent = Math.min(100, Math.round((sold / Math.max(1, limit)) * 100));
 
     return {
@@ -131,11 +132,7 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
   if (displayItems.length === 0) return null;
 
   const handleBuyNow = (item: (typeof displayItems)[0]) => {
-    const inCart = cartItems.find((ci) => ci.product.id === item.id)?.quantity || 0;
-    if (inCart >= item.maxPerUser) {
-      alert(`Mỗi khách hàng chỉ được mua tối đa ${item.maxPerUser} suất cho món "${item.name}".`);
-      return;
-    }
+    // Vượt giới hạn suất Giờ Vàng vẫn cho mua: phần vượt tính giá gốc (giỏ hàng ghi rõ, server tính giống hệt)
 
     if (item.rawProduct) {
       addItem({ ...item.rawProduct, discountPrice: item.salePrice }, 1);
@@ -284,7 +281,9 @@ export function FlashSaleSection({ products, stockMap, branchName: _branchName, 
 
                     <div className="mt-3 space-y-1">
                       <div className="flex items-center justify-between text-[10px] text-muted font-medium">
-                        <span>Đã bán {item.soldPercent}%</span>
+                        <span>
+                          Đã bán {item.soldCount}/{item.quantityLimit} suất · tối đa {item.maxPerUser}/khách
+                        </span>
                         <span className="text-accent-dark font-bold">
                           {isOutOfStock ? "Hết hàng" : "Sắp cháy hàng"}
                         </span>

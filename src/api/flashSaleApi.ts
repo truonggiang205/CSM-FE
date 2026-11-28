@@ -69,6 +69,26 @@ export interface ActiveOrUpcomingResponse {
   items: FlashSaleItem[];
 }
 
+export interface FlashSaleQuotaItem {
+  productId: string;
+  salePrice: number;
+  originalPrice: number;
+  quantityLimit: number;
+  soldCount: number;
+  /** Số suất còn lại của cả ca. */
+  remaining: number;
+  maxPerUser: number;
+  userBought: number;
+  /** Số suất giá sale khách hiện tại còn mua được (đã tính cả suất còn lại của ca). */
+  userRemaining: number;
+}
+
+export interface FlashSaleQuotaResponse {
+  status: "ACTIVE" | "UPCOMING" | "NONE";
+  campaignId: string | null;
+  items: FlashSaleQuotaItem[];
+}
+
 export interface TodayDealItem {
   id: string;
   product_id: string;
@@ -101,6 +121,16 @@ export const flashSaleApi = {
       return res.data;
     } catch {
       return { status: "NONE", campaign: null, items: [] };
+    }
+  },
+
+  /** Suất Giờ Vàng còn lại của ca đang chạy và của khách đang đăng nhập. */
+  getQuota: async (): Promise<FlashSaleQuotaResponse> => {
+    try {
+      const res = await apiClient.get<FlashSaleQuotaResponse>("/flash-sales/current/quota");
+      return res.data;
+    } catch {
+      return { status: "NONE", campaignId: null, items: [] };
     }
   },
 
