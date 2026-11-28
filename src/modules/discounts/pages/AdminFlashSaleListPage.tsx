@@ -16,6 +16,7 @@ import {
   Layers,
   ChevronDown,
   ChevronUp,
+  Eye,
 } from "lucide-react";
 import {
   flashSaleApi,
@@ -33,6 +34,7 @@ import { ProductSearchSelect, ProductOption } from "../../../components/ui/Produ
 import { FieldError, FormErrorSummary, invalidClass } from "../../../components/ui/FieldError";
 import { formatDateTimeVN, toLocalMs } from "../../../lib/datetime";
 import { getStockSummaries } from "../../../lib/stock";
+import { getPromoStatus, canTogglePromo, PROMO_STATUS_META, PromoStatus } from "../../../lib/promoStatus";
 import { Card } from "../../../components/ui/Card";
 
 interface ItemRow {
@@ -66,7 +68,10 @@ export function AdminFlashSaleListPage() {
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState("ALL");
+  const [statusFilter, setStatusFilter] = useState<"ALL" | PromoStatus>("ALL");
+  const [sortBy, setSortBy] = useState<"START_DESC" | "START_ASC" | "CREATED_DESC" | "NAME_ASC">("START_DESC");
+  const [pageError, setPageError] = useState<string | null>(null);
+  const [detailCampaign, setDetailCampaign] = useState<FlashSaleCampaign | null>(null);
   const [expandedCampaignId, setExpandedCampaignId] = useState<string | null>(null);
 
   const getTodayDateStr = () => {
@@ -303,10 +308,14 @@ export function AdminFlashSaleListPage() {
     setCollapsedRows(Object.fromEntries(items.map((_, idx) => [idx, collapsed])));
 
   const handleToggle = async (id: string) => {
+    setPageError(null);
     try {
       const updated = await flashSaleApi.toggle(id);
       setCampaigns((prev) => prev.map((c) => (c.id === id ? updated : c)));
-    } catch {
+    } catch (err: any) {
+      // Ví dụ: bật lại ca bị trùng khung giờ với ca khác -> server chặn, phải báo cho admin biết lý do
+      const msg = err?.response?.data?.message;
+      setPageError((Array.isArray(msg) ? msg.join(" ") : msg) || "Không thể bật / tắt ca Giờ Vàng. Vui lòng thử lại.");
       fetchCampaigns();
     }
   };
@@ -462,52 +471,44 @@ export function AdminFlashSaleListPage() {
     }
   };
 
-  const getCampaignStatus = (c: FlashSaleCampaign) => {
-    if (!c.is_active) return { label: "TẠM NGƯNG", color: "bg-muted/15 text-muted border-border" };
-
-    const nowMs = currentTicker;
+  /**
+   * Status theo thời gian thực: Sắp diễn ra / Đang diễn ra / Tạm ngưng / Đã kết thúc.
+   * State (công tắc) chỉ "Bật" khi đang diễn ra; ngoài khung giờ thì công tắc bị khoá.
+   */
+  const getCampaignStatus = (c: FlashSaleCampaign): PromoStatus => {
     const { startMs, endMs } = getCampaignBounds(c);
-
-    if (nowMs >= startMs && nowMs <= endMs) {
-      return { label: "ĐANG DIỄN RA", color: "bg-emerald-100 text-emerald-800 border-emerald-300" };
-    }
-    if (nowMs < startMs) {
-      return { label: "SẮP DIỄN RA", color: "bg-amber-100 text-amber-800 border-amber-300" };
-    }
-    return { label: "ĐÃ KẾT THÚC", color: "bg-surface-soft text-muted border-border" };
+    return getPromoStatus({ isActive: c.is_active, startMs, endMs, nowMs: currentTicker });
   };
 
   const filteredCampaigns = useMemo(() => {
-    return campaigns.filter((c) => {
+    const q = searchQuery.trim().toLowerCase();
+    const list = campaigns.filter((c) => {
       const matchQuery =
-        c.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-        c.items?.some((i) => (i.product_name || "").toLowerCase().includes(searchQuery.toLowerCase()));
-
+        !q ||
+        c.name.toLowerCase().includes(q) ||
+        c.items?.some((i) => (i.product_name || "").toLowerCase().includes(q));
       if (!matchQuery) return false;
-      if (statusFilter === "ALL") return true;
-
-      const st = getCampaignStatus(c).label;
-      if (statusFilter === "ACTIVE") return st === "ĐANG DIỄN RA";
-      if (statusFilter === "UPCOMING") return st === "SẮP DIỄN RA";
-      if (statusFilter === "ENDED") return st === "ĐÃ KẾT THÚC";
-      if (statusFilter === "INACTIVE") return !c.is_active;
-      return true;
+      return statusFilter === "ALL" || getCampaignStatus(c) === statusFilter;
     });
-  }, [campaigns, searchQuery, statusFilter, currentTicker]);
+    const sorted = [...list];
+    sorted.sort((a, b) => {
+      if (sortBy === "NAME_ASC") return a.name.localeCompare(b.name, "vi");
+      if (sortBy === "CREATED_DESC")
+        return new Date(b.created_at || 0).getTime() - new Date(a.created_at || 0).getTime();
+      const diff = getCampaignBounds(a).startMs - getCampaignBounds(b).startMs;
+      return sortBy === "START_ASC" ? diff : -diff;
+    });
+    return sorted;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [campaigns, searchQuery, statusFilter, sortBy, currentTicker]);
 
   const stats = useMemo(() => {
-    let active = 0;
-    let upcoming = 0;
-    let ended = 0;
-    let totalItems = 0;
+    const counts: Record<PromoStatus, number> = { ACTIVE: 0, UPCOMING: 0, PAUSED: 0, SOLD_OUT: 0, ENDED: 0 };
     campaigns.forEach((c) => {
-      const st = getCampaignStatus(c).label;
-      if (st === "ĐANG DIỄN RA") active++;
-      else if (st === "SẮP DIỄN RA") upcoming++;
-      else if (st === "ĐÃ KẾT THÚC") ended++;
-      totalItems += c.items?.length || 0;
+      counts[getCampaignStatus(c)]++;
     });
-    return { total: campaigns.length, active, upcoming, ended, totalItems };
+    return { total: campaigns.length, ...counts };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [campaigns, currentTicker]);
 
   const formatVND = (val: number) => {
@@ -566,7 +567,7 @@ export function AdminFlashSaleListPage() {
           </div>
           <div>
             <div className="text-xs text-muted">Đang diễn ra</div>
-            <div className="text-xl font-black text-emerald-800">{stats.active}</div>
+            <div className="text-xl font-black text-emerald-800">{stats.ACTIVE}</div>
           </div>
         </Card>
 
@@ -576,7 +577,7 @@ export function AdminFlashSaleListPage() {
           </div>
           <div>
             <div className="text-xs text-muted">Sắp diễn ra</div>
-            <div className="text-xl font-black text-amber-800">{stats.upcoming}</div>
+            <div className="text-xl font-black text-amber-800">{stats.UPCOMING}</div>
           </div>
         </Card>
 
@@ -586,17 +587,17 @@ export function AdminFlashSaleListPage() {
           </div>
           <div>
             <div className="text-xs text-muted">Đã kết thúc</div>
-            <div className="text-xl font-black text-muted">{stats.ended}</div>
+            <div className="text-xl font-black text-muted">{stats.ENDED}</div>
           </div>
         </Card>
 
         <Card className="p-4 rounded-2xl bg-surface border-border flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-pastel-mint border border-primary/20 flex items-center justify-center text-primary-dark font-black">
-            <Package className="w-5 h-5" />
+          <div className="w-10 h-10 rounded-xl bg-slate-100 border border-slate-300 flex items-center justify-center text-slate-700 font-black">
+            <ToggleLeft className="w-5 h-5" />
           </div>
           <div>
-            <div className="text-xs text-muted">Món tham gia</div>
-            <div className="text-xl font-black text-foreground">{stats.totalItems}</div>
+            <div className="text-xs text-muted">Tạm ngưng</div>
+            <div className="text-xl font-black text-slate-700">{stats.PAUSED}</div>
           </div>
         </Card>
       </div>
@@ -613,7 +614,18 @@ export function AdminFlashSaleListPage() {
         </div>
 
         <div className="flex flex-wrap gap-2">
-          {["ALL", "ACTIVE", "UPCOMING", "ENDED", "INACTIVE"].map((st) => (
+          <select
+            aria-label="Sắp xếp"
+            value={sortBy}
+            onChange={(e) => setSortBy(e.target.value as typeof sortBy)}
+            className="h-10 rounded-xl border border-border bg-surface px-3 text-xs font-semibold"
+          >
+            <option value="START_DESC">Bắt đầu: mới → cũ</option>
+            <option value="START_ASC">Bắt đầu: cũ → mới</option>
+            <option value="CREATED_DESC">Mới tạo gần đây</option>
+            <option value="NAME_ASC">Tên A → Z</option>
+          </select>
+          {(["ALL", "ACTIVE", "UPCOMING", "PAUSED", "ENDED"] as const).map((st) => (
             <button
               key={st}
               onClick={() => setStatusFilter(st)}
@@ -623,15 +635,21 @@ export function AdminFlashSaleListPage() {
                   : "bg-surface text-muted border-border hover:bg-surface-soft"
               }`}
             >
-              {st === "ALL" && "Tất cả"}
-              {st === "ACTIVE" && "Đang diễn ra"}
-              {st === "UPCOMING" && "Sắp diễn ra"}
-              {st === "ENDED" && "Đã kết thúc"}
-              {st === "INACTIVE" && "Tạm ngưng"}
+              {st === "ALL" ? "Tất cả" : PROMO_STATUS_META[st].label}
             </button>
           ))}
         </div>
       </div>
+
+      {pageError && (
+        <div role="alert" className="p-3.5 rounded-2xl bg-danger-pastel/70 border border-danger/30 text-danger-dark text-xs font-semibold flex items-center gap-2">
+          <AlertCircle className="w-4 h-4 shrink-0" />
+          <span className="flex-1">{pageError}</span>
+          <button type="button" aria-label="Đóng thông báo" onClick={() => setPageError(null)} className="p-1 rounded hover:bg-danger/10">
+            <X className="w-3.5 h-3.5" />
+          </button>
+        </div>
+      )}
 
       <div className="space-y-4">
         {loading ? (
@@ -654,7 +672,10 @@ export function AdminFlashSaleListPage() {
           </div>
         ) : (
           filteredCampaigns.map((camp) => {
-            const statusInfo = getCampaignStatus(camp);
+            const status = getCampaignStatus(camp);
+            const statusInfo = PROMO_STATUS_META[status];
+            const toggleable = canTogglePromo(status);
+            const stateOn = status === "ACTIVE";
             const isExpanded = expandedCampaignId === camp.id;
             const totalQuantity = (camp.items || []).reduce((acc, cur) => acc + (cur.quantity_limit || 0), 0);
             const totalSold = (camp.items || []).reduce((acc, cur) => acc + (cur.sold_count || 0), 0);
@@ -668,7 +689,7 @@ export function AdminFlashSaleListPage() {
                   <div className="space-y-1.5 flex-1 min-w-0">
                     <div className="flex flex-wrap items-center gap-2">
                       <span
-                        className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${statusInfo.color}`}
+                        className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${statusInfo.className}`}
                       >
                         {statusInfo.label}
                       </span>
@@ -679,14 +700,16 @@ export function AdminFlashSaleListPage() {
                           <span className="text-xs text-muted flex items-center gap-1.5 font-semibold">
                             <Calendar className="w-3.5 h-3.5 text-accent" />
                             <span>
-                              {b.sDate} {b.sTime.slice(0, 5)} → {b.eDate} {b.eTime.slice(0, 5)}
+                              {formatDateTimeVN(b.startMs)} → {formatDateTimeVN(b.endMs)}
                             </span>
                           </span>
                         );
                       })()}
                     </div>
 
-                    <h3 className="text-lg font-black text-foreground truncate">{camp.name}</h3>
+                    <h3 className="text-lg font-black text-foreground truncate" title={camp.name}>
+                      {camp.name}
+                    </h3>
 
                     <div className="flex flex-wrap items-center gap-4 text-xs text-muted pt-0.5">
                       <span>
@@ -706,10 +729,21 @@ export function AdminFlashSaleListPage() {
                     <Button
                       variant="ghost"
                       size="sm"
+                      disabled={!toggleable}
                       onClick={() => handleToggle(camp.id)}
-                      className="rounded-xl h-9 text-xs font-semibold gap-1.5"
+                      title={
+                        toggleable
+                          ? stateOn
+                            ? "Tạm ngưng ca đang diễn ra"
+                            : "Bật lại ca đang tạm ngưng"
+                          : status === "UPCOMING"
+                            ? "Ca sẽ tự bật khi tới giờ bắt đầu"
+                            : "Ca đã kết thúc"
+                      }
+                      aria-pressed={stateOn}
+                      className="rounded-xl h-9 text-xs font-semibold gap-1.5 disabled:opacity-60"
                     >
-                      {camp.is_active ? (
+                      {stateOn ? (
                         <>
                           <ToggleRight className="w-5 h-5 text-primary" />
                           <span className="text-primary-dark font-bold">Bật</span>
@@ -720,6 +754,16 @@ export function AdminFlashSaleListPage() {
                           <span className="text-muted">Tắt</span>
                         </>
                       )}
+                    </Button>
+
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => setDetailCampaign(camp)}
+                      className="rounded-xl h-9 text-xs font-semibold gap-1"
+                    >
+                      <Eye className="w-3.5 h-3.5" />
+                      <span>Chi tiết</span>
                     </Button>
 
                     <Button
@@ -768,7 +812,10 @@ export function AdminFlashSaleListPage() {
                         >
                           <div>
                             <div className="flex items-center justify-between gap-2">
-                              <span className="text-xs font-bold text-foreground truncate">
+                              <span
+                                className="text-xs font-bold text-foreground line-clamp-2 break-words"
+                                title={item.product_name || item.product_id}
+                              >
                                 {item.product_name || `Mã: ${item.product_id}`}
                               </span>
                               <span className="px-2 py-0.5 rounded-full bg-danger text-white text-[10px] font-black shrink-0">
@@ -1193,6 +1240,71 @@ export function AdminFlashSaleListPage() {
                 </Button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {detailCampaign && (
+        <div
+          className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs"
+          onMouseDown={(e) => {
+            if (e.target === e.currentTarget) setDetailCampaign(null);
+          }}
+        >
+          <div className="w-full max-w-2xl max-h-[88vh] flex flex-col rounded-3xl bg-surface border border-border shadow-modal overflow-hidden">
+            <div className="p-5 border-b border-border flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <span
+                  className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border uppercase tracking-wider ${PROMO_STATUS_META[getCampaignStatus(detailCampaign)].className}`}
+                >
+                  {PROMO_STATUS_META[getCampaignStatus(detailCampaign)].label}
+                </span>
+                <h3 className="mt-1.5 text-lg font-black text-foreground break-words">{detailCampaign.name}</h3>
+                <p className="text-xs text-muted mt-0.5">
+                  {formatDateTimeVN(getCampaignBounds(detailCampaign).startMs)} →{" "}
+                  {formatDateTimeVN(getCampaignBounds(detailCampaign).endMs)}
+                </p>
+              </div>
+              <button
+                type="button"
+                aria-label="Đóng"
+                onClick={() => setDetailCampaign(null)}
+                className="w-8 h-8 rounded-xl flex items-center justify-center text-muted hover:text-foreground hover:bg-surface-soft shrink-0"
+              >
+                <X className="w-4 h-4" />
+              </button>
+            </div>
+            <div className="p-5 overflow-y-auto">
+              <table className="w-full text-xs">
+                <thead>
+                  <tr className="text-left text-muted border-b border-border">
+                    <th className="py-2 pr-2 font-semibold">Món</th>
+                    <th className="py-2 px-2 font-semibold text-right">Giá gốc</th>
+                    <th className="py-2 px-2 font-semibold text-right">Giá sale</th>
+                    <th className="py-2 px-2 font-semibold text-right">Đã bán / suất</th>
+                    <th className="py-2 pl-2 font-semibold text-right">Tối đa / khách</th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {(detailCampaign.items || []).map((item, idx) => (
+                    <tr key={item.id || idx} className="border-b border-border/60 align-top">
+                      <td className="py-2 pr-2 font-semibold text-foreground break-words">
+                        {item.product_name || item.product_id}
+                        <span className="ml-1.5 px-1.5 py-0.5 rounded-full bg-danger text-white text-[10px] font-black">
+                          {formatFlashSaleDiscount(item)}
+                        </span>
+                      </td>
+                      <td className="py-2 px-2 text-right font-mono text-muted">{formatVND(Number(item.original_price))}</td>
+                      <td className="py-2 px-2 text-right font-mono font-bold text-danger-dark">{formatVND(Number(item.sale_price))}</td>
+                      <td className="py-2 px-2 text-right font-mono">
+                        {item.sold_count || 0} / {item.quantity_limit || 0}
+                      </td>
+                      <td className="py-2 pl-2 text-right font-mono">{item.max_per_user || 0}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
           </div>
         </div>
       )}
