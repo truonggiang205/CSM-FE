@@ -1,4 +1,4 @@
-import React, { useMemo } from "react";
+import React, { useMemo, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
 import { Sparkles, ArrowRight, Flame } from "lucide-react";
 import { Link } from "react-router-dom";
@@ -7,6 +7,8 @@ import { ProductCard } from "../../products/components/ProductCard";
 import { Button } from "../../../components/ui/Button";
 import { mockProducts } from "../../../mocks/products";
 import type { HomeSection } from "../../../api/storefrontApi";
+
+const PREVIEW_COUNT = 4;
 
 interface NewArrivalsSectionProps {
   products: Product[];
@@ -26,8 +28,13 @@ export function NewArrivalsSection({
 }: NewArrivalsSectionProps) {
   const shouldReduceMotion = useReducedMotion();
 
+  const [showAll, setShowAll] = useState(false);
+  const curatedCount = section?.products?.length || 0;
+  const hiddenCount = Math.max(0, curatedCount - PREVIEW_COUNT);
+
   const newProducts = useMemo(() => {
-    if (section?.products?.length) return section.products.slice(0, 4);
+    // Trang chủ hiện 4 món đầu; Admin chọn hơn 4 món thì bấm "Xem tất cả" để mở rộng
+    if (section?.products?.length) return showAll ? section.products : section.products.slice(0, PREVIEW_COUNT);
     const list = [...(products && products.length > 0 ? products : mockProducts)];
     return list
       .sort((a, b) => {
@@ -36,8 +43,8 @@ export function NewArrivalsSection({
         }
         return b.id.localeCompare(a.id);
       })
-      .slice(0, 4);
-  }, [products, section]);
+      .slice(0, PREVIEW_COUNT);
+  }, [products, section, showAll]);
 
   if (newProducts.length === 0) return null;
 
@@ -63,12 +70,24 @@ export function NewArrivalsSection({
             </p>
           </div>
 
-          <Button variant="outline" asChild className="rounded-2xl text-xs sm:text-sm font-semibold shrink-0">
-            <Link to="/products?sort=newest" className="flex items-center gap-1.5">
-              <span>Xem hàng mới về</span>
-              <ArrowRight className="w-4 h-4" />
-            </Link>
-          </Button>
+          {hiddenCount > 0 ? (
+            <Button
+              variant="outline"
+              onClick={() => setShowAll((v) => !v)}
+              className="rounded-2xl text-xs sm:text-sm font-semibold shrink-0 gap-1.5"
+              data-testid="new-arrivals-toggle"
+            >
+              {showAll ? "Thu gọn" : `Xem tất cả (${curatedCount} món)`}
+              <ArrowRight className={`w-4 h-4 transition-transform ${showAll ? "-rotate-90" : "rotate-90"}`} />
+            </Button>
+          ) : (
+            <Button variant="outline" asChild className="rounded-2xl text-xs sm:text-sm font-semibold shrink-0">
+              <Link to="/products?sort=newest" className="flex items-center gap-1.5">
+                <span>Xem hàng mới về</span>
+                <ArrowRight className="w-4 h-4" />
+              </Link>
+            </Button>
+          )}
         </div>
 
         {/* Grid with whileInView scroll reveal */}

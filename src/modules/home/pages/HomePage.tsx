@@ -400,12 +400,14 @@ export function HomePage() {
         </div>
       </section>
 
-      {/* Hero Promo Banner Slider (khoảng cách 24px) */}
-      <section className="pt-2 pb-3 sm:pt-3 sm:pb-4 bg-background">
-        <div className="container mx-auto px-4 md:px-6">
-          <HeroPromoSlider banners={storefront?.banners} />
-        </div>
-      </section>
+      {/* Hero Promo Banner Slider (khoảng cách 24px) - chỉ hiện khi Admin/Manager đã cấu hình banner */}
+      {(storefront?.banners?.length ?? 0) > 0 && (
+        <section className="pt-2 pb-3 sm:pt-3 sm:pb-4 bg-background">
+          <div className="container mx-auto px-4 md:px-6">
+            <HeroPromoSlider banners={storefront?.banners} />
+          </div>
+        </section>
+      )}
 
       {orderedBlocks.map((block) => (
         <React.Fragment key={block.key}>{blockNodes[block.key]}</React.Fragment>

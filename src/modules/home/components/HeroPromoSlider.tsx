@@ -31,7 +31,7 @@ export function mapBannerToHeroItem(banner: Banner, index: number): HeroBannerIt
 }
 
 interface HeroPromoSliderProps {
-  /** Banner đang hiệu lực từ API /storefront/home; rỗng hoặc không truyền thì dùng banner mặc định */
+  /** Banner đang hiệu lực từ API /storefront/home; rỗng hoặc không truyền thì không hiển thị slider */
   banners?: Banner[] | null;
 }
 
@@ -41,8 +41,9 @@ export function HeroPromoSlider({ banners: remoteBanners }: HeroPromoSliderProps
   const shouldReduceMotion = useReducedMotion();
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
+  // Chỉ hiển thị banner thật do Admin/Manager cấu hình; không còn slider mặc định khi chưa có banner nào
   const isRemote = !!remoteBanners && remoteBanners.length > 0;
-  const banners: HeroBannerItem[] = isRemote ? remoteBanners!.map(mapBannerToHeroItem) : mockHeroBanners;
+  const banners: HeroBannerItem[] = isRemote ? remoteBanners!.map(mapBannerToHeroItem) : [];
   // Chỉ đếm lượt bấm cho banner thật từ Backend (banner mẫu không có trong DB)
   const trackClick = () => {
     if (isRemote) storefrontApi.trackBannerClick(currentBanner.id);
@@ -69,6 +70,8 @@ export function HeroPromoSlider({ banners: remoteBanners }: HeroPromoSliderProps
   const handleNext = () => setCurrentIndex((prev) => (prev + 1) % total);
   const handlePrev = () => setCurrentIndex((prev) => (prev - 1 + total) % total);
   const handleDotClick = (index: number) => setCurrentIndex(index);
+
+  if (total === 0) return null;
 
   const currentBanner: HeroBannerItem = banners[currentIndex] || banners[0];
   const isExternalLink = /^https?:\/\//i.test(currentBanner.ctaLink);
