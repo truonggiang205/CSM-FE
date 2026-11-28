@@ -1,5 +1,5 @@
 import { useState, useEffect, useMemo, useRef } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Zap, Clock, ShoppingCart, Flame, RefreshCw, Layers } from "lucide-react";
 import { flashSaleApi, TodayDealsResponse, TodayDealItem, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
@@ -289,9 +289,6 @@ export function DealsPage() {
                   <strong className="text-foreground">{selectedBranch?.name || "chi nhánh hiện tại"}</strong>.
                 </p>
               </div>
-              <Button variant="outline" asChild className="rounded-2xl text-xs font-semibold shrink-0">
-                <Link to="/products">Xem sản phẩm lẻ &rarr;</Link>
-              </Button>
             </div>
           )}
         </div>

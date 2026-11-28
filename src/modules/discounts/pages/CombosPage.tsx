@@ -1,7 +1,6 @@
 import { Link } from "react-router-dom";
-import { Sparkles, ArrowLeft } from "lucide-react";
+import { Sparkles } from "lucide-react";
 import { useBranchStore } from "../../../store/useBranchStore";
-import { Button } from "../../../components/ui/Button";
 import { ComboCatalog } from "../components/ComboCatalog";
 
 export function CombosPage() {
@@ -35,12 +34,6 @@ export function CombosPage() {
               </p>
             </div>
 
-            <Button variant="outline" asChild className="rounded-2xl text-xs font-semibold shrink-0 self-start md:self-auto">
-              <Link to="/products" className="flex items-center gap-1.5">
-                <ArrowLeft className="w-4 h-4" />
-                <span>Xem sản phẩm lẻ</span>
-              </Link>
-            </Button>
           </div>
         </div>
       </div>
