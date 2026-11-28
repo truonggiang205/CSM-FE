@@ -4,7 +4,6 @@ import {
   Package,
   Plus,
   Search,
-  Filter,
   Edit2,
   Trash2,
   Upload,
@@ -14,11 +13,10 @@ import {
   AlertCircle,
   X,
   Tag,
-  DollarSign,
-  Layers,
-  ChevronLeft,
-  ChevronRight,
   ShieldAlert,
+  Eye,
+  PauseCircle,
+  PlayCircle,
 } from "lucide-react";
 import { productApi } from "../../../api/productApi";
 import { Product, Category } from "../../../types/product";
@@ -27,6 +25,13 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Label } from "../../../components/ui/Label";
 import { useAuthStore } from "../../../store/useAuthStore";
+import { ConfirmDialog } from "../../../components/ui/ConfirmDialog";
+import { Pagination, paginate } from "../../../components/ui/Pagination";
+import { ProductSearchSelect } from "../../../components/ui/ProductSearchSelect";
+import { getStockSummaries, StockSummary } from "../../../lib/stock";
+import { formatDateTimeVN } from "../../../lib/datetime";
+
+type StatusFilter = "ALL" | "ACTIVE" | "INACTIVE";
 
 interface ProductFormData {
   name: string;
@@ -75,9 +80,18 @@ export function AdminProductListPage() {
   // Bộ lọc từ URL
   const searchQuery = searchParams.get("search") || "";
   const selectedCategory = searchParams.get("category") || "ALL";
+  const rawStatus = searchParams.get("status");
+  const statusFilter: StatusFilter = rawStatus === "ACTIVE" || rawStatus === "INACTIVE" ? rawStatus : "ALL";
   const pageParam = parseInt(searchParams.get("page") || "1", 10);
   const page = isNaN(pageParam) || pageParam < 1 ? 1 : pageParam;
-  const pageSize = 10;
+  const sizeParam = parseInt(searchParams.get("size") || "10", 10);
+  const pageSize = [5, 10, 20, 50].includes(sizeParam) ? sizeParam : 10;
+
+  // Xem chi tiết, tạm ngưng / mở bán lại
+  const [viewingProduct, setViewingProduct] = useState<Product | null>(null);
+  const [statusTarget, setStatusTarget] = useState<Product | null>(null);
+  const [statusLoading, setStatusLoading] = useState(false);
+  const [stockMap, setStockMap] = useState<Record<string, StockSummary>>({});
 
   // Modal thêm/sửa
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -105,7 +119,12 @@ export function AdminProductListPage() {
 
   const updateSearchParam = (key: string, value: string) => {
     const next = new URLSearchParams(searchParams);
-    if (!value || (key === "category" && value === "ALL") || (key === "page" && value === "1")) {
+    if (
+      !value ||
+      ((key === "category" || key === "status") && value === "ALL") ||
+      (key === "page" && value === "1") ||
+      (key === "size" && value === "10")
+    ) {
       next.delete(key);
     } else {
       next.set(key, value);
@@ -130,7 +149,7 @@ export function AdminProductListPage() {
     setFetchError(null);
     try {
       const [fetchedProducts, fetchedCategories] = await Promise.all([
-        productApi.getProducts({ all: true }),
+        productApi.getProducts({ all: true, includeInactive: true }),
         productApi.getCategories(),
       ]);
       setProducts(fetchedProducts || []);
@@ -186,16 +205,67 @@ export function AdminProductListPage() {
         if (!matchesCat) return false;
       }
 
+      if (statusFilter === "ACTIVE" && p.isActive === false) return false;
+      if (statusFilter === "INACTIVE" && p.isActive !== false) return false;
+
       return true;
     });
-  }, [products, searchQuery, selectedCategory]);
+  }, [products, searchQuery, selectedCategory, statusFilter]);
 
   const totalPages = Math.max(1, Math.ceil(filteredProducts.length / pageSize));
   const currentPage = Math.min(page, totalPages);
-  const paginatedProducts = filteredProducts.slice(
-    (currentPage - 1) * pageSize,
-    currentPage * pageSize
-  );
+  const paginatedProducts = paginate(filteredProducts, currentPage, pageSize);
+
+  const stats = useMemo(() => {
+    const inactive = products.filter((p) => p.isActive === false).length;
+    return { total: products.length, active: products.length - inactive, inactive };
+  }, [products]);
+
+  // Tồn kho của các sản phẩm đang hiển thị (có cache 30 giây ở lib/stock).
+  const pageIdsKey = paginatedProducts.map((p) => p.id).join(",");
+  useEffect(() => {
+    if (!pageIdsKey) return;
+    let cancelled = false;
+    getStockSummaries(pageIdsKey.split(",")).then((res) => {
+      if (!cancelled) setStockMap((prev) => ({ ...prev, ...res }));
+    });
+    return () => {
+      cancelled = true;
+    };
+  }, [pageIdsKey]);
+
+  const renderStock = (productId: string) => {
+    const s = stockMap[productId];
+    if (!s) return <span className="text-muted">...</span>;
+    if (!Number.isFinite(s.totalAvailable)) return <span className="text-muted">Không rõ</span>;
+    if (s.totalAvailable <= 0) return <span className="text-danger-dark font-semibold">Hết hàng</span>;
+    return <span className="font-mono text-foreground">{s.totalAvailable}</span>;
+  };
+
+  const handleConfirmStatus = async () => {
+    if (!statusTarget) return;
+    const nextActive = statusTarget.isActive === false;
+    setStatusLoading(true);
+    try {
+      const updated = await productApi.updateProductStatus(statusTarget.id, nextActive);
+      setProducts((prev) =>
+        prev.map((p) => (p.id === statusTarget.id ? { ...p, ...updated, isActive: nextActive } : p)),
+      );
+      setViewingProduct((v) => (v && v.id === statusTarget.id ? { ...v, isActive: nextActive } : v));
+      showToast(
+        nextActive
+          ? `Đã mở bán lại "${statusTarget.name}".`
+          : `Đã tạm ngưng "${statusTarget.name}". Khách hàng sẽ không thấy và không đặt được sản phẩm này.`,
+        "success",
+      );
+      setStatusTarget(null);
+    } catch (err: any) {
+      const msg = err?.response?.data?.message || err?.message || "Không đổi được trạng thái sản phẩm";
+      showToast(Array.isArray(msg) ? msg.join(", ") : msg, "error");
+    } finally {
+      setStatusLoading(false);
+    }
+  };
 
   // Mở modal thêm mới
   const handleOpenCreateModal = () => {
@@ -477,49 +547,30 @@ export function AdminProductListPage() {
         </div>
       )}
 
-      {/* Thẻ chỉ số tổng quan */}
+      {/* Thẻ chỉ số theo trạng thái — bấm để lọc nhanh */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
-        <Card className="p-4 bg-surface border-border flex items-center gap-3 rounded-2xl shadow-2xs">
-          <div className="w-11 h-11 rounded-xl bg-primary-tint border border-primary/25 flex items-center justify-center text-primary shrink-0">
-            <Package className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-muted font-medium">Tổng sản phẩm</p>
-            <p className="text-xl font-bold text-foreground">
-              {loading ? "..." : products.length}
-            </p>
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-surface border-border flex items-center gap-3 rounded-2xl shadow-2xs">
-          <div className="w-11 h-11 rounded-xl bg-accent-tint border border-accent/25 flex items-center justify-center text-accent-dark shrink-0">
-            <Layers className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-muted font-medium">Danh mục hàng</p>
-            <p className="text-xl font-bold text-foreground">
-              {loading ? "..." : categories.length}
-            </p>
-          </div>
-        </Card>
-
-        <Card className="p-4 bg-surface border-border flex items-center gap-3 rounded-2xl shadow-2xs">
-          <div className="w-11 h-11 rounded-xl bg-info-pastel border border-info/25 flex items-center justify-center text-info-dark shrink-0">
-            <DollarSign className="w-5 h-5" />
-          </div>
-          <div>
-            <p className="text-xs text-muted font-medium">Giá trung bình</p>
-            <p className="text-xl font-bold text-foreground">
-              {loading
-                ? "..."
-                : products.length > 0
-                ? formatPrice(
-                    Math.round(products.reduce((acc, cur) => acc + (cur.price || 0), 0) / products.length)
-                  )
-                : "0 ₫"}
-            </p>
-          </div>
-        </Card>
+        {(
+          [
+            { key: "ALL", label: "Tổng sản phẩm", value: stats.total, icon: <Package className="w-5 h-5" />, tone: "bg-primary-tint text-primary" },
+            { key: "ACTIVE", label: "Đang bán", value: stats.active, icon: <CheckCircle2 className="w-5 h-5" />, tone: "bg-emerald-500/10 text-emerald-600" },
+            { key: "INACTIVE", label: "Tạm ngưng", value: stats.inactive, icon: <PauseCircle className="w-5 h-5" />, tone: "bg-slate-500/10 text-slate-600" },
+          ] as const
+        ).map((c) => (
+          <button
+            key={c.key}
+            type="button"
+            onClick={() => updateSearchParam("status", c.key)}
+            className={`p-4 bg-surface border rounded-2xl flex items-center gap-3 text-left transition-colors ${
+              statusFilter === c.key ? "border-primary ring-1 ring-primary/30" : "border-border hover:border-primary/40"
+            }`}
+          >
+            <span className={`w-11 h-11 rounded-xl flex items-center justify-center shrink-0 ${c.tone}`}>{c.icon}</span>
+            <span>
+              <span className="block text-xs text-muted font-medium">{c.label}</span>
+              <span className="block text-xl font-bold text-foreground">{loading ? "..." : c.value}</span>
+            </span>
+          </button>
+        ))}
       </div>
 
       {/* Thanh công cụ tìm kiếm và lọc */}
@@ -548,26 +599,27 @@ export function AdminProductListPage() {
             )}
           </div>
 
-          <div className="flex items-center gap-2">
-            <div className="relative w-full sm:w-auto">
-              <Filter className="w-4 h-4 text-muted absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" />
-              <select
-                value={selectedCategory}
-                onChange={(e) => updateSearchParam("category", e.target.value)}
-                className="w-full sm:w-auto pl-9 pr-8 py-2.5 rounded-xl bg-surface-soft hover:bg-border/60 border border-border text-foreground text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary/20 cursor-pointer transition-all appearance-none"
-                aria-label="Lọc theo danh mục"
-              >
-                <option value="ALL">Tất cả danh mục</option>
-                {categories.map((cat) => (
-                  <option key={cat.id} value={cat.id}>
-                    {cat.name}
-                  </option>
-                ))}
-              </select>
-              <div className="absolute right-3 top-1/2 -translate-y-1/2 pointer-events-none text-muted text-[10px]">
-                ▼
-              </div>
-            </div>
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-2">
+            <select
+              value={statusFilter}
+              onChange={(e) => updateSearchParam("status", e.target.value)}
+              className="h-9 px-3 rounded-xl bg-surface border border-border text-foreground text-xs font-semibold focus:outline-hidden focus:ring-2 focus:ring-primary/20"
+              aria-label="Lọc theo trạng thái"
+            >
+              <option value="ALL">Tất cả trạng thái</option>
+              <option value="ACTIVE">Đang bán</option>
+              <option value="INACTIVE">Tạm ngưng</option>
+            </select>
+            <ProductSearchSelect
+              className="w-full sm:w-60"
+              options={[{ id: "ALL", name: "Tất cả danh mục" }, ...categories.map((c) => ({ id: c.id, name: c.name }))]}
+              value={selectedCategory}
+              onChange={(opt) => updateSearchParam("category", opt?.id || "ALL")}
+              emptyLabel="Tất cả danh mục"
+              placeholder="Gõ tên danh mục để tìm..."
+              notFoundLabel="Không tìm thấy danh mục phù hợp"
+              clearable={false}
+            />
           </div>
         </div>
 
@@ -597,6 +649,7 @@ export function AdminProductListPage() {
                   <th className="px-4 py-3">Mã SKU</th>
                   <th className="px-4 py-3">Danh mục</th>
                   <th className="px-4 py-3">Giá niêm yết</th>
+                  <th className="px-4 py-3">Tồn kho</th>
                   <th className="px-4 py-3">Trạng thái</th>
                   <th className="px-4 py-3 text-right">Thao tác</th>
                 </tr>
@@ -624,6 +677,9 @@ export function AdminProductListPage() {
                         <div className="h-5 bg-surface-soft rounded w-16" />
                       </td>
                       <td className="px-4 py-3">
+                        <div className="h-5 bg-surface-soft rounded w-10" />
+                      </td>
+                      <td className="px-4 py-3">
                         <div className="h-5 bg-surface-soft rounded-full w-20" />
                       </td>
                       <td className="px-4 py-3 text-right">
@@ -633,13 +689,13 @@ export function AdminProductListPage() {
                   ))
                 ) : filteredProducts.length === 0 ? (
                   <tr>
-                    <td colSpan={6} className="px-4 py-12 text-center text-muted">
+                    <td colSpan={7} className="px-4 py-12 text-center text-muted">
                       <Package className="w-10 h-10 text-muted/60 mx-auto mb-2" />
                       <p className="font-semibold text-foreground">Không tìm thấy sản phẩm nào</p>
                       <p className="text-xs text-muted mt-1">
                         Thử đổi từ khóa tìm kiếm hoặc chọn danh mục khác
                       </p>
-                      {(searchQuery || selectedCategory !== "ALL") && (
+                      {(searchQuery || selectedCategory !== "ALL" || statusFilter !== "ALL") && (
                         <Button
                           variant="outline"
                           size="sm"
@@ -667,35 +723,79 @@ export function AdminProductListPage() {
                                 (e.target as HTMLElement).style.display = "none";
                               }}
                             />
-                            <div className="min-w-0">
-                              <p className="font-semibold text-foreground line-clamp-1">{p.name}</p>
-                              <p className="text-xs text-muted line-clamp-1">
+                            <div className="min-w-0 max-w-[220px]">
+                              <button
+                                type="button"
+                                onClick={() => setViewingProduct(p)}
+                                className="block w-full text-left font-semibold text-foreground truncate hover:text-primary"
+                                title={p.name}
+                              >
+                                {p.name}
+                              </button>
+                              <p className="text-xs text-muted truncate" title={p.description || undefined}>
                                 {p.description || "Chưa có mô tả"}
                               </p>
                             </div>
                           </div>
                         </td>
                         <td className="px-4 py-3 font-mono text-xs text-muted">
-                          <span className="px-2 py-0.5 rounded bg-surface-soft border border-border">
+                          <span
+                            className="inline-block max-w-[140px] truncate align-middle px-2 py-0.5 rounded bg-surface-soft border border-border"
+                            title={p.sku || undefined}
+                          >
                             {p.sku || `SKU-${p.id.slice(0, 6)}`}
                           </span>
                         </td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-tint text-primary-dark border border-primary/20">
-                            <Tag className="w-3 h-3" />
-                            {p.category?.name || "Hàng tổng hợp"}
+                          <span
+                            className="inline-flex items-center gap-1 max-w-[160px] px-2.5 py-0.5 rounded-full text-xs font-medium bg-primary-tint text-primary-dark border border-primary/20"
+                            title={p.category?.name}
+                          >
+                            <Tag className="w-3 h-3 shrink-0" />
+                            <span className="truncate">{p.category?.name || "Hàng tổng hợp"}</span>
                           </span>
                         </td>
                         <td className="px-4 py-3 font-bold text-foreground">
                           {formatPrice(p.price)}
                         </td>
+                        <td className="px-4 py-3 text-xs">{renderStock(p.id)}</td>
                         <td className="px-4 py-3">
-                          <span className="inline-flex items-center gap-1 text-xs text-primary font-semibold">
-                            <CheckCircle2 className="w-3.5 h-3.5" /> Đang bán
-                          </span>
+                          {p.isActive === false ? (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-slate-100 text-slate-700 border border-slate-300 whitespace-nowrap">
+                              <PauseCircle className="w-3.5 h-3.5" /> Tạm ngưng
+                            </span>
+                          ) : (
+                            <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-full text-[11px] font-semibold bg-emerald-100 text-emerald-800 border border-emerald-300 whitespace-nowrap">
+                              <CheckCircle2 className="w-3.5 h-3.5" /> Đang bán
+                            </span>
+                          )}
                         </td>
                         <td className="px-4 py-3 text-right">
                           <div className="flex items-center justify-end gap-1">
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setViewingProduct(p)}
+                              className="h-8 w-8 p-0 text-muted hover:text-foreground rounded-lg"
+                              title="Xem chi tiết"
+                              aria-label={`Xem chi tiết ${p.name}`}
+                            >
+                              <Eye className="w-4 h-4" />
+                            </Button>
+                            <Button
+                              variant="ghost"
+                              size="sm"
+                              onClick={() => setStatusTarget(p)}
+                              className="h-8 w-8 p-0 text-muted hover:text-foreground rounded-lg"
+                              title={p.isActive === false ? "Mở bán lại" : "Tạm ngưng bán"}
+                              aria-label={p.isActive === false ? `Mở bán lại ${p.name}` : `Tạm ngưng ${p.name}`}
+                            >
+                              {p.isActive === false ? (
+                                <PlayCircle className="w-4 h-4 text-emerald-600" />
+                              ) : (
+                                <PauseCircle className="w-4 h-4" />
+                              )}
+                            </Button>
                             <Button
                               variant="ghost"
                               size="sm"
@@ -729,57 +829,14 @@ export function AdminProductListPage() {
 
         {/* Phân trang sản phẩm */}
         {!fetchError && !loading && (
-          <div className="p-4 border-t border-border flex flex-col sm:flex-row items-center justify-between gap-3 text-xs text-muted bg-surface-soft/40 rounded-xl">
-            <div>
-              Trang <b className="text-foreground">{currentPage}</b> / <b className="text-foreground">{totalPages}</b> (Tổng <b className="text-foreground">{filteredProducts.length}</b> sản phẩm)
-            </div>
-            {totalPages > 1 && (
-              <div className="flex items-center gap-1.5">
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage <= 1}
-                  onClick={() => updateSearchParam("page", String(Math.max(1, currentPage - 1)))}
-                  className="rounded-xl h-8 text-xs font-semibold"
-                  aria-label="Trang trước"
-                >
-                  <ChevronLeft className="w-3.5 h-3.5 mr-0.5" /> Trước
-                </Button>
-                <div className="flex items-center gap-1 px-1">
-                  {Array.from({ length: totalPages }, (_, i) => i + 1)
-                    .filter((p) => p === 1 || p === totalPages || Math.abs(p - currentPage) <= 1)
-                    .map((p, idx, arr) => (
-                      <span key={p} className="flex items-center">
-                        {idx > 0 && arr[idx - 1] !== p - 1 && <span className="px-1 text-muted">...</span>}
-                        <button
-                          type="button"
-                          onClick={() => updateSearchParam("page", String(p))}
-                          className={`w-7 h-7 rounded-lg text-xs font-bold transition-all cursor-pointer ${
-                            currentPage === p
-                              ? "bg-primary text-white shadow-2xs"
-                              : "text-muted hover:text-foreground hover:bg-surface"
-                          }`}
-                          aria-label={`Tới trang ${p}`}
-                          aria-current={currentPage === p ? "page" : undefined}
-                        >
-                          {p}
-                        </button>
-                      </span>
-                    ))}
-                </div>
-                <Button
-                  variant="outline"
-                  size="sm"
-                  disabled={currentPage >= totalPages}
-                  onClick={() => updateSearchParam("page", String(Math.min(totalPages, currentPage + 1)))}
-                  className="rounded-xl h-8 text-xs font-semibold"
-                  aria-label="Trang sau"
-                >
-                  Sau <ChevronRight className="w-3.5 h-3.5 ml-0.5" />
-                </Button>
-              </div>
-            )}
-          </div>
+          <Pagination
+            page={currentPage}
+            pageSize={pageSize}
+            total={filteredProducts.length}
+            onPageChange={(p) => updateSearchParam("page", String(p))}
+            onPageSizeChange={(size) => updateSearchParam("size", String(size))}
+            unit="sản phẩm"
+          />
         )}
       </Card>
 
@@ -1021,6 +1078,76 @@ export function AdminProductListPage() {
           </div>
         </div>
       )}
+
+      {/* Xem chi tiết sản phẩm — hiển thị đầy đủ các trường đã rút gọn ở bảng */}
+      {viewingProduct && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs animate-fade-in">
+          <div className="w-full max-w-lg bg-surface border border-border rounded-3xl shadow-2xl p-6 space-y-4 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-start justify-between gap-3 border-b border-border pb-3">
+              <h2 className="text-lg font-bold text-foreground break-words min-w-0">{viewingProduct.name}</h2>
+              <button
+                type="button"
+                onClick={() => setViewingProduct(null)}
+                className="p-1.5 rounded-xl text-muted hover:text-foreground hover:bg-surface-soft shrink-0"
+                aria-label="Đóng"
+              >
+                <X className="w-5 h-5" />
+              </button>
+            </div>
+            <img
+              src={resolveImageUrl(viewingProduct.images?.[0])}
+              alt={viewingProduct.name}
+              className="w-full max-h-60 object-contain rounded-2xl border border-border bg-surface-soft"
+            />
+            <dl className="grid grid-cols-[120px_1fr] gap-x-3 gap-y-2 text-sm">
+              <dt className="text-muted">Mã SKU</dt>
+              <dd className="font-mono break-all">{viewingProduct.sku || "—"}</dd>
+              <dt className="text-muted">Danh mục</dt>
+              <dd className="break-words">{viewingProduct.category?.name || "Hàng tổng hợp"}</dd>
+              <dt className="text-muted">Giá niêm yết</dt>
+              <dd className="font-bold">{formatPrice(viewingProduct.price)}</dd>
+              <dt className="text-muted">Tồn kho</dt>
+              <dd>{renderStock(viewingProduct.id)}</dd>
+              <dt className="text-muted">Trạng thái</dt>
+              <dd>{viewingProduct.isActive === false ? "Tạm ngưng" : "Đang bán"}</dd>
+              <dt className="text-muted">Ngày tạo</dt>
+              <dd>{formatDateTimeVN(viewingProduct.createdAt)}</dd>
+              <dt className="text-muted">Mô tả</dt>
+              <dd className="whitespace-pre-line break-words">{viewingProduct.description || "Chưa có mô tả"}</dd>
+            </dl>
+            <div className="flex justify-end gap-2 pt-3 border-t border-border">
+              <Button variant="outline" className="rounded-xl text-xs" onClick={() => setStatusTarget(viewingProduct)}>
+                {viewingProduct.isActive === false ? "Mở bán lại" : "Tạm ngưng bán"}
+              </Button>
+              <Button
+                className="rounded-xl text-xs"
+                onClick={() => {
+                  const p = viewingProduct;
+                  setViewingProduct(null);
+                  handleOpenEditModal(p);
+                }}
+              >
+                Chỉnh sửa
+              </Button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      <ConfirmDialog
+        open={!!statusTarget}
+        tone={statusTarget?.isActive === false ? "default" : "warning"}
+        title={statusTarget?.isActive === false ? `Mở bán lại "${statusTarget?.name}"?` : `Tạm ngưng bán "${statusTarget?.name}"?`}
+        description={
+          statusTarget?.isActive === false
+            ? "Sản phẩm sẽ hiện lại ở cửa hàng và khách hàng đặt mua được."
+            : "Sản phẩm sẽ bị ẩn khỏi cửa hàng và khách hàng không đặt mua được cho tới khi mở bán lại. Tồn kho vẫn được giữ nguyên."
+        }
+        confirmLabel={statusTarget?.isActive === false ? "Mở bán lại" : "Tạm ngưng"}
+        loading={statusLoading}
+        onConfirm={handleConfirmStatus}
+        onCancel={() => setStatusTarget(null)}
+      />
     </div>
   );
 }

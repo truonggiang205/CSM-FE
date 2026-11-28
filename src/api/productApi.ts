@@ -6,6 +6,8 @@ export interface GetProductsOptions {
   page?: number;
   limit?: number;
   all?: boolean;
+  /** Chỉ ADMIN: lấy cả sản phẩm đang Tạm ngưng. */
+  includeInactive?: boolean;
 }
 
 export const productApi = {
@@ -18,15 +20,18 @@ export const productApi = {
         !("queryKey" in optionsOrContext) &&
         (typeof optionsOrContext.page === "number" ||
           typeof optionsOrContext.limit === "number" ||
-          typeof optionsOrContext.all === "boolean");
+          typeof optionsOrContext.all === "boolean" ||
+          typeof optionsOrContext.includeInactive === "boolean");
 
       const options: GetProductsOptions | undefined = isExplicitOptions ? optionsOrContext : undefined;
+      const extraParams = options?.includeInactive ? { includeInactive: "true" } : {};
 
       if (options && options.all === false && (options.page || options.limit)) {
         const response = await apiClient.get<any>("/products", {
           params: {
             page: options.page || 1,
             limit: options.limit || 10,
+            ...extraParams,
           },
         });
         return mapBackendProductsToFrontend(response.data);
@@ -34,7 +39,7 @@ export const productApi = {
 
       const initialLimit = 100;
       const firstRes = await apiClient.get<any>("/products", {
-        params: { page: 1, limit: initialLimit },
+        params: { page: 1, limit: initialLimit, ...extraParams },
       });
 
       const firstPageProducts = mapBackendProductsToFrontend(firstRes.data);
@@ -52,7 +57,7 @@ export const productApi = {
         for (let page = 2; page <= totalPages; page++) {
           remainingPromises.push(
             apiClient.get<any>("/products", {
-              params: { page, limit: initialLimit },
+              params: { page, limit: initialLimit, ...extraParams },
             })
           );
         }
@@ -146,6 +151,12 @@ export const productApi = {
     }>
   ): Promise<Product> => {
     const response = await apiClient.put<any>(`/products/${id}`, data);
+    return mapBackendProductToFrontend(response.data);
+  },
+
+  // Đổi trạng thái bán: Đang bán (true) / Tạm ngưng (false)
+  updateProductStatus: async (id: string, isActive: boolean): Promise<Product> => {
+    const response = await apiClient.patch<any>(`/products/${id}/status`, { is_active: isActive });
     return mapBackendProductToFrontend(response.data);
   },
 

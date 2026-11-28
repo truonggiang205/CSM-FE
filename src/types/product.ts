@@ -43,4 +43,6 @@ export interface Product {
   flashSaleMeta?: ProductFlashSaleMeta;
   isFeatured?: boolean;
   curatorNote?: string;
+  /** Đang bán (true) / Tạm ngưng (false). Mặc định Đang bán khi BE chưa trả trường này. */
+  isActive?: boolean;
 }
