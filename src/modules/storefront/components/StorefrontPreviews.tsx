@@ -559,7 +559,7 @@ export function SectionLivePreview({ type, title, subtitle, items, enabled }: Se
       </MiniBrowser>
       <p className="text-[10px] text-muted">
         Hiển thị {Math.min(items.length, meta.max)}/{meta.max} món. Muốn đổi vị trí khối này trên trang chủ, vào tab "Bố cục trang chủ".
-        {items.length > meta.max && ` ${items.length - meta.max} món cuối sẽ không hiện.`}
+        {items.length > meta.max && ` ${items.length - meta.max} món còn lại hiện khi khách bấm "Xem tất cả".`}
       </p>
     </div>
   );

@@ -27,7 +27,7 @@ type Tab = "banners" | "sections" | "announcements" | "layout";
 
 const TABS: { key: Tab; label: string; hint: string; icon: React.ComponentType<{ className?: string }> }[] = [
   { key: "banners", label: "Banner", hint: "Slider, trang sản phẩm, giỏ hàng, popup", icon: ImageIcon },
-  { key: "sections", label: "Sản phẩm nổi bật", hint: "Giờ vàng, CSM Picks, Mới lên kệ", icon: LayoutGrid },
+  { key: "sections", label: "Khối sản phẩm trang chủ", hint: "Giờ vàng, CSM Picks, Mới lên kệ", icon: LayoutGrid },
   { key: "announcements", label: "Thanh thông báo", hint: "Dòng chữ chạy trên cùng", icon: Megaphone },
   { key: "layout", label: "Bố cục trang chủ", hint: "Thứ tự và ẩn/hiện các khối", icon: Rows3 },
 ];
@@ -120,7 +120,7 @@ export function AdminStorefrontPage() {
         <div>
           <h1 className="text-2xl font-bold tracking-tight text-foreground">Giao diện trang chủ</h1>
           <p className="text-muted text-xs sm:text-sm mt-0.5 max-w-2xl">
-            Tùy chỉnh những gì khách nhìn thấy trên web: banner, thanh thông báo, sản phẩm nổi bật và thứ tự các khối.
+            Tùy chỉnh những gì khách nhìn thấy trên web: banner, thanh thông báo, các khối sản phẩm trang chủ và thứ tự các khối.
           </p>
         </div>
         <Link

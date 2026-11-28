@@ -297,8 +297,8 @@ export function DealsPage() {
         </div>
       </div>
 
-      {/* Tab Content Body */}
-      <div className="container mx-auto px-4 md:px-6 max-w-6xl mt-8">
+      {/* Tab Content Body: tab combo dùng cùng độ rộng khung với khối Combo ở trang chủ để thẻ combo có cùng kích thước */}
+      <div className={`container mx-auto px-4 md:px-6 mt-8 ${activeTab === "combo" ? "" : "max-w-6xl"}`}>
         {activeTab === "flash-sale" ? (
           loading ? (
             <div className="p-16 text-center text-muted font-medium bg-surface rounded-3xl border border-border">

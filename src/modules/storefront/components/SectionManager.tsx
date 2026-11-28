@@ -275,6 +275,11 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
             <label className="text-xs font-semibold text-foreground">Kết thúc</label>
             <Input type="datetime-local" value={draft.end_at} onChange={(e) => setDraft({ ...draft, end_at: e.target.value })} />
           </div>
+          <p className="sm:col-span-2 text-[11px] text-muted leading-relaxed" data-testid="section-schedule-hint">
+            Để trống = hiển thị ngay và không hết hạn. Trước thời gian bắt đầu khối ở trạng thái <b>Sắp diễn ra</b>; sau thời gian
+            kết thúc khối <b>Hết hạn</b>. Khi khối chưa/không còn hiệu lực, trang chủ tự dùng khối của toàn chuỗi (nếu có),
+            nếu không sẽ tự gợi ý sản phẩm mặc định.
+          </p>
         </div>
 
         <label className="flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer">
@@ -323,7 +328,7 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
           <div className="flex items-center justify-between">
             <label className="text-xs font-semibold text-foreground">
               Sản phẩm đã chọn ({draft.items.length}){" "}
-              <span className="text-muted font-normal">· trang chủ hiển thị tối đa {meta.max} món đầu</span>
+              <span className="text-muted font-normal">· trang chủ hiện {meta.max} món đầu, các món còn lại khách xem qua nút "Xem tất cả"</span>
             </label>
           </div>
 
@@ -377,7 +382,7 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
                       <p className="text-xs font-semibold text-foreground truncate">{item.product.name}</p>
                       <p className="text-[11px] text-muted">
                         {formatCurrency(item.product.discountPrice || item.product.price)}
-                        {index >= meta.max && " · không hiển thị (vượt số món tối đa)"}
+                        {index >= meta.max && " · hiện khi khách bấm \"Xem tất cả\""}
                       </p>
                     </div>
                   </div>

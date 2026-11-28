@@ -1,6 +1,6 @@
-import React, { useEffect } from "react";
+import React, { useEffect, useState } from "react";
 import { motion, useReducedMotion } from "framer-motion";
-import { ShoppingBag, Sparkles, Heart, Award } from "lucide-react";
+import { ShoppingBag, Sparkles, Heart, Award, ChevronDown, ChevronUp } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Product } from "../../../types/product";
 import { useCartStore } from "../../../store/useCartStore";
@@ -12,6 +12,8 @@ import { Button } from "../../../components/ui/Button";
 import { mockCsmPickMetadata } from "../homeData";
 import { mockProducts } from "../../../mocks/products";
 import type { HomeSection } from "../../../api/storefrontApi";
+
+const PREVIEW_COUNT = 4;
 
 interface CsmPicksSectionProps {
   products: Product[];
@@ -27,6 +29,7 @@ export function CsmPicksSection({ products, stockMap, branchName, section }: Csm
   const { productIds: wishlistIds, toggle: toggleWishlist, syncFromServer, synced } = useWishlistStore();
   const { isAuthenticated } = useAuthStore();
   const shouldReduceMotion = useReducedMotion();
+  const [showAll, setShowAll] = useState(false);
 
   useEffect(() => {
     if (isAuthenticated && !synced) {
@@ -52,7 +55,10 @@ export function CsmPicksSection({ products, stockMap, branchName, section }: Csm
     );
   });
   const productSource = foodAndDrink.length > 0 ? foodAndDrink : rawSource;
-  const curated = section?.products?.length ? section.products.slice(0, 4) : null;
+  // Trang chủ hiện 4 món đầu; khi Admin chọn nhiều hơn 4 món thì có nút "Xem tất cả" để mở rộng
+  const curatedAll = section?.products?.length ? section.products : null;
+  const curated = curatedAll ? (showAll ? curatedAll : curatedAll.slice(0, PREVIEW_COUNT)) : null;
+  const hiddenCount = curatedAll ? Math.max(0, curatedAll.length - PREVIEW_COUNT) : 0;
   const curatedNotes = new Map((curated || []).map((p) => [p.id, p.note || ""]));
   const pickIds = curated ? [] : ["p2", "p4", "p5", "p3"];
   const pickedProducts: Product[] = curated ? [...curated] : [];
@@ -231,6 +237,27 @@ export function CsmPicksSection({ products, stockMap, branchName, section }: Csm
             );
           })}
         </div>
+
+        {hiddenCount > 0 && (
+          <div className="mt-8 flex justify-center">
+            <Button
+              variant="outline"
+              onClick={() => setShowAll((v) => !v)}
+              className="rounded-2xl text-xs sm:text-sm font-semibold gap-1.5"
+              data-testid="csm-picks-toggle"
+            >
+              {showAll ? (
+                <>
+                  Thu gọn <ChevronUp className="w-4 h-4" />
+                </>
+              ) : (
+                <>
+                  Xem tất cả ({curatedAll!.length} món) <ChevronDown className="w-4 h-4" />
+                </>
+              )}
+            </Button>
+          </div>
+        )}
       </div>
     </section>
   );

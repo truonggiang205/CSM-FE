@@ -21,6 +21,7 @@ import { productApi } from "../../../api/productApi";
 import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
+import { PromoBannerStrip } from "../../../components/storefront/PromoBannerStrip";
 import { AnimatedNumber } from "../../../components/ui/AnimatedNumber";
 import { getCartRecommendations } from "../utils/cartRecommendations";
 
@@ -196,6 +197,8 @@ export function CartDrawer() {
 
             {/* Content List */}
             <div className="flex-1 overflow-y-auto p-4 space-y-4">
+              {/* Banner vị trí "Trang giỏ hàng" cũng hiện trong ngăn giỏ hàng nhanh */}
+              <PromoBannerStrip placement="CART" compact />
               {items.length === 0 ? (
                 /* Empty Cart State */
                 <div className="h-full flex flex-col items-center justify-center text-muted py-14 text-center px-4">

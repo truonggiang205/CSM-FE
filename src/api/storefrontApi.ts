@@ -12,12 +12,12 @@ export const HOME_SECTION_META: Record<HomeSectionType, { label: string; descrip
   },
   CSM_PICKS: {
     label: "CSM Picks",
-    description: "4 món do cửa hàng chọn, có lời giới thiệu riêng cho từng món.",
+    description: "Món do cửa hàng chọn, có lời giới thiệu riêng. Trang chủ hiện 4 món đầu, còn lại xem qua \"Xem tất cả\".",
     max: 4,
   },
   NEW_ARRIVALS: {
     label: "Mới lên kệ",
-    description: "4 sản phẩm mới về được làm nổi bật.",
+    description: "Sản phẩm mới về. Trang chủ hiện 4 món đầu, còn lại xem qua \"Xem tất cả\".",
     max: 4,
   },
 };
@@ -28,8 +28,8 @@ export type BannerPlacement = "HOME_HERO" | "PRODUCTS_TOP" | "CART" | "POPUP";
 
 export const BANNER_PLACEMENT_META: Record<BannerPlacement, { label: string; description: string }> = {
   HOME_HERO: { label: "Slider trang chủ", description: "Slider lớn ở đầu trang chủ, tự chuyển mỗi 5 giây." },
-  PRODUCTS_TOP: { label: "Đầu trang sản phẩm", description: "Dải banner ngang phía trên danh sách Tất cả sản phẩm." },
-  CART: { label: "Trang giỏ hàng", description: "Banner gợi ý mua thêm hiển thị trong trang Giỏ hàng." },
+  PRODUCTS_TOP: { label: "Trang tất cả sản phẩm", description: "Dải banner ngang phía trên danh sách Tất cả sản phẩm, có nút qua lại khi có nhiều banner." },
+  CART: { label: "Trang giỏ hàng", description: "Banner gợi ý mua thêm hiển thị trong trang Giỏ hàng và ngăn giỏ hàng nhanh." },
   POPUP: {
     label: "Popup khuyến mãi",
     description: "Hiện một lần mỗi ngày khi khách vào web. Chỉ banner đầu tiên đang hiệu lực được dùng.",
@@ -122,12 +122,12 @@ export interface HomeLayoutBlock {
 export const HOME_BLOCK_META: Record<HomeBlockKey, { label: string; description: string }> = {
   QUICK_MEAL: { label: "Bữa ăn nhanh & combo", description: "Khối giới thiệu combo bữa ăn kèm banner xoay." },
   FLASH_SALE: { label: "Giờ vàng giảm giá", description: "Flash Sale có đồng hồ đếm ngược." },
-  CSM_PICKS: { label: "CSM Picks", description: "4 món cửa hàng chọn lọc." },
+  CSM_PICKS: { label: "CSM Picks", description: "Món cửa hàng chọn lọc (hiện 4 món, có \"Xem tất cả\")." },
   NEW_ARRIVALS: { label: "Mới lên kệ", description: "Sản phẩm mới về." },
   COMBO: { label: "Combo tiết kiệm", description: "Combo 3 món, giá gốc và giá combo." },
   SPIN_WHEEL: { label: "Vòng quay may mắn", description: "Quay thưởng mỗi ngày 1 lượt." },
   CATEGORIES: { label: "Danh mục", description: "Lối tắt theo danh mục sản phẩm." },
-  FEATURED_PRODUCTS: { label: "Sản phẩm tại chi nhánh", description: "Lưới sản phẩm kèm tồn kho chi nhánh." },
+  FEATURED_PRODUCTS: { label: "Sản phẩm tươi mới trong ngày", description: "Lưới sản phẩm sẵn có tại chi nhánh đang chọn, kèm tồn kho." },
   WHY_CHOOSE_US: { label: "Vì sao chọn CSM", description: "4 cam kết dịch vụ." },
   TESTIMONIALS: { label: "Đánh giá khách hàng", description: "Nhận xét của khách." },
 };
