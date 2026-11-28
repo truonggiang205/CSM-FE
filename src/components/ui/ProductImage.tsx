@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { ShoppingBag } from "lucide-react";
+import { resolveAssetUrl } from "../../lib/assetUrl";
 
 export interface ProductImageProps {
   src?: string | null;
@@ -53,7 +54,7 @@ export function ProductImage({
 
   return (
     <img
-      src={src}
+      src={resolveAssetUrl(src)}
       alt={alt || productName}
       loading={loading}
       decoding="async"

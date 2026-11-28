@@ -4,6 +4,7 @@ import { Combo } from "../../../api/comboApi";
 import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
+import { resolveAssetUrl } from "../../../lib/assetUrl";
 
 interface ComboCardProps {
   combo: Combo;
@@ -124,7 +125,7 @@ export function ComboCard({
         <div className="relative py-5 my-2 bg-gradient-to-b from-surface-soft/60 via-primary-tint/20 to-surface-soft/60 rounded-3xl border border-border/60 p-4">
           <div className="w-14 h-14 rounded-2xl bg-white shadow-md border-2 border-primary/30 mx-auto flex flex-col items-center justify-center text-primary relative z-10 overflow-hidden">
             {combo.image_url ? (
-              <img src={combo.image_url} alt={combo.name} className="w-full h-full object-cover" />
+              <img src={resolveAssetUrl(combo.image_url)} alt={combo.name} className="w-full h-full object-cover" />
             ) : (
               <>
                 <Package className="w-6 h-6 stroke-[2.2]" />

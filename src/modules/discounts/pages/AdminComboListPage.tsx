@@ -14,6 +14,8 @@ import {
   Sparkles,
   ShoppingCart,
   Calendar,
+  Upload,
+  Image as ImageIcon,
 } from "lucide-react";
 import { comboApi, Combo, CreateComboPayload } from "../../../api/comboApi";
 import { productApi } from "../../../api/productApi";
@@ -22,6 +24,12 @@ import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { Card } from "../../../components/ui/Card";
 import { ProductImage } from "../../../components/ui/ProductImage";
+import { ProductSearchSelect } from "../../../components/ui/ProductSearchSelect";
+import { storefrontApi } from "../../../api/storefrontApi";
+import { resolveAssetUrl } from "../../../lib/assetUrl";
+
+const MAX_IMAGE_SIZE_BYTES = 2 * 1024 * 1024; // 2MB
+const ALLOWED_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
 
 interface ComboItemRow {
   product_id: string;
@@ -52,6 +60,42 @@ export function AdminComboListPage() {
   const [formError, setFormError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
   const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
+  // Ảnh tải từ máy: giữ file + ảnh xem trước, chỉ tải lên khi bấm lưu
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [imageError, setImageError] = useState<string | null>(null);
+  const fileInputRef = React.useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview && imagePreview.startsWith("blob:")) URL.revokeObjectURL(imagePreview);
+    };
+  }, [imagePreview]);
+
+  const resetImagePicker = () => {
+    setImageFile(null);
+    setImagePreview(null);
+    setImageError(null);
+    if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleImageFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (!ALLOWED_IMAGE_TYPES.includes((file.type || "").toLowerCase())) {
+      setImageError("Chỉ chấp nhận ảnh định dạng JPG, PNG hoặc WEBP.");
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_IMAGE_SIZE_BYTES) {
+      setImageError(`Ảnh vượt quá 2MB (tệp hiện tại: ${(file.size / 1024 / 1024).toFixed(2)}MB). Vui lòng chọn ảnh nhỏ hơn.`);
+      e.target.value = "";
+      return;
+    }
+    setImageError(null);
+    setImageFile(file);
+    setImagePreview(URL.createObjectURL(file));
+  };
 
   const fetchCombos = async () => {
     setLoading(true);
@@ -94,6 +138,7 @@ export function AdminComboListPage() {
     setIsActive(true);
     setItems([]);
     setFormError(null);
+    resetImagePicker();
     setIsModalOpen(true);
   };
 
@@ -117,41 +162,41 @@ export function AdminComboListPage() {
       }))
     );
     setFormError(null);
+    resetImagePicker();
     setIsModalOpen(true);
   };
 
+  // Thêm một dòng trống để người dùng tự tìm và chọn món (không tự gán món có sẵn)
   const handleAddItemRow = () => {
-    if (availableProducts.length === 0) return;
-    const unused = availableProducts.find((p) => !items.some((i) => i.product_id === p.id)) || availableProducts[0];
     setItems((prev) => [
       ...prev,
-      {
-        product_id: unused.id,
-        product_name: unused.name,
-        product_image: unused.images?.[0],
-        original_price: Number(unused.price) || 0,
-        quantity: 1,
-      },
+      { product_id: "", product_name: "", product_image: undefined, original_price: 0, quantity: 1 },
     ]);
   };
 
-  const handleSelectProduct = (idx: number, productId: string) => {
-    const prod = availableProducts.find((p) => p.id === productId);
-    if (!prod) return;
+  const handleSelectProduct = (idx: number, productId: string | null) => {
+    const prod = productId ? availableProducts.find((p) => p.id === productId) : null;
     setItems((prev) =>
       prev.map((row, i) =>
         i === idx
-          ? {
-              ...row,
-              product_id: prod.id,
-              product_name: prod.name,
-              product_image: prod.images?.[0],
-              original_price: Number(prod.price) || 0,
-            }
+          ? prod
+            ? {
+                ...row,
+                product_id: prod.id,
+                product_name: prod.name,
+                product_image: prod.images?.[0],
+                original_price: Number(prod.price) || 0,
+              }
+            : { ...row, product_id: "", product_name: "", product_image: undefined, original_price: 0 }
           : row
       )
     );
   };
+
+  const productOptions = useMemo(
+    () => availableProducts.map((p) => ({ id: p.id, name: p.name, sku: p.sku, price: Number(p.price) || 0 })),
+    [availableProducts],
+  );
 
   const handleQuantityChange = (idx: number, qty: number) => {
     setItems((prev) =>
@@ -181,6 +226,11 @@ export function AdminComboListPage() {
       return;
     }
 
+    if (items.some((i) => !i.product_id)) {
+      setFormError("Còn dòng món chưa chọn sản phẩm. Hãy chọn sản phẩm hoặc xoá dòng đó.");
+      return;
+    }
+
     const totalQty = items.reduce((sum, i) => sum + i.quantity, 0);
     if (items.length === 0 || totalQty < 2) {
       setFormError("Combo cần có tổng số lượng từ 2 sản phẩm trở lên.");
@@ -202,10 +252,23 @@ export function AdminComboListPage() {
       return;
     }
 
+    let finalImageUrl = imageUrl.trim();
+    if (imageFile) {
+      try {
+        setSubmitting(true);
+        finalImageUrl = await storefrontApi.uploadImage(imageFile);
+      } catch (err: any) {
+        const msg = err?.response?.data?.message || err?.message || "Tải ảnh combo thất bại";
+        setImageError(Array.isArray(msg) ? msg.join(", ") : msg);
+        setSubmitting(false);
+        return;
+      }
+    }
+
     const payload: CreateComboPayload = {
       name: name.trim(),
       description: description.trim() || undefined,
-      image_url: imageUrl.trim() || undefined,
+      image_url: finalImageUrl || undefined,
       combo_price: Number(comboPrice),
       original_price: calculatedOriginalTotal,
       start_date: startDate ? new Date(startDate).toISOString() : null,
@@ -514,13 +577,55 @@ export function AdminComboListPage() {
                         className="rounded-xl bg-surface text-xs"
                       />
                     </div>
-                    <div>
-                      <label className="text-xs font-bold text-foreground block mb-1">
-                        Ảnh đại diện Combo (URL - tuỳ chọn)
+                    <div className="space-y-2">
+                      <label className="text-xs font-bold text-foreground flex items-center gap-1.5">
+                        <ImageIcon className="w-3.5 h-3.5 text-primary" /> Ảnh đại diện Combo (tuỳ chọn)
                       </label>
+                      <div className="flex items-center gap-3">
+                        <div className="w-16 h-16 rounded-xl border border-border bg-surface overflow-hidden flex items-center justify-center shrink-0">
+                          {imagePreview || imageUrl.trim() ? (
+                            <img
+                              src={imagePreview || resolveAssetUrl(imageUrl.trim())}
+                              alt="Ảnh combo"
+                              className="w-full h-full object-cover"
+                            />
+                          ) : (
+                            <Package className="w-6 h-6 text-muted" />
+                          )}
+                        </div>
+                        <div className="flex flex-wrap items-center gap-2">
+                          <label className="inline-flex items-center gap-1.5 px-3 py-2 rounded-xl border border-dashed border-border bg-surface hover:bg-surface-soft cursor-pointer text-xs font-semibold">
+                            <Upload className="w-3.5 h-3.5 text-primary" />
+                            <span>Chọn ảnh từ máy (JPG, PNG, WEBP ≤ 2MB)</span>
+                            <input
+                              ref={fileInputRef}
+                              type="file"
+                              accept="image/png, image/jpeg, image/webp"
+                              className="hidden"
+                              onChange={handleImageFileChange}
+                            />
+                          </label>
+                          {imageFile && (
+                            <button
+                              type="button"
+                              onClick={resetImagePicker}
+                              className="text-xs text-muted hover:text-danger"
+                            >
+                              Bỏ ảnh đã chọn
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                      {imageFile && (
+                        <p className="text-[11px] text-muted truncate">
+                          {imageFile.name} ({(imageFile.size / 1024).toFixed(0)} KB) — sẽ tải lên khi lưu combo
+                        </p>
+                      )}
+                      {imageError && <p className="text-[11px] font-semibold text-danger-dark">{imageError}</p>}
                       <Input
-                        placeholder="Để trống để tự ghép ảnh các món thành phần"
+                        placeholder="Hoặc dán URL ảnh. Để trống để tự ghép ảnh các món thành phần"
                         value={imageUrl}
+                        disabled={!!imageFile}
                         onChange={(e) => setImageUrl(e.target.value)}
                         className="rounded-xl bg-surface text-xs"
                       />
@@ -547,7 +652,7 @@ export function AdminComboListPage() {
 
                     {items.length === 0 ? (
                       <div className="text-center py-4 text-xs text-muted border border-dashed border-border rounded-xl">
-                        Chưa có món nào. Bấm "+ Thêm món vào Combo" để chọn sản phẩm.
+                        Chưa có món nào. Bấm "Thêm món vào Combo" rồi gõ tên hoặc mã SKU để tìm sản phẩm.
                       </div>
                     ) : (
                       <div className="space-y-2.5">
@@ -556,17 +661,14 @@ export function AdminComboListPage() {
                             key={idx}
                             className="flex flex-wrap sm:flex-nowrap items-center gap-2 p-2.5 rounded-xl bg-surface border border-border/80"
                           >
-                            <select
+                            <ProductSearchSelect
+                              className="flex-1 min-w-[180px]"
+                              options={productOptions}
                               value={row.product_id}
-                              onChange={(e) => handleSelectProduct(idx, e.target.value)}
-                              className="flex-1 min-w-[160px] h-9 rounded-lg border border-border bg-surface px-2.5 text-xs font-semibold text-foreground"
-                            >
-                              {availableProducts.map((p) => (
-                                <option key={p.id} value={p.id}>
-                                  {p.name} ({formatVND(p.price)})
-                                </option>
-                              ))}
-                            </select>
+                              onChange={(opt) => handleSelectProduct(idx, opt?.id ?? null)}
+                              excludeIds={items.filter((_, i) => i !== idx).map((i) => i.product_id).filter(Boolean)}
+                              showPrice
+                            />
 
                             <div className="flex items-center gap-1.5">
                               <span className="text-[11px] text-muted font-semibold">SL:</span>
