@@ -19,6 +19,7 @@ import { flashSaleApi, formatFlashSaleDiscount } from "../../../api/flashSaleApi
 import { useAuthStore } from "../../../store/useAuthStore";
 import { SectionLivePreview } from "./StorefrontPreviews";
 import { getErrorMessage, toLocalInput, fromLocalInput, getLiveStatus, LIVE_STATUS_STYLE } from "../utils";
+import { formatDateTimeVN } from "../../../lib/datetime";
 
 interface SectionManagerProps {
   scope: string;
@@ -169,11 +170,12 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
     setError(null);
     try {
       const saved = await storefrontApi.upsertSection(activeType, {
-        title: draft.title.trim() || null,
-        subtitle: draft.subtitle.trim() || null,
+        // Giờ vàng: tiêu đề / lịch lấy theo chiến dịch Flash Sale, không lưu riêng để tránh mâu thuẫn
+        title: isFlashSale ? null : draft.title.trim() || null,
+        subtitle: isFlashSale ? null : draft.subtitle.trim() || null,
         is_active: draft.is_active,
-        start_at,
-        end_at,
+        start_at: isFlashSale ? null : start_at,
+        end_at: isFlashSale ? null : end_at,
         branch_id: scope,
         // Giờ vàng không lưu sản phẩm ở đây: danh sách món do chiến dịch Flash Sale quyết định
         items: isFlashSale ? [] : draft.items.map((i) => ({ product_id: i.product.id, note: i.note.trim() || null })),
@@ -239,7 +241,7 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
               {current
                 ? "Phạm vi này đã có cấu hình riêng."
                 : isFlashSale
-                ? "Chưa cấu hình: dùng tên chiến dịch Flash Sale làm tiêu đề."
+                ? "Tiêu đề khối luôn là tên chiến dịch Giờ Vàng đang chạy / sắp chạy."
                 : isGlobalScope
                 ? "Chưa cấu hình: trang chủ đang tự chọn sản phẩm theo mặc định."
                 : "Chưa cấu hình: chi nhánh đang dùng cấu hình toàn chuỗi (hoặc mặc định)."}
@@ -258,6 +260,7 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
 
         <div className="grid grid-cols-1 xl:grid-cols-5 gap-5 items-start">
         <div className="xl:col-span-3 space-y-5 min-w-0">
+        {!isFlashSale && (
         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
           <div className="space-y-1">
             <label className="text-xs font-semibold text-foreground">Tiêu đề khối (để trống dùng tiêu đề mặc định)</label>
@@ -281,10 +284,11 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
             nếu không sẽ tự gợi ý sản phẩm mặc định.
           </p>
         </div>
+        )}
 
         <label className="flex items-center gap-2 text-xs font-semibold text-foreground cursor-pointer">
           <input type="checkbox" checked={draft.is_active} onChange={(e) => setDraft({ ...draft, is_active: e.target.checked })} className="w-4 h-4 accent-primary" />
-          Bật khối này
+          {isFlashSale ? "Hiển thị khối Giờ vàng trên trang chủ" : "Bật khối này"}
         </label>
 
         {isFlashSale ? (
@@ -296,8 +300,9 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
               <div className="space-y-1 min-w-0">
                 <p className="text-xs font-bold text-foreground">Sản phẩm và mức giảm lấy từ chiến dịch Flash Sale</p>
                 <p className="text-[11px] text-muted leading-relaxed">
-                  Khối này chỉ chỉnh tiêu đề, mô tả và lịch hiển thị. Danh sách món, giá sale và kiểu giảm
-                  (theo % hoặc tiền mặt) được cấu hình ở trang Quản lý Giờ Vàng để giá hiển thị luôn khớp giá khi đặt hàng.
+                  Tiêu đề khối chính là <strong>Tên chiến dịch</strong>, còn khung giờ, danh sách món, giá sale và kiểu
+                  giảm (% / tiền mặt) đều lấy từ trang Quản lý Giờ Vàng, nên không bị lệch giữa hai nơi. Ở đây chỉ bật / tắt
+                  việc hiển thị khối trên trang chủ.
                 </p>
               </div>
             </div>
@@ -306,7 +311,8 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
                 <span>
                   {flashSaleData?.status === "UPCOMING" ? "Sắp diễn ra" : "Đang diễn ra"}:{" "}
                   <strong>{flashCampaign.name}</strong> · {flashCampaign.items?.length || 0} món ·{" "}
-                  {flashCampaign.start_time?.slice(0, 5)} – {flashCampaign.end_time?.slice(0, 5)}
+                  {flashSaleData?.startDateTime ? formatDateTimeVN(flashSaleData.startDateTime) : flashCampaign.start_time?.slice(0, 5)} →{" "}
+                  {flashSaleData?.endDateTime ? formatDateTimeVN(flashSaleData.endDateTime) : flashCampaign.end_time?.slice(0, 5)}
                 </span>
               ) : (
                 <span className="text-muted">Hiện chưa có chiến dịch nào đang chạy, khối sẽ tự ẩn trên trang chủ.</span>
@@ -424,8 +430,8 @@ export function SectionManager({ scope, isGlobalScope, onNotify }: SectionManage
           <p className="text-xs font-semibold text-foreground">Xem trước trên trang chủ</p>
           <SectionLivePreview
             type={activeType}
-            title={draft.title}
-            subtitle={draft.subtitle}
+            title={isFlashSale ? flashCampaign?.name || "" : draft.title}
+            subtitle={isFlashSale ? "" : draft.subtitle}
             items={isFlashSale ? flashPreviewItems : draft.items}
             enabled={draft.is_active}
           />
