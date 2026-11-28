@@ -28,6 +28,7 @@ import { productApi } from "../../../api/productApi";
 import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
+import { NumberInput } from "../../../components/ui/NumberInput";
 import { Card } from "../../../components/ui/Card";
 
 interface ItemRow {
@@ -39,9 +40,9 @@ interface ItemRow {
   /** Giảm theo % hay trừ thẳng tiền mặt */
   discount_type: FlashSaleDiscountType;
   /** Số % (PERCENT) hoặc số tiền VNĐ (FIXED_AMOUNT) */
-  discount_value: number;
-  quantity_limit: number;
-  max_per_user: number;
+  discount_value: number | null;
+  quantity_limit: number | null;
+  max_per_user: number | null;
 }
 
 /** Tính lại giá sale và % hiển thị từ kiểu giảm + mức giảm. */
@@ -300,8 +301,17 @@ export function AdminFlashSaleListPage() {
         setFormError(`Giá sale dòng ${i + 1} phải lớn hơn 0đ và nhỏ hơn giá gốc`);
         return;
       }
-      if (items[i].discount_type === "PERCENT" && (items[i].discount_value < 1 || items[i].discount_value > 99)) {
+      const dv = Number(items[i].discount_value) || 0;
+      if (items[i].discount_type === "PERCENT" && (dv < 1 || dv > 99)) {
         setFormError(`Mức giảm % dòng ${i + 1} phải từ 1 đến 99`);
+        return;
+      }
+      if (!items[i].quantity_limit || items[i].quantity_limit! < 1) {
+        setFormError(`Vui lòng nhập số suất mở bán (lớn hơn 0) cho dòng ${i + 1}`);
+        return;
+      }
+      if (!items[i].max_per_user || items[i].max_per_user! < 1) {
+        setFormError(`Vui lòng nhập số suất tối đa / khách (lớn hơn 0) cho dòng ${i + 1}`);
         return;
       }
     }
@@ -895,13 +905,11 @@ export function AdminFlashSaleListPage() {
 
                           <div className="space-y-1">
                             <label className="text-[11px] font-bold text-foreground">Giá Gốc Niêm Yết (đ)</label>
-                            <Input
-                              type="number"
-                              min={0}
+                            <NumberInput
+                              thousandSeparator
                               value={row.original_price}
-                              onChange={(e) => handleUpdateItem(idx, { original_price: Number(e.target.value) })}
+                              onValueChange={(v) => handleUpdateItem(idx, { original_price: v ?? 0 })}
                               className="rounded-xl text-xs h-9 font-mono"
-                              required
                             />
                           </div>
 
@@ -934,21 +942,15 @@ export function AdminFlashSaleListPage() {
                                 ))}
                               </div>
                             </div>
-                            <div className="relative">
-                              <Input
-                                type="number"
-                                min={0}
-                                max={row.discount_type === "PERCENT" ? 99 : Math.max(0, row.original_price - 1)}
-                                step={row.discount_type === "PERCENT" ? 1 : 500}
-                                value={row.discount_value}
-                                onChange={(e) => handleUpdateItem(idx, { discount_value: Number(e.target.value) })}
-                                className="rounded-xl text-xs h-9 font-mono font-bold text-accent pr-9"
-                                aria-label={row.discount_type === "PERCENT" ? "Phần trăm giảm" : "Số tiền giảm (đ)"}
-                              />
-                              <span className="pointer-events-none absolute right-3 top-1/2 -translate-y-1/2 text-[11px] font-bold text-muted">
-                                {row.discount_type === "PERCENT" ? "%" : "đ"}
-                              </span>
-                            </div>
+                            <NumberInput
+                              thousandSeparator={row.discount_type === "FIXED_AMOUNT"}
+                              maxDigits={row.discount_type === "PERCENT" ? 2 : 9}
+                              value={row.discount_value}
+                              onValueChange={(v) => handleUpdateItem(idx, { discount_value: v })}
+                              suffix={row.discount_type === "PERCENT" ? "%" : "đ"}
+                              className="rounded-xl text-xs h-9 font-mono font-bold text-accent"
+                              aria-label={row.discount_type === "PERCENT" ? "Phần trăm giảm" : "Số tiền giảm (đ)"}
+                            />
                             <p className="text-[10px] text-muted">
                               {row.discount_type === "PERCENT"
                                 ? `≈ giảm ${formatVND(Math.max(0, row.original_price - row.sale_price))}`
@@ -958,37 +960,31 @@ export function AdminFlashSaleListPage() {
 
                           <div className="space-y-1">
                             <label className="text-[11px] font-bold text-foreground">Giá Sale Ưu Đãi (đ)</label>
-                            <Input
-                              type="number"
-                              min={0}
+                            <NumberInput
+                              thousandSeparator
                               value={row.sale_price}
-                              onChange={(e) => handleUpdateItem(idx, { sale_price: Number(e.target.value) })}
+                              onValueChange={(v) => handleUpdateItem(idx, { sale_price: v ?? 0 })}
                               className="rounded-xl text-xs h-9 font-mono font-bold text-danger-dark"
-                              required
                             />
                           </div>
 
                           <div className="space-y-1">
                             <label className="text-[11px] font-bold text-foreground">Số Suất Mở Bán</label>
-                            <Input
-                              type="number"
-                              min={1}
+                            <NumberInput
+                              maxDigits={6}
                               value={row.quantity_limit}
-                              onChange={(e) => handleUpdateItem(idx, { quantity_limit: Number(e.target.value) })}
+                              onValueChange={(v) => handleUpdateItem(idx, { quantity_limit: v })}
                               className="rounded-xl text-xs h-9 font-mono"
-                              required
                             />
                           </div>
 
                           <div className="space-y-1">
                             <label className="text-[11px] font-bold text-foreground">Tối Đa / Khách Hàng</label>
-                            <Input
-                              type="number"
-                              min={1}
+                            <NumberInput
+                              maxDigits={6}
                               value={row.max_per_user}
-                              onChange={(e) => handleUpdateItem(idx, { max_per_user: Number(e.target.value) })}
+                              onValueChange={(v) => handleUpdateItem(idx, { max_per_user: v })}
                               className="rounded-xl text-xs h-9 font-mono"
-                              required
                             />
                           </div>
                         </div>
