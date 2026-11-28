@@ -4,6 +4,7 @@ import { Combo } from "../../../api/comboApi";
 import { Product } from "../../../types/product";
 import { Button } from "../../../components/ui/Button";
 import { ProductImage } from "../../../components/ui/ProductImage";
+import { resolveAssetUrl } from "../../../lib/assetUrl";
 
 interface ComboCardProps {
   combo: Combo;
@@ -21,7 +22,8 @@ export function resolveComboMetrics(
   const resolvedItems = (combo.items || []).map((ci) => {
     const found = products.find((p) => p.id === ci.product_id);
     const unitPrice = Number(found?.price ?? ci.original_price ?? 0);
-    const stock = stockMap.get(ci.product_id) ?? found?.stock ?? 50;
+    // Chi nhánh không có dòng tồn kho cho món này nghĩa là hết hàng (không còn giả định 50 cái).
+    const stock = stockMap.get(ci.product_id) ?? (stockMap.size > 0 ? 0 : (found?.stock ?? 0));
     const requiredQty = Math.max(1, Number(ci.quantity) || 1);
     return {
       ...ci,
@@ -124,7 +126,7 @@ export function ComboCard({
         <div className="relative py-5 my-2 bg-gradient-to-b from-surface-soft/60 via-primary-tint/20 to-surface-soft/60 rounded-3xl border border-border/60 p-4">
           <div className="w-14 h-14 rounded-2xl bg-white shadow-md border-2 border-primary/30 mx-auto flex flex-col items-center justify-center text-primary relative z-10 overflow-hidden">
             {combo.image_url ? (
-              <img src={combo.image_url} alt={combo.name} className="w-full h-full object-cover" />
+              <img src={resolveAssetUrl(combo.image_url)} alt={combo.name} className="w-full h-full object-cover" />
             ) : (
               <>
                 <Package className="w-6 h-6 stroke-[2.2]" />
@@ -190,9 +192,13 @@ export function ComboCard({
           <div className="mt-4 p-2.5 rounded-2xl bg-danger-pastel/70 border border-danger/30 text-danger-dark text-xs flex items-center gap-2">
             <AlertCircle className="w-4 h-4 shrink-0 text-danger" />
             <span>
-              Tạm hết món:{" "}
-              <strong>{outOfStockItems.map((i) => i.name).join(", ")}</strong> tại{" "}
-              {branchName || "chi nhánh này"}
+              Combo này tạm hết tại {branchName || "chi nhánh này"} vì không đủ món:{" "}
+              <strong>
+                {outOfStockItems
+                  .map((i) => (i.stock > 0 ? `${i.name} (còn ${i.stock}, cần ${i.requiredQty})` : `${i.name} (hết hàng)`))
+                  .join(", ")}
+              </strong>
+              . Các combo khác vẫn mua được bình thường.
             </span>
           </div>
         )}
