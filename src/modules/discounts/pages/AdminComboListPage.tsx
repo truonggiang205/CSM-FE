@@ -30,6 +30,7 @@ import { branchApi } from "../../../api/branchApi";
 import { inventoryApi } from "../../../api/inventoryApi";
 import { resolveAssetUrl } from "../../../lib/assetUrl";
 import { NumberInput } from "../../../components/ui/NumberInput";
+import { Pagination, paginate } from "../../../components/ui/Pagination";
 import { FieldError, FormErrorSummary, invalidClass } from "../../../components/ui/FieldError";
 import { formatDateTimeVN, toDateTimeLocalValue } from "../../../lib/datetime";
 
@@ -74,7 +75,18 @@ export function AdminComboListPage() {
   const [availableProducts, setAvailableProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [statusFilter, setStatusFilterRaw] = useState<"ALL" | "ACTIVE" | "INACTIVE">("ALL");
+  const [page, setPage] = useState(1);
+  const [pageSize, setPageSizeRaw] = useState(6);
+  // Đổi tìm kiếm / bộ lọc / số dòng thì quay về trang 1
+  const setStatusFilter = (v: "ALL" | "ACTIVE" | "INACTIVE") => {
+    setStatusFilterRaw(v);
+    setPage(1);
+  };
+  const setPageSize = (v: number) => {
+    setPageSizeRaw(v);
+    setPage(1);
+  };
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingComboId, setEditingComboId] = useState<string | null>(null);
@@ -509,7 +521,10 @@ export function AdminComboListPage() {
           <Input
             placeholder="Tìm theo tên combo..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setPage(1);
+            }}
             className="pl-10 rounded-xl bg-surface-soft text-xs"
           />
         </div>
@@ -546,8 +561,9 @@ export function AdminComboListPage() {
           <p className="text-xs text-muted">Nhấn "+ Tạo Combo Mới" để thiết lập gói combo đầu tiên.</p>
         </Card>
       ) : (
+        <div className="space-y-4">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {filteredCombos.map((combo) => {
+          {paginate(filteredCombos, page, pageSize).map((combo) => {
             const orig = Number(combo.original_price) || 0;
             const price = Number(combo.combo_price) || 0;
             const save = Math.max(0, orig - price);
@@ -671,6 +687,16 @@ export function AdminComboListPage() {
               </Card>
             );
           })}
+        </div>
+        <Pagination
+          page={page}
+          pageSize={pageSize}
+          total={filteredCombos.length}
+          onPageChange={setPage}
+          onPageSizeChange={setPageSize}
+          pageSizeOptions={[6, 12, 24, 48]}
+          unit="combo"
+        />
         </div>
       )}
 

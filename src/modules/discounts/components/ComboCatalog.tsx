@@ -10,6 +10,9 @@ import { useCartToastStore } from "../../../store/useCartToastStore";
 import { Button } from "../../../components/ui/Button";
 import { Input } from "../../../components/ui/Input";
 import { ComboCard, resolveComboMetrics } from "./ComboCard";
+import { Pagination, paginate } from "../../../components/ui/Pagination";
+
+const PAGE_SIZE = 6;
 
 interface ComboCatalogProps {
   showSearchBar?: boolean;
@@ -21,6 +24,7 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
   const { showToast } = useCartToastStore();
 
   const [searchQuery, setSearchQuery] = useState("");
+  const [page, setPage] = useState(1);
 
   const { data: combos = [], isLoading: isLoadingCombos } = useQuery({
     queryKey: ["public-combos"],
@@ -94,7 +98,10 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
             <Input
               placeholder="Tìm combo hoặc món trong combo (vd: cà phê, bánh mì, mì ly)..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={(e) => {
+                setSearchQuery(e.target.value);
+                setPage(1);
+              }}
               className="pl-10 rounded-2xl bg-surface text-xs"
             />
           </div>
@@ -126,8 +133,9 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
           )}
         </div>
       ) : (
+        <div className="space-y-6">
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6 sm:gap-8">
-          {filteredCombos.map((combo) => (
+          {paginate(filteredCombos, page, PAGE_SIZE).map((combo) => (
             <ComboCard
               key={combo.id}
               combo={combo}
@@ -137,6 +145,17 @@ export function ComboCatalog({ showSearchBar = true }: ComboCatalogProps) {
               onBuyCombo={handleBuyCombo}
             />
           ))}
+        </div>
+        <Pagination
+          page={page}
+          pageSize={PAGE_SIZE}
+          total={filteredCombos.length}
+          onPageChange={(p) => {
+            setPage(p);
+            window.scrollTo({ top: 0, behavior: "smooth" });
+          }}
+          unit="combo"
+        />
         </div>
       )}
     </div>
