@@ -4,7 +4,6 @@ import {
   X,
   Trash2,
   Plus,
-  Minus,
   ShoppingBag,
   Truck,
   Sparkles,
@@ -14,8 +13,6 @@ import { useNavigate } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
-import { useBranchStore } from "../../../store/useBranchStore";
-import { inventoryApi } from "../../../api/inventoryApi";
 import { AlertTriangle } from "lucide-react";
 import { productApi } from "../../../api/productApi";
 import { Product } from "../../../types/product";
@@ -24,6 +21,8 @@ import { ProductImage } from "../../../components/ui/ProductImage";
 import { PromoBannerStrip } from "../../../components/storefront/PromoBannerStrip";
 import { AnimatedNumber } from "../../../components/ui/AnimatedNumber";
 import { getCartRecommendations } from "../utils/cartRecommendations";
+import { useCartLimits } from "../../../hooks/useCartLimits";
+import { QuantityStepper } from "./QuantityStepper";
 
 const FREESHIP_THRESHOLD = 150000; // 150.000₫ để được freeship
 
@@ -35,9 +34,9 @@ export function CartDrawer() {
     updateQuantity,
     removeItem,
     addItem,
-    getTotalPrice,
     clearCart,
   } = useCartStore();
+  const { limits, totalPrice, hasStockProblem } = useCartLimits();
 
   const { showToast } = useCartToastStore();
   const navigate = useNavigate();
@@ -61,20 +60,6 @@ export function CartDrawer() {
     queryFn: productApi.getProducts,
   });
 
-  const { selectedBranch } = useBranchStore();
-  const { data: branchInventory = [] } = useQuery({
-    queryKey: ["inventory", "branch", selectedBranch?.id],
-    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
-    enabled: !!selectedBranch?.id,
-  });
-
-  const stockMap = useMemo(() => {
-    const map = new Map<string, number>();
-    branchInventory.forEach((item) => {
-      map.set(item.product_id, item.available ?? (item.quantity - item.reserved_quantity));
-    });
-    return map;
-  }, [branchInventory]);
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -83,7 +68,6 @@ export function CartDrawer() {
     }).format(amount);
   };
 
-  const totalPrice = getTotalPrice();
   const remainingForFreeship = Math.max(0, FREESHIP_THRESHOLD - totalPrice);
   const freeshipProgress = Math.min(100, Math.round((totalPrice / FREESHIP_THRESHOLD) * 100));
   const isFreeshipEligible = totalPrice >= FREESHIP_THRESHOLD;
@@ -269,7 +253,7 @@ export function CartDrawer() {
                             )}
                             <div className="flex items-center gap-2 mt-1">
                               <span className="text-primary-dark font-black text-xs sm:text-sm">
-                                {formatCurrency(item.product.discountPrice || item.product.price)}
+                                {formatCurrency(limits[item.product.id]?.lineTotal ?? (item.product.discountPrice || item.product.price) * item.quantity)}
                               </span>
                               {item.itemType === "COMBO" && item.product.price > (item.product.discountPrice || item.product.price) && (
                                 <span className="text-[10px] text-muted line-through">
@@ -279,31 +263,26 @@ export function CartDrawer() {
                             </div>
                           </div>
 
+                          {limits[item.product.id]?.note && (
+                            <p className="mt-1 text-[10px] font-semibold text-amber-700">{limits[item.product.id]?.note}</p>
+                          )}
+                          {limits[item.product.id]?.overStock && (
+                            <p className="mt-1 text-[10px] font-bold text-danger-dark">
+                              {limits[item.product.id]?.maxQty === 0
+                                ? "Hết hàng tại chi nhánh này, vui lòng xoá khỏi giỏ."
+                                : `Chi nhánh chỉ còn đủ cho ${limits[item.product.id]?.maxQty} phần.`}
+                            </p>
+                          )}
+
                           {/* Controls: Quantity + Remove button */}
                           <div className="flex items-center justify-between mt-2 pt-2 border-t border-border/40">
-                            <div className="flex items-center bg-surface border border-border rounded-xl p-0.5 shadow-xs">
-                              <button
-                                type="button"
-                                className="p-2 sm:p-1 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface-soft disabled:opacity-30 transition-all cursor-pointer"
-                                onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                                disabled={item.quantity <= 1}
-                                aria-label={`Giảm số lượng ${item.product.name}`}
-                              >
-                                <Minus className="w-3.5 h-3.5" />
-                              </button>
-                              <span className="w-8 text-center text-xs font-bold text-foreground font-mono">
-                                {item.quantity}
-                              </span>
-                              <button
-                                type="button"
-                                className="p-2 sm:p-1 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface-soft disabled:opacity-30 transition-all cursor-pointer"
-                                onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                                disabled={item.quantity >= item.product.stock}
-                                aria-label={`Tăng số lượng ${item.product.name}`}
-                              >
-                                <Plus className="w-3.5 h-3.5" />
-                              </button>
-                            </div>
+                            <QuantityStepper
+                              size="sm"
+                              value={item.quantity}
+                              max={Math.max(item.quantity, limits[item.product.id]?.maxQty ?? 99)}
+                              onChange={(q) => updateQuantity(item.product.id, q)}
+                              label={item.product.name}
+                            />
 
                             <button
                               type="button"
@@ -424,6 +403,8 @@ export function CartDrawer() {
                     </Button>
                     <Button
                       onClick={handleCheckoutClick}
+                      disabled={hasStockProblem}
+                      title={hasStockProblem ? "Có món vượt tồn kho chi nhánh, vui lòng giảm số lượng" : undefined}
                       className="rounded-2xl text-xs sm:text-sm font-extrabold h-11 gap-1.5 shadow-sm cursor-pointer"
                     >
                       <span>Thanh toán</span>

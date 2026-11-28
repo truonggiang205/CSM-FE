@@ -3,7 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { useQuery } from "@tanstack/react-query";
 import { Zap, Clock, ShoppingCart, Flame, RefreshCw, Layers } from "lucide-react";
 import { flashSaleApi, TodayDealsResponse, TodayDealItem, formatFlashSaleDiscount } from "../../../api/flashSaleApi";
-import { comboApi } from "../../../api/comboApi";
+import { inventoryApi } from "../../../api/inventoryApi";
+import { formatDateTimeVN } from "../../../lib/datetime";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
 import { useBranchStore } from "../../../store/useBranchStore";
@@ -16,7 +17,7 @@ export function DealsPage() {
   const initialTab = searchParams.get("tab") === "combo" ? "combo" : "flash-sale";
   const [activeTab, setActiveTab] = useState<"flash-sale" | "combo">(initialTab);
 
-  const { addItem, items: cartItems } = useCartStore();
+  const { addItem } = useCartStore();
   const { showToast } = useCartToastStore();
   const { selectedBranch } = useBranchStore();
 
@@ -125,22 +126,24 @@ export function DealsPage() {
     return () => clearInterval(timer);
   }, [isLiveCampaign, data.flashSale.targetTime]);
 
-  // Combo count for Tab 2 badge
-  const { data: combos = [] } = useQuery({
-    queryKey: ["public-combos"],
-    queryFn: comboApi.getPublicCombos,
-    refetchInterval: 30000,
+  // Tồn kho của chi nhánh khách đang chọn: còn suất Giờ Vàng nhưng chi nhánh hết hàng thì không cho đặt
+  const { data: branchInventory, isSuccess: branchStockLoaded } = useQuery({
+    queryKey: ["inventory", "branch", selectedBranch?.id],
+    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
+    enabled: !!selectedBranch?.id,
+    staleTime: 15_000,
   });
+  const branchStock = useMemo(() => {
+    const map = new Map<string, number>();
+    (branchInventory || []).forEach((row) => {
+      map.set(String(row.product_id), row.available ?? row.quantity - row.reserved_quantity);
+    });
+    return map;
+  }, [branchInventory]);
+
 
   const handleAddToCart = (deal: TodayDealItem) => {
-    const currentInCart = cartItems.find((i) => i.product.id === deal.product_id)?.quantity || 0;
-    const limit = deal.max_per_user || 2;
-
-    if (currentInCart >= limit) {
-      alert(`Mỗi khách hàng chỉ được áp dụng giá ưu đãi tối đa ${limit} suất cho món "${deal.product_name}".`);
-      return;
-    }
-
+    // Vượt giới hạn suất / khách vẫn cho thêm: giỏ hàng ghi rõ phần vượt tính giá gốc (server tính giống hệt)
     addItem(
       {
         id: deal.product_id,
@@ -158,11 +161,36 @@ export function DealsPage() {
     showToast(deal.product_name);
   };
 
-  const activeDeals = useMemo(() => {
+  const activeDeals = useMemo<TodayDealItem[]>(() => {
     if (!isLiveCampaign) return [];
-    const active = data.deals.filter((d) => d.status === "ACTIVE");
-    return active.length > 0 ? active : data.deals;
-  }, [data.deals, isLiveCampaign]);
+    if (data.deals.length > 0) {
+      const active = data.deals.filter((d) => d.status === "ACTIVE");
+      return active.length > 0 ? active : data.deals;
+    }
+    // Server cũ chưa trả món của ca sắp diễn ra: dựng từ thông tin ca để vẫn hiển thị trước
+    const camp = data.flashSale.campaign;
+    if (!camp) return [];
+    return (data.flashSale.items || camp.items || []).map((i, idx) => ({
+      id: i.id || `${camp.id}-${idx}`,
+      product_id: i.product_id,
+      product_name: i.product_name || i.product_id,
+      original_price: Number(i.original_price) || 0,
+      sale_price: Number(i.sale_price) || 0,
+      discount_percentage: Number(i.discount_percentage) || 0,
+      discount_type: i.discount_type,
+      discount_value: Number(i.discount_value) || 0,
+      quantity_limit: Number(i.quantity_limit) || 0,
+      sold_count: Math.min(Number(i.quantity_limit) || 0, Number(i.sold_count) || 0),
+      max_per_user: Number(i.max_per_user) || 0,
+      campaign_id: camp.id,
+      campaign_name: camp.name,
+      start_time: camp.start_time,
+      end_time: camp.end_time,
+      start_date_time: data.flashSale.startDateTime,
+      end_date_time: data.flashSale.endDateTime,
+      status: data.flashSale.status === "UPCOMING" ? "UPCOMING" : "ACTIVE",
+    }));
+  }, [data.deals, data.flashSale, isLiveCampaign]);
 
   const formatVND = (val: number) => {
     return new Intl.NumberFormat("vi-VN", { style: "currency", currency: "VND" }).format(val);
@@ -196,7 +224,7 @@ export function DealsPage() {
               }`}
             >
               <Layers className="w-4 h-4" />
-              <span>Combo Tiết Kiệm ({combos.length})</span>
+              <span>Combo Tiết Kiệm</span>
             </button>
           </div>
 
@@ -258,7 +286,7 @@ export function DealsPage() {
                 <div className="flex items-center gap-2">
                   <Zap className="w-5 h-5 text-accent fill-current" />
                   <h2 className="text-lg sm:text-xl font-black text-foreground tracking-tight">
-                    Sản Phẩm Đang Giảm Giá ({activeDeals.length} món)
+                    {isUpcoming ? "Sản Phẩm Sắp Mở Bán" : "Sản Phẩm Đang Giảm Giá"} ({activeDeals.length} món)
                   </h2>
                 </div>
 
@@ -323,6 +351,8 @@ export function DealsPage() {
                 const isLive = deal.status === "ACTIVE";
                 const remaining = Math.max(0, deal.quantity_limit - deal.sold_count);
                 const isSoldOut = remaining <= 0;
+                const branchQty = branchStock.get(String(deal.product_id));
+                const outOfStockAtBranch = branchStockLoaded && (branchQty === undefined || branchQty <= 0);
 
                 return (
                   <Card
@@ -334,7 +364,9 @@ export function DealsPage() {
                         <span className="text-[11px] font-bold text-muted flex items-center gap-1">
                           <Clock className="w-3.5 h-3.5 text-accent" />
                           <span>
-                            {deal.start_time.slice(0, 5)} - {deal.end_time.slice(0, 5)}
+                            {deal.start_date_time && deal.end_date_time
+                              ? `${formatDateTimeVN(deal.start_date_time)} → ${formatDateTimeVN(deal.end_date_time)}`
+                              : `${deal.start_time.slice(0, 5)} - ${deal.end_time.slice(0, 5)}`}
                           </span>
                         </span>
 
@@ -394,12 +426,20 @@ export function DealsPage() {
                     </div>
 
                     <Button
-                      disabled={!isLive || isSoldOut}
+                      disabled={!isLive || isSoldOut || outOfStockAtBranch}
                       onClick={() => handleAddToCart(deal)}
                       className="w-full rounded-2xl h-10 text-xs font-bold gap-1.5 shadow-sm cursor-pointer"
                     >
                       <ShoppingCart className="w-4 h-4" />
-                      <span>{isSoldOut ? "Đã bán hết" : isLive ? "Thêm vào giỏ ngay" : "Chưa tới giờ mở"}</span>
+                      <span>
+                        {outOfStockAtBranch
+                          ? `Hết hàng tại ${selectedBranch?.name || "chi nhánh này"}`
+                          : isSoldOut
+                            ? "Đã bán hết"
+                            : isLive
+                              ? "Thêm vào giỏ ngay"
+                              : "Chưa tới giờ mở"}
+                      </span>
                     </Button>
                   </Card>
                 );

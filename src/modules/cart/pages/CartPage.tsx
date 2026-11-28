@@ -5,7 +5,6 @@ import {
   ShoppingBag,
   Trash2,
   Plus,
-  Minus,
   ArrowRight,
   ArrowLeft,
   Truck,
@@ -17,8 +16,6 @@ import {
 import { useQuery } from "@tanstack/react-query";
 import { useCartStore } from "../../../store/useCartStore";
 import { useCartToastStore } from "../../../store/useCartToastStore";
-import { useBranchStore } from "../../../store/useBranchStore";
-import { inventoryApi } from "../../../api/inventoryApi";
 import { AlertTriangle } from "lucide-react";
 import { productApi } from "../../../api/productApi";
 import { Button } from "../../../components/ui/Button";
@@ -26,12 +23,14 @@ import { ProductImage } from "../../../components/ui/ProductImage";
 import { AnimatedNumber } from "../../../components/ui/AnimatedNumber";
 import { PromoBannerStrip } from "../../../components/storefront/PromoBannerStrip";
 import { getCartRecommendations } from "../utils/cartRecommendations";
+import { useCartLimits } from "../../../hooks/useCartLimits";
+import { QuantityStepper } from "../components/QuantityStepper";
 
 const FREESHIP_THRESHOLD = 150000;
 
 export function CartPage() {
-  const { items, updateQuantity, removeItem, addItem, getTotalPrice, clearCart } =
-    useCartStore();
+  const { items, updateQuantity, removeItem, addItem, clearCart } = useCartStore();
+  const { limits, totalPrice, stockMap: sharedStockMap, hasStockProblem } = useCartLimits();
   const { showToast } = useCartToastStore();
   const navigate = useNavigate();
   const shouldReduceMotion = useReducedMotion();
@@ -41,20 +40,7 @@ export function CartPage() {
     queryFn: productApi.getProducts,
   });
 
-  const { selectedBranch } = useBranchStore();
-  const { data: branchInventory = [] } = useQuery({
-    queryKey: ["inventory", "branch", selectedBranch?.id],
-    queryFn: () => inventoryApi.getInventoryByBranch(selectedBranch!.id),
-    enabled: !!selectedBranch?.id,
-  });
-
-  const stockMap = useMemo(() => {
-    const map = new Map<string, number>();
-    branchInventory.forEach((item) => {
-      map.set(item.product_id, item.available ?? (item.quantity - item.reserved_quantity));
-    });
-    return map;
-  }, [branchInventory]);
+  const stockMap = sharedStockMap ?? new Map<string, number>();
 
   const formatCurrency = (amount: number) => {
     return new Intl.NumberFormat("vi-VN", {
@@ -63,7 +49,6 @@ export function CartPage() {
     }).format(amount);
   };
 
-  const totalPrice = getTotalPrice();
   const totalItems = items.reduce((acc, i) => acc + i.quantity, 0);
   const remainingForFreeship = Math.max(0, FREESHIP_THRESHOLD - totalPrice);
   const freeshipProgress = Math.min(100, Math.round((totalPrice / FREESHIP_THRESHOLD) * 100));
@@ -218,8 +203,9 @@ export function CartPage() {
               <div className="divide-y divide-border/60 space-y-3">
                 <AnimatePresence initial={false}>
                   {items.map((item) => {
-                    const price = item.product.discountPrice || item.product.price;
-                    const itemTotal = price * item.quantity;
+                    const limit = limits[item.product.id];
+                    const price = limit?.unitSalePrice ?? item.product.discountPrice ?? item.product.price;
+                    const itemTotal = limit?.lineTotal ?? price * item.quantity;
 
                     return (
                       <motion.div
@@ -283,10 +269,17 @@ export function CartPage() {
                                 </span>
                               )}
                             </div>
-                            {item.itemType !== "COMBO" && stockMap.has(item.product.id) && item.quantity > (stockMap.get(item.product.id) || 0) && (
+                            {limit?.note && (
+                              <p className="text-[11px] font-semibold text-amber-700">{limit.note}</p>
+                            )}
+                            {limit?.overStock && (
                               <div className="mt-1 p-2 rounded-xl bg-danger-pastel border border-danger/30 text-danger-dark text-[11px] font-bold flex items-center gap-1.5 animate-in fade-in">
                                 <AlertTriangle className="w-3.5 h-3.5 shrink-0 text-danger-dark" />
-                                <span>Số lượng ({item.quantity}) vượt tồn kho chi nhánh ({stockMap.get(item.product.id)} món)!</span>
+                                <span>
+                                  {limit.maxQty === 0
+                                    ? "Hết hàng tại chi nhánh này (hoặc đã dùng hết cho món khác trong giỏ)."
+                                    : `Số lượng (${item.quantity}) vượt tồn kho chi nhánh, chỉ còn đủ cho ${limit.maxQty} phần.`}
+                                </span>
                               </div>
                             )}
                           </div>
@@ -295,28 +288,12 @@ export function CartPage() {
                         {/* Controls + Subtotal */}
                         <div className="flex items-center justify-between sm:justify-end gap-5 w-full sm:w-auto pt-2 sm:pt-0 border-t sm:border-t-0 border-border/40">
                           {/* Quantity Controls */}
-                          <div className="flex items-center bg-surface-soft border border-border rounded-xl p-0.5 shadow-2xs">
-                            <button
-                              type="button"
-                              className="p-2 sm:p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface disabled:opacity-30 transition-all cursor-pointer"
-                              onClick={() => updateQuantity(item.product.id, item.quantity - 1)}
-                              disabled={item.quantity <= 1}
-                              aria-label={`Giảm số lượng ${item.product.name}`}
-                            >
-                              <Minus className="w-3.5 h-3.5" />
-                            </button>
-                            <span className="w-8 text-center text-xs font-extrabold text-foreground font-mono">
-                              {item.quantity}
-                            </span>
-                            <button
-                              type="button"
-                              className="p-2 sm:p-1.5 min-h-[36px] min-w-[36px] flex items-center justify-center rounded-lg text-muted hover:text-foreground hover:bg-surface transition-all cursor-pointer"
-                              onClick={() => updateQuantity(item.product.id, item.quantity + 1)}
-                              aria-label={`Tăng số lượng ${item.product.name}`}
-                            >
-                              <Plus className="w-3.5 h-3.5" />
-                            </button>
-                          </div>
+                          <QuantityStepper
+                            value={item.quantity}
+                            max={Math.max(item.quantity, limit?.maxQty ?? 99)}
+                            onChange={(q) => updateQuantity(item.product.id, q)}
+                            label={item.product.name}
+                          />
 
                           {/* Item Subtotal */}
                           <div className="text-right min-w-[90px]">
@@ -473,8 +450,14 @@ export function CartPage() {
 
               {/* Checkout Action Button */}
               <div className="space-y-2.5 pt-2">
+                {hasStockProblem && (
+                  <p className="text-[11px] font-semibold text-danger-dark text-center">
+                    Có món vượt tồn kho chi nhánh, vui lòng giảm số lượng trước khi thanh toán.
+                  </p>
+                )}
                 <Button
                   onClick={handleCheckout}
+                  disabled={hasStockProblem}
                   size="lg"
                   className="w-full rounded-2xl h-12 text-sm sm:text-base font-extrabold shadow-sm gap-2 cursor-pointer"
                 >
